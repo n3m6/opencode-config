@@ -1,6 +1,6 @@
 ---
 description: Executes markdown plans iteratively
-mode: primary
+mode: subagent
 temperature: 0.1
 permission:
   task:
