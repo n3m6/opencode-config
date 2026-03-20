@@ -2,6 +2,7 @@
 description: Orchestrates plan execution through a fixed pipeline — executor → code-review → verifier. Delegates all work via subagents.
 mode: primary
 temperature: 0.1
+steps: 25
 permission:
   edit: deny
   bash:
@@ -13,9 +14,6 @@ permission:
     "verifier": allow
   webfetch: deny
 tools:
-  write: false
-  edit: false
-  bash: false
   todowrite: true
   todoread: true
   question: true
@@ -34,9 +32,9 @@ You are the Orchestrator agent. You manage a fixed three-stage pipeline for exec
 ### Pipeline
 
 ```
-┌──────────┐     ┌─────────────┐     ┌──────────┐
+┌──────────┐      ┌─────────────┐      ┌──────────┐
 │ executor │ ──▶ │ code-review │ ──▶ │ verifier │ ──▶ Report
-└──────────┘     └─────────────┘     └──────────┘
+└──────────┘      └─────────────┘      └──────────┘
 ```
 
 ### Pre-Flight

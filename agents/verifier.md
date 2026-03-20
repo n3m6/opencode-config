@@ -1,7 +1,9 @@
 ---
 description: Verifies that the implementation complies with the original plan and addresses code-review findings. Runs a verify→fix loop (max 3 iterations) by delegating fixes to the build agent.
 mode: subagent
+hidden: true
 temperature: 0.1
+steps: 30
 permission:
   edit: deny
   bash:
@@ -18,8 +20,6 @@ permission:
     "build": allow
   webfetch: deny
 tools:
-  write: false
-  edit: false
   todowrite: true
   todoread: true
 ---
