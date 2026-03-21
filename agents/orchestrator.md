@@ -70,7 +70,7 @@ You are the Orchestrator agent. You manage a fixed six-stage pipeline for execut
    Stage 5 — Code refactor loop via @code-refactor-loop
    Stage 6 — Verify via @verifier
    ```
-5. Store the full plan content — you will pass it to every stage.
+5. Store the full plan content — you will pass it to Stages 1 and 2. After Stage 2 produces the Plan Summary, use the Plan Summary (not the full plan) for all downstream stages.
 6. Proceed immediately to **Stage 1**.
 
 ### Stage 1 — Analyze Plan
@@ -127,9 +127,6 @@ When `executor` completes:
 Invoke `code-review-loop` via the `task` tool:
 
 ```
-=== PLAN ===
-[insert the full markdown plan]
-
 === PLAN SUMMARY ===
 [insert the Plan Summary]
 
@@ -158,9 +155,6 @@ When `code-review-loop` completes:
 Invoke `test-coverage-filler` via the `task` tool:
 
 ```
-=== PLAN ===
-[insert the full markdown plan]
-
 === PLAN SUMMARY ===
 [insert the Plan Summary]
 
@@ -188,9 +182,6 @@ When `test-coverage-filler` completes:
 Invoke `code-refactor-loop` via the `task` tool:
 
 ```
-=== PLAN ===
-[insert the full markdown plan]
-
 === PLAN SUMMARY ===
 [insert the Plan Summary]
 
@@ -220,23 +211,25 @@ When `code-refactor-loop` completes:
 Invoke `verifier` via the `task` tool:
 
 ```
-=== PLAN ===
-[insert the full markdown plan]
+=== PLAN SUMMARY ===
+[insert the Plan Summary]
 
 === EXECUTION MANIFEST ===
 [insert the Cumulative Execution Manifest — includes all files from execution, code review, and refactoring]
 
-=== CODE REVIEW MANIFEST ===
-[insert the full Code Review Manifest returned by code-review-loop]
+=== CRITICAL REVIEW FINDINGS ===
+[extract only CRITICAL-severity rows from the Code Review Manifest (with their #, File, Lines, Issue, Status columns).
+If no CRITICAL findings exist, insert: "No CRITICAL findings."]
 
-=== CODE REFACTOR MANIFEST ===
-[insert the full Code Refactor Manifest returned by code-refactor-loop]
+=== CRITICAL REFACTOR FINDINGS ===
+[extract only CRITICAL-severity rows from the Code Refactor Manifest (with their #, File, Lines, Issue, Status columns).
+If no CRITICAL findings exist, insert: "No CRITICAL findings."]
 
 === INSTRUCTIONS ===
 Verify plan compliance and ensure build/lint/test pass.
 Run the full build, lint, and test suite. Check every plan requirement against the codebase.
-Additionally, verify that all CRITICAL findings marked as ✅ Fixed in the Code Review Manifest
-and Code Refactor Manifest are actually resolved in the current code.
+Additionally, verify that all CRITICAL findings marked as ✅ Fixed in the review and refactor
+findings above are actually resolved in the current code.
 Run up to 3 verify→fix iterations. Return a Verification Report including:
 - Build/Lint/Test results table
 - Plan Compliance table
