@@ -33,7 +33,9 @@ You use **todo items** to track every issue across iterations. This gives you a 
 You will receive:
 
 1. **The original plan** — the source of truth for what should have been implemented
-2. **The Execution Manifest** — a structured table of what was built, which files were changed/created, and per-task status
+2. **The Execution Manifest** — a structured table of what was built, which files were changed/created, and per-task status (may include appended file changes from review and refactoring stages)
+3. **The Code Review Manifest** — findings from the code review loop with per-finding status (✅ Fixed / ❌ Unresolved / ⏭ Skipped)
+4. **The Code Refactor Manifest** — findings from the refactoring loop with per-finding status
 
 ### Pre-Verification Audit
 
@@ -85,6 +87,23 @@ Files: [relevant file paths]
 
 Mark all todo items as **pending**. Use `todoread` to confirm the list was created correctly.
 
+#### Audit 3 — CRITICAL Findings Resolution
+
+Verify that CRITICAL findings reported as fixed in the Code Review Manifest and Code Refactor Manifest were actually resolved:
+
+1. **For each CRITICAL finding marked `✅ Fixed`** in either manifest:
+   - Read the cited file and inspect the line range mentioned in the finding.
+   - Confirm the fix is present and addresses the reported issue.
+   - If the fix is **NOT present** (regression or false resolution), create a todo item:
+     ```
+     [CRITICAL-REGRESSION] #N — [source: Review/Refactor] [file] (lines X–Y)
+     Issue: [original issue description]
+     Status: Reported as fixed but fix not found in current code
+     ```
+
+2. **For each CRITICAL finding marked `❌ Unresolved`**:
+   - Note it for inclusion in the final report as a known unresolved CRITICAL.
+
 ### The Verify→Fix Loop
 
 Execute this loop up to **3 iterations**. Each iteration uses the todo list as the single source of truth.
@@ -107,7 +126,7 @@ Run `todoread` again:
 - If **pending items remain** and iterations left → proceed to Step 3.
 - If **pending items remain** and this is iteration 3 → proceed to the **Final Report** with status **PARTIAL** or **FAIL**.
 
-Use **FAIL** if any `[BUILD]` item (build/lint/test) is still pending. Use **PARTIAL** if only `[PLAN]` items remain.
+Use **FAIL** if any `[BUILD]` item (build/lint/test) is still pending or any `[CRITICAL-REGRESSION]` item is unresolved. Use **PARTIAL** if only `[PLAN]` items remain.
 
 #### Step 3 — Fix
 
@@ -182,6 +201,16 @@ After the loop ends, run `todoread` one final time and output a Verification Rep
 |---|-------------|--------|-------|
 | 1 | [requirement from plan] | ✅ Implemented | Verified in file X |
 | 2 | [requirement from plan] | ❌ Missing | [reason] |
+
+### CRITICAL Findings Verification
+
+| # | Source | File | Issue | Reported Status | Verified Status |
+|---|--------|------|-------|-----------------|-----------------|
+| 1 | Review | path/to/file.ext | [issue] | ✅ Fixed | ✅ Confirmed |
+| 2 | Refactor | path/to/other.ext | [issue] | ✅ Fixed | ❌ Regression |
+| 3 | Review | path/to/third.ext | [issue] | ❌ Unresolved | ❌ Known Unresolved |
+
+If no CRITICAL findings exist in either manifest, output: `No CRITICAL findings to verify.`
 
 ### Summary
 [One paragraph: overall status, what was fixed, what remains, recommendations]

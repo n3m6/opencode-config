@@ -15,6 +15,15 @@ permission:
     "cat *": allow
     "find *": allow
     "wc *": allow
+    "npx *": allow
+    "yarn *": allow
+    "pnpm *": allow
+    "pytest*": allow
+    "python -m pytest*": allow
+    "go test*": allow
+    "cargo tarpaulin*": allow
+    "cargo llvm-cov*": allow
+    "ls *": allow
   task:
     "*": deny
   webfetch: deny
@@ -26,11 +35,28 @@ You are a test coverage analysis agent. You evaluate whether modified and create
 
 You will receive:
 
-1. **The Execution Manifest** — a structured table listing each task's status, files modified, files created, and summary
+1. **A list of files to analyze** — file paths extracted from the Execution Manifest (may be provided as a simple file list or as the full Execution Manifest table)
 
-### Analysis Process
+### Step 0 — Detect and Run Coverage Tool (Best-Effort)
 
-1. **Extract all files** from the Execution Manifest's "Files Modified" and "Files Created" columns.
+Before falling back to heuristic analysis, attempt to use the project's actual coverage tooling:
+
+1. **Detect project type** by checking for configuration files:
+   - `package.json` → try `npx jest --coverage --json` or `npx vitest run --coverage`
+   - `pyproject.toml` / `setup.cfg` / `pytest.ini` → try `pytest --cov --cov-report=json`
+   - `go.mod` → try `go test -coverprofile=coverage.out ./...`
+   - `Cargo.toml` → try `cargo tarpaulin --out json` or `cargo llvm-cov --json`
+
+2. **If a coverage tool is detected**, run it and parse the output:
+   - Extract per-file and per-function coverage percentages
+   - Map coverage data to the files in the input list
+   - Use this data to populate the Coverage column in the output table (TESTED ≥ 80%, PARTIAL 1-79%, UNTESTED 0%)
+
+3. **If no coverage tool is detected, or the tool fails**, proceed to the heuristic **Analysis Process** below. Do not block on tool failures — treat them as a graceful fallback.
+
+### Analysis Process (Heuristic Fallback)
+
+1. **Extract all files** from the input file list (or from the Execution Manifest's "Files Modified" and "Files Created" columns if a full manifest was provided).
 2. **For each file**, read it and identify:
    - Public/exported functions, methods, and classes
    - Key code paths (main logic branches, error handling paths)

@@ -32,6 +32,7 @@ You will receive:
 
 1. **The original plan** that was implemented
 2. **The Execution Manifest** — a structured table listing each task's status, files modified, files created, and summary
+3. **A Plan Summary** — condensed 1-2 paragraph version of the plan (use this when dispatching to lens subagents to reduce context pressure; use the full plan and Execution Manifest for your own Step A and Step E analysis)
 
 ### Review Process
 
@@ -66,17 +67,17 @@ State which lenses you are dispatching and why before proceeding to Step B.
 
 For each selected lens, invoke the corresponding subagent via the `task` tool. **Dispatch all selected lenses in the same turn** (parallel execution).
 
-Use this prompt template for each:
+To reduce context pressure on leaf subagents, pass the **Plan Summary** and a **file list** instead of the full plan and full Execution Manifest:
 
 ```
-=== PLAN ===
-[insert the full plan]
+=== PLAN SUMMARY ===
+[insert the Plan Summary — condensed 1-2 paragraph version]
 
-=== EXECUTION MANIFEST ===
-[insert the full Execution Manifest table]
+=== FILES TO REVIEW ===
+[extract and list all file paths from the Execution Manifest's "Files Modified" and "Files Created" columns, one per line]
 
 === INSTRUCTIONS ===
-Review the code changes described in the Execution Manifest through your lens.
+Review the code in the listed files through your lens.
 Return findings as a structured markdown table with columns: #, Severity, File, Lines, Issue, Recommendation.
 Use severity levels: CRITICAL, SUGGESTION, NIT. Order by severity (CRITICAL first).
 If no issues found, say: "No issues found."

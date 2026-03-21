@@ -37,6 +37,7 @@ You will receive:
 
 1. **The original plan** — describes what was implemented
 2. **The Execution Manifest** — structured table of what was built, which files were changed/created
+3. **A Plan Summary** — condensed 1-2 paragraph version of the plan (for passing to the leaf refactor-review subagent to reduce context pressure)
 
 ### The Refactor→Fix Loop
 
@@ -48,17 +49,17 @@ State: `Iteration N/3`
 
 #### Step 1 — Review
 
-Invoke `@code-refactor-review` via the `task` tool:
+Invoke `@code-refactor-review` via the `task` tool. To reduce context pressure on the leaf reviewer, pass the **Plan Summary** and a **file list** instead of the full plan and full Execution Manifest:
 
 ```
-=== PLAN ===
-[insert the full plan]
+=== PLAN SUMMARY ===
+[insert the Plan Summary — condensed 1-2 paragraph version]
 
-=== EXECUTION MANIFEST ===
-[insert the full Execution Manifest table]
+=== FILES TO REVIEW ===
+[extract and list all file paths from the Execution Manifest's "Files Modified" and "Files Created" columns, one per line]
 
 === INSTRUCTIONS ===
-Review the code changes described in the Execution Manifest for refactoring opportunities.
+Review the code in the listed files for refactoring opportunities.
 Return findings as a structured markdown table with columns: #, Severity, File, Lines, Issue, Recommendation.
 Use severity levels: CRITICAL, SUGGESTION, NIT. Order by severity (CRITICAL first).
 If no issues found, say: "No issues found."
@@ -104,6 +105,8 @@ Issue one `task` call per finding. Prioritize: CRITICAL first, then SUGGESTION.
 
 On iteration 2+, **skip NITs** — mark them as `⏭ Skipped` in todos.
 
+**Track file changes:** After each fix delegation, record the file path(s) that `@build` modified or created. Maintain a running **Files Changed During Refactoring** list throughout all iterations.
+
 #### Step 4 — Build/Test
 
 After all fixes are applied, delegate a build/test check to `@build`:
@@ -147,6 +150,19 @@ Status values:
 - **✅ Fixed** — Refactoring was applied during the loop.
 - **❌ Unresolved** — Finding remains after all iterations.
 - **⏭ Skipped** — NIT-level finding skipped on iteration 2+.
+
+Additionally, append a **Files Changed During Refactoring** section listing every file modified or created during fix iterations:
+
+```
+### Files Changed During Refactoring
+
+| File | Change Type |
+|------|-------------|
+| path/to/file.ext | Modified |
+| path/to/new-file.ext | Created |
+```
+
+If no files were changed (no fixes applied), output: `No files changed during refactoring.`
 
 ### Error Handling
 

@@ -38,14 +38,16 @@ You will receive:
 
 ### Step A — Analyze Coverage
 
-Invoke `@test-coverage-gate` via the `task` tool:
+Extract the file list from the Execution Manifest's "Files Modified" and "Files Created" columns. Invoke `@test-coverage-gate` via the `task` tool, passing the file list instead of the full manifest to reduce context pressure:
 
 ```
-=== EXECUTION MANIFEST ===
-[insert the full Execution Manifest table]
+=== FILES TO ANALYZE ===
+[extract and list all file paths from the Execution Manifest's "Files Modified" and "Files Created" columns, one per line]
 
 === INSTRUCTIONS ===
-Analyze test coverage for all files in the Execution Manifest.
+Analyze test coverage for all listed files.
+First, attempt to detect and run the project's coverage tool (jest, pytest, go test, etc.).
+If no coverage tool is available, fall back to heuristic analysis.
 For each file's public functions and key code paths, determine if corresponding tests exist.
 Return a structured table with columns: #, File, Function/Symbol, Coverage (TESTED / PARTIAL / UNTESTED), Test File.
 If all modified code has adequate coverage, say: "Coverage adequate."
