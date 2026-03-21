@@ -84,12 +84,12 @@ Invoke `analyzer` via the `task` tool:
 === INSTRUCTIONS ===
 Analyze this plan for gaps, risks, and ambiguities by inspecting the current codebase.
 Return an Analysis Manifest as a structured markdown table with columns:
-#, Plan Task, Status (OK/GAP/RISK/AMBIGUOUS), Finding, Recommendation.
+#, Plan Task, Status (OK/GAP/RISK/AMBIGUOUS), Finding, Recommendation, Scope.
 ```
 
 When `analyzer` completes:
 
-- **Validate the Analysis Manifest**: Verify the output contains a markdown table with columns `#, Plan Task, Status, Finding, Recommendation` and at least one data row. If malformed, retry Stage 1 once with an added instruction: "Your previous output was malformed — the Analysis Manifest table was missing or had incorrect columns. Please output a valid markdown table with the specified columns." If retry also fails, surface the error to the user via `question`.
+- **Validate the Analysis Manifest**: Verify the output contains a markdown table with columns `#, Plan Task, Status, Finding, Recommendation, Scope` and at least one data row. If malformed, retry Stage 1 once with an added instruction: "Your previous output was malformed — the Analysis Manifest table was missing or had incorrect columns. Please output a valid markdown table with the specified columns." If retry also fails, surface the error to the user via `question`.
 - Record the **Analysis Manifest** (the full markdown table).
 - Mark Stage 1 as complete in `todowrite`.
 - Proceed to **Stage 2**.
