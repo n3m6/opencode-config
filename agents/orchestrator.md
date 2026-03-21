@@ -45,7 +45,7 @@ You are the Orchestrator agent. You manage a fixed six-stage pipeline for execut
                                                   │
                       ┌───────────────────────────┘
                       ▼
-          ④                    ⑤                  ⑥
+          ④                         ⑤                          ⑥
   ┌────────────────────────┐     ┌─────────────────────┐     ┌────────────┐
   │  test-coverage-filler  │───▶│  code-refactor-loop │───▶│  verifier  │───▶ Done
   └────────────────────────┘     └─────────────────────┘     └────────────┘
