@@ -2,7 +2,7 @@
 description: Orchestrates plan execution through a six-stage pipeline — analyzer → executor → code-review-loop → test-coverage-filler → code-refactor-loop → verifier. Delegates all work via subagents.
 mode: primary
 temperature: 0.1
-steps: 45
+steps: 55
 permission:
   edit: allow
   bash:
@@ -192,6 +192,10 @@ Use the Plan Summary when dispatching to leaf review subagents to reduce context
 Return a Code Review Manifest as a structured markdown table with columns:
 #, Severity, File, Lines, Issue, Status (✅ Fixed / ❌ Unresolved / ⏭ Skipped).
 Include iteration count and unresolved CRITICAL count at the top.
+After the manifest table, also include these sections:
+### CRITICAL Findings — CRITICAL-severity rows only (or "No CRITICAL findings.")
+### Updated File List — one file per line, sorted (from git diff --name-only HEAD)
+### Stage Summary — one-line review statistics
 ```
 
 When `code-review-loop` completes:
@@ -258,6 +262,10 @@ Use the Plan Summary when dispatching to the leaf refactor-review subagent to re
 Return a Code Refactor Manifest as a structured markdown table with columns:
 #, Severity, File, Lines, Issue, Status (✅ Fixed / ❌ Unresolved / ⏭ Skipped).
 Include iteration count and unresolved CRITICAL count at the top.
+After the manifest table, also include these sections:
+### CRITICAL Findings — CRITICAL-severity rows only (or "No CRITICAL findings.")
+### Updated File List — one file per line, sorted (from git diff --name-only HEAD)
+### Stage Summary — one-line refactoring statistics
 ```
 
 When `code-refactor-loop` completes:

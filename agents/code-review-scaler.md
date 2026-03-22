@@ -32,12 +32,12 @@ You think in terms of load, throughput, and resource contention. Every loop, que
 
 You will receive:
 
-1. **The original plan** that was implemented
-2. **The Execution Manifest** — a structured table listing each task's status, files modified, files created, and summary
+1. **The Plan Summary** — condensed 1-2 paragraph summary of the plan that was implemented
+2. **The Files to Review** — list of file paths modified/created, one per line
 
 ### Review Process
 
-1. **Identify files to review** from the Execution Manifest's "Files Modified" and "Files Created" columns.
+1. **Identify files to review** from the Files to Review list.
 2. **Read the relevant files** using the tools available to you.
 3. **Run `git diff`** to see exactly what changed.
 4. **Analyze the changes** against the categories below, prioritizing your primary categories.

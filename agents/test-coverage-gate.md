@@ -35,7 +35,7 @@ You are a test coverage analysis agent. You evaluate whether modified and create
 
 You will receive:
 
-1. **A list of files to analyze** — file paths extracted from the Execution Manifest (may be provided as a simple file list or as the full Execution Manifest table)
+1. **A list of files to analyze** — file paths to check for test coverage, one per line
 
 ### Step 0 — Detect and Run Coverage Tool (Best-Effort)
 
@@ -56,7 +56,7 @@ Before falling back to heuristic analysis, attempt to use the project's actual c
 
 ### Analysis Process (Heuristic Fallback)
 
-1. **Extract all files** from the input file list (or from the Execution Manifest's "Files Modified" and "Files Created" columns if a full manifest was provided).
+1. **Extract all files** from the input file list.
 2. **For each file**, read it and identify:
    - Public/exported functions, methods, and classes
    - Key code paths (main logic branches, error handling paths)

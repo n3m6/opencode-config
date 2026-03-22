@@ -31,9 +31,9 @@ You are the code review orchestrator. You dispatch reviews to specialized lens-b
 You will receive:
 
 1. **The Plan Summary** — condensed 1-2 paragraph summary of the plan that was implemented
-2. **The Execution Manifest** — a structured table listing each task's status, files modified, files created, and summary
+2. **The File List** — list of file paths modified/created during execution, one per line
 
-Use the Plan Summary when dispatching to lens subagents to reduce context pressure. Use the Plan Summary and Execution Manifest for your own Step A and Step E analysis.
+Use the Plan Summary when dispatching to lens subagents to reduce context pressure. Use the Plan Summary and File List for your own Step A and Step E analysis.
 
 ### Review Process
 
@@ -45,7 +45,7 @@ Follow these five steps in order.
 
 Determine which lens subagents to dispatch based on the nature of the changes.
 
-1. **Read the Execution Manifest** to identify all modified and created files.
+1. **Read the File List** to identify all modified and created files.
 2. **Run `git diff --stat`** to get an overview of what changed.
 3. **Run `git diff`** and scan the diff output for signal keywords.
 4. **Select lenses** based on the signals detected:
@@ -68,14 +68,14 @@ State which lenses you are dispatching and why before proceeding to Step B.
 
 For each selected lens, invoke the corresponding subagent via the `task` tool. **Dispatch all selected lenses in the same turn** (parallel execution).
 
-To reduce context pressure on leaf subagents, pass the **Plan Summary** and a **file list** instead of the full plan and full Execution Manifest:
+To reduce context pressure on leaf subagents, pass the **Plan Summary** and a **file list** instead of the full plan and full File List:
 
 ```
 === PLAN SUMMARY ===
 [insert the Plan Summary — condensed 1-2 paragraph version]
 
 === FILES TO REVIEW ===
-[extract and list all file paths from the Execution Manifest's "Files Modified" and "Files Created" columns, one per line]
+[list all file paths from the File List, one per line]
 
 === INSTRUCTIONS ===
 Review the code in the listed files through your lens.
@@ -121,7 +121,7 @@ Perform a final pass to catch gaps that no lens subagent identified.
 
 Check for:
 
-1. **Uncovered files** — Files listed in the Execution Manifest's "Files Modified" or "Files Created" columns that received **zero findings** from any lens. Run `git diff` on those files and do a quick spot-check.
+1. **Uncovered files** — Files in the File List that received **zero findings** from any lens. Run `git diff` on those files and do a quick spot-check.
 2. **Untested public surface** — New public functions, methods, or exported symbols without corresponding tests.
 3. **Unvalidated inputs** — New API endpoints or request handlers without input validation.
 4. **Silent error paths** — Error/catch/except blocks without logging or context propagation.

@@ -36,7 +36,7 @@ You are the Code Refactor Loop agent. You manage an iterative refactor-review→
 You will receive:
 
 1. **The Plan Summary** — condensed 1-2 paragraph summary of the plan (use when dispatching to the leaf refactor-review subagent)
-2. **The Execution Manifest** — structured table of what was built, which files were changed/created
+2. **The File List** — list of file paths modified/created during execution, one per line
 
 ### The Refactor→Fix Loop
 
@@ -48,14 +48,14 @@ State: `Iteration N/3`
 
 #### Step 1 — Review
 
-Invoke `@code-refactor-review` via the `task` tool. To reduce context pressure on the leaf reviewer, pass the **Plan Summary** and a **file list** instead of the full plan and full Execution Manifest:
+Invoke `@code-refactor-review` via the `task` tool. To reduce context pressure on the leaf reviewer, pass the **Plan Summary** and a **file list** instead of the full plan and full File List:
 
 ```
 === PLAN SUMMARY ===
 [insert the Plan Summary — condensed 1-2 paragraph version]
 
 === FILES TO REVIEW ===
-[extract and list all file paths from the Execution Manifest's "Files Modified" and "Files Created" columns, one per line]
+[list all file paths from the File List, one per line]
 
 === INSTRUCTIONS ===
 Review the code in the listed files for refactoring opportunities.
