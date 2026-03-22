@@ -126,6 +126,13 @@ If holistic findings exist, append:
 - [plan-wide observation 2]
 ```
 
+Always append a **Stage Summary** section as the very last section of your output:
+
+```
+### Stage Summary
+N tasks analyzed, N flagged (N GAP, N RISK, N AMBIGUOUS)
+```
+
 ### Rules
 
 1. **Always output the table.** Never return prose-only results.

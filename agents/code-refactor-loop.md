@@ -103,8 +103,6 @@ Issue one `task` call per file (not per finding). Prioritize files with CRITICAL
 
 On iteration 2+, **skip NITs** — mark them as `⏭ Skipped` in todos.
 
-**Track file changes:** After each fix delegation, record the file path(s) that `@build` modified or created. Maintain a running **Files Changed During Refactoring** list throughout all iterations.
-
 #### Step 4 — Build/Test
 
 After all fixes are applied, delegate a build/test check to `@build`:
@@ -117,6 +115,9 @@ Code refactoring iteration N/3. All refactorings applied. Running build and test
 Run the project build and test suite. Report results as:
 - Build: PASS or FAIL (with error details)
 - Test: PASS or FAIL (N/M passing, failure details)
+
+Additionally, run `git diff --name-only HEAD` and include the output under a
+"### Git Changed Files" heading — one file path per line, sorted.
 ```
 
 - If build/test **passes** → return to Step 1 for re-review (next iteration).
@@ -149,18 +150,32 @@ Status values:
 - **❌ Unresolved** — Finding remains after all iterations.
 - **⏭ Skipped** — NIT-level finding skipped on iteration 2+.
 
-Additionally, append a **Files Changed During Refactoring** section listing every file modified or created during fix iterations:
+After the Code Refactor Manifest table, append these three additional sections:
+
+**CRITICAL Findings** — extract only CRITICAL-severity rows from the Code Refactor Manifest above into a standalone table. If no CRITICAL findings exist, output "No CRITICAL findings."
 
 ```
-### Files Changed During Refactoring
-
-| File | Change Type |
-|------|-------------|
-| path/to/file.ext | Modified |
-| path/to/new-file.ext | Created |
+### CRITICAL Findings
+| # | File | Lines | Issue | Status |
+|---|------|-------|-------|--------|
+| 1 | path/to/file.ext | 10–25 | [issue] | ✅ Fixed |
 ```
 
-If no files were changed (no fixes applied), output: `No files changed during refactoring.`
+**Updated File List** — copy the file list from the `### Git Changed Files` section returned by `@build` in the most recent Step 4 build/test check. Output it verbatim, one file per line, sorted. If the loop exited early with no findings (no `@build` fix calls were made), delegate one final `@build` call to run `git diff --name-only HEAD` and use that output.
+
+```
+### Updated File List
+src/auth.ts
+src/middleware.ts
+src/utils.ts
+```
+
+**Stage Summary** — one-line refactoring statistics.
+
+```
+### Stage Summary
+N findings: N fixed, N unresolved CRITICAL, N NITs skipped. Iterations: N/3
+```
 
 ### Error Handling
 

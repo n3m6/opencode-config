@@ -159,6 +159,9 @@ Once all todos are marked complete:
    Perform a final integration check. Verify that all tasks in the plan have been
    implemented and that the outputs are consistent with each other. Report any gaps,
    inconsistencies, or missing pieces.
+
+   Additionally, run `git diff --name-only HEAD` and include the output under a
+   "### Git Changed Files" heading — one file path per line, sorted.
    ```
 
 2. If gaps are found, create new to-do items using `todowrite` (assign them to a new final wave) and return to the **Execution Loop**.
@@ -190,3 +193,28 @@ Rules:
 - Every plan task gets exactly one row.
 - File paths must be exact (not approximate).
 - Summary must be one sentence describing what was done (or why it failed).
+
+After the Execution Manifest table, append these three additional sections:
+
+**Plan Summary** — a condensed 1-2 paragraph summary of the plan capturing the key requirements, intent, and scope. This will be used by downstream agents.
+
+```
+### Plan Summary
+[1-2 paragraph summary of the plan's key requirements, intent, and scope]
+```
+
+**Updated File List** — copy the file list from the `### Git Changed Files` section returned by `@build` during the Verification Phase. Output it verbatim, one file per line, sorted.
+
+```
+### Updated File List
+src/auth.ts
+src/middleware.ts
+src/utils.ts
+```
+
+**Stage Summary** — one-line execution statistics.
+
+```
+### Stage Summary
+N tasks executed: N complete, N partial, N failed
+```

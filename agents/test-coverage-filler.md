@@ -230,6 +230,13 @@ Quality column values:
 - **FAIL** — Trivial/tautological/absent assertions, or function under test is mocked.
 - **—** — Quality not evaluated (already covered or test creation failed).
 
+After the Test Coverage Report table, append a **Stage Summary** section:
+
+```
+### Stage Summary
+N gaps found, N tests created. Quality iterations: N/3. Build/test: PASS/FAIL
+```
+
 ### Error Handling
 
 If `@build`, `@test-coverage-gate`, or `@test-quality-reviewer` returns an error:

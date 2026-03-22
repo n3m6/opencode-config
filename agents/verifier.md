@@ -226,3 +226,10 @@ If no CRITICAL findings exist in either manifest, output: `No CRITICAL findings 
 ### Summary
 [One paragraph: overall status, what was fixed, what remains, recommendations]
 ```
+
+After the Verification Report, append a **Stage Summary** section:
+
+```
+### Stage Summary
+Build: PASS/FAIL, Lint: PASS/FAIL, Test: PASS/FAIL. Plan compliance: N/N. CRITICAL verified: N/N (N regressions). Overall: PASS/PARTIAL/FAIL
+```
