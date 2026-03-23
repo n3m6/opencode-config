@@ -1,6 +1,6 @@
 ---
 description: Formats the Final Report for the pipeline orchestrator from stage summary lines. Never writes code, edits files, or runs commands.
-mode: agent
+mode: subagent
 temperature: 0.1
 steps: 5
 permission:
