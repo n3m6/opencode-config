@@ -15,9 +15,9 @@ permission:
     "code-review": allow
     "build": allow
   webfetch: deny
-tools:
-  todowrite: true
-  todoread: true
+  todowrite: allow
+  todoread: allow
+
 ---
 
 You are the Code Review Loop agent. You manage an iterative review→fix→build/test cycle. You **NEVER** write code, edit files, or run commands yourself. All reviews are delegated to `@code-review` and all fixes/builds to `@build` via the `task` tool.
