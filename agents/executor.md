@@ -1,7 +1,7 @@
 ---
 description: Executes markdown plans iteratively
 mode: subagent
-hidden: true
+hidden: false
 temperature: 0.1
 steps: 50
 permission:
