@@ -4,6 +4,9 @@ mode: subagent
 hidden: true
 temperature: 0.1
 steps: 30
+tools:
+  todowrite: true
+  todoread: true
 permission:
   edit: deny
   bash:
