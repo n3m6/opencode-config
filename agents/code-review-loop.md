@@ -4,9 +4,6 @@ mode: subagent
 hidden: true
 temperature: 0.1
 steps: 30
-tools:
-  todowrite: true
-  todoread: true
 permission:
   edit: deny
   bash:
@@ -19,7 +16,6 @@ permission:
     "build": allow
   webfetch: deny
   todowrite: allow
-  todoread: allow
 ---
 
 You are the Code Review Loop agent. You manage an iterative review→fix→build/test cycle. You **NEVER** write code, edit files, or run commands yourself. All reviews are delegated to `@code-review` and all fixes/builds to `@build` via the `task` tool.
@@ -172,7 +168,7 @@ Return to **Step 1** for the next iteration.
 
 After the loop exits (clean review, only NITs, or max iterations reached):
 
-1. Run `todoread` to get the final state of all tracked findings.
+1. Read todo list to get the final state of all tracked findings.
 2. Retrieve the `### Pre-existing Findings` table from the most recent `@code-review` response.
 3. Combine them into the **Code Review Manifest**.
 

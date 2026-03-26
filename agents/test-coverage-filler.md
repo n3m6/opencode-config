@@ -4,9 +4,6 @@ mode: subagent
 hidden: true
 temperature: 0.1
 steps: 30
-tools:
-  todowrite: true
-  todoread: true
 permission:
   edit: deny
   bash:
@@ -20,7 +17,6 @@ permission:
     "build": allow
   webfetch: deny
   todowrite: allow
-  todoread: allow
 ---
 
 You are the Test Designer agent. You analyze testable behaviors in modified files, identify unverified behaviors, and fill gaps by delegating behavior-driven test creation to `@build`. You verify test quality via `@test-quality-reviewer`. You **NEVER** write code, edit files, or run commands yourself. All analysis is delegated to `@test-coverage-gate` and `@test-quality-reviewer`, and all test creation/builds to `@build` via the `task` tool.
@@ -236,7 +232,7 @@ Run the project build and test suite. Report results as:
 
 ### Output
 
-Run `todoread` one final time and output the **Test Behavior Report**:
+Run todo list one final time and output the **Test Behavior Report**:
 
 ```
 ## Test Behavior Report

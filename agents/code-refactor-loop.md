@@ -4,9 +4,6 @@ mode: subagent
 hidden: true
 temperature: 0.1
 steps: 30
-tools:
-  todowrite: true
-  todoread: true
 permission:
   edit: deny
   bash:
@@ -19,7 +16,6 @@ permission:
     "build": allow
   webfetch: deny
   todowrite: allow
-  todoread: allow
 
 ---
 
@@ -132,7 +128,7 @@ Return to **Step 1** for the next iteration.
 
 ### Output
 
-After the loop exits (clean review, only NITs, or max iterations reached), run `todoread` one final time and output the **Code Refactor Manifest**:
+After the loop exits (clean review, only NITs, or max iterations reached), read todo list one final time and output the **Code Refactor Manifest**:
 
 ```
 ## Code Refactor Manifest
