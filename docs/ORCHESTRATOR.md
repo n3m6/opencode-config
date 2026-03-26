@@ -78,13 +78,13 @@
                           │  (max 3 iterations)          │
                           │                              │
                           │  ┌────────────────────────┐  │
-                          │  │  test-coverage-gate    │  │  (coverage analysis)
+                          │  │  test-coverage-gate    │  │  (behavior analysis)
                           │  └────────────────────────┘  │
                           │  ┌────────────────────────┐  │
-                          │  │  @build (create tests) │  │  (fill gaps)
+                          │  │  @build (create tests) │  │  (design tests)
                           │  └────────────────────────┘  │
                           │  ┌────────────────────────┐  │
-                          │  │  test-quality-reviewer │  │  (assertion quality)
+                          │  │  test-quality-reviewer │  │  (behavior + assertion quality)
                           │  └────────────────────────┘  │
                           └─────────────┬────────────────┘
                                         │
@@ -245,15 +245,15 @@ Reviews code through a **scaler's lens** — performance at load, resource effic
 
 #### test-coverage-filler
 
-Analyzes test coverage for all modified files and fills gaps by delegating test creation to `@build`. Runs a **fill → quality-review** loop (max 3 iterations) to ensure created tests are meaningful. Returns a **Test Coverage Report** with per-function coverage status.
+Analyzes testable behaviors in all modified files and fills gaps by delegating behavior-driven test creation to `@build`. Runs a **design → quality-review** loop (max 3 iterations) to ensure created tests verify specific behaviors. Returns a **Test Behavior Report** with per-behavior verification status.
 
 #### test-coverage-gate
 
-Analyzes test coverage for modified/created files — identifies public functions and key code paths without corresponding tests. Attempts to run the project's coverage tool (jest, pytest, go test, etc.) or falls back to heuristic analysis. Read-only.
+Extracts testable behaviors from modified/created files — input contracts, decision paths, error handling, boundary conditions, state transitions — and evaluates which behaviors have verified tests. Attempts to run the project's coverage tool or falls back to heuristic behavior analysis. Read-only.
 
 #### test-quality-reviewer
 
-Evaluates test files for **assertion quality** — detects trivial assertions, tautological mocking, missing behavioral checks, and happy-path-only coverage. Ensures tests verify real behavior. Read-only.
+Evaluates test files for **assertion quality and behavior accuracy** — detects trivial assertions, tautological mocking, missing behavioral checks, happy-path-only coverage, and behavior mismatches against specifications. Ensures tests verify the specific behaviors they claim to test. Read-only.
 
 ---
 

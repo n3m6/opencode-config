@@ -224,17 +224,17 @@ Invoke `test-coverage-filler` via the `task` tool:
 [paste contents of .pipeline/<run-id>/file-list.md verbatim]
 
 === INSTRUCTIONS ===
-Analyze test coverage for all files in the File List.
-Fill any test coverage gaps by creating missing tests.
-When dispatching to the coverage analysis subagent, pass the file list rather than the full manifest.
-Return a Test Coverage Report as a structured markdown table with columns:
-#, File, Function/Symbol, Coverage (TESTED / PARTIAL / UNTESTED), Test File, Status.
-Include test gaps found and tests created counts at the top.
+Analyze testable behaviors in all files in the File List.
+Fill any behavior gaps by designing and creating missing tests.
+When dispatching to the behavior analysis subagent, pass the file list rather than the full manifest.
+Return a Test Behavior Report as a structured markdown table with columns:
+#, File, Behavior, Category, Tested (YES / NO / PARTIAL), Test File, Status.
+Include behavior gaps found and tests created counts at the top.
 ```
 
 When `test-coverage-filler` completes:
 
-- **Validate the Test Coverage Report**: Verify the output contains a markdown table with columns `#, File, Function/Symbol, Coverage, Test File, Status` and gap/created counts at the top. If malformed, retry Stage 4 once with a "malformed output" instruction. If retry also fails, surface the error to the user via `question`.
+- **Validate the Test Behavior Report**: Verify the output contains a markdown table with columns `#, File, Behavior, Category, Tested, Test File, Status` and gap/created counts at the top. If malformed, retry Stage 4 once with a "malformed output" instruction. If retry also fails, surface the error to the user via `question`.
 - Write the `### Stage Summary` section from the test-coverage-filler's output to `.pipeline/<run-id>/stage4-summary.md` using the edit tool.
 - Mark Stage 4 as complete in `todowrite`.
 - Proceed to **Stage 5**.
