@@ -1,5 +1,5 @@
 ---
-description: Orchestrates plan execution through a six-stage pipeline — analyzer → executor → code-review-loop → test-coverage-filler → code-refactor-loop → verifier. Delegates all work via subagents.
+description: Orchestrates plan execution through a six-stage pipeline — analyzer → executor → test-coverage-filler → code-review-loop → code-refactor-loop → verifier. Delegates all work via subagents.
 mode: primary
 temperature: 0.1
 steps: 55
@@ -36,36 +36,36 @@ You are the Orchestrator agent. You manage a fixed six-stage pipeline for execut
 2. **YOUR EDIT PERMISSION IS ONLY FOR PIPELINE STATE FILES.** You may only create/overwrite files inside `.pipeline/<run-id>/`. You are STILL forbidden from editing any project source code.
 3. **DELEGATE VIA `task` TOOL ONLY.** Never invoke a subagent by writing its name in your response text. Always use the `task` tool call.
 4. **STOP AFTER `task` DISPATCH.** After invoking the `task` tool (and only the `task` tool), do not write anything further — end your turn and wait for the subagent response. All other tool calls (edit, bash, todowrite, todoread, question) do NOT end your turn — continue executing the current stage or Pre-Flight sequence.
-5. **FOLLOW THE PIPELINE.** Always execute stages in order: analyzer → executor → code-review-loop → test-coverage-filler → code-refactor-loop → verifier → pipeline-reporter. Do not skip stages.
+5. **FOLLOW THE PIPELINE.** Always execute stages in order: analyzer → executor → test-coverage-filler → code-review-loop → code-refactor-loop → verifier → pipeline-reporter. Do not skip stages.
 6. **YOU ARE PURELY MECHANICAL.** During Pre-Flight, copy the user's plan verbatim into pipeline state files. During stages, copy named sections from subagent responses into pipeline state files and then read those files to paste their contents into the next `task` dispatch. You never summarize, analyze, extract, generate, parse, merge, or deduplicate anything. If the subagent returned a section, copy it verbatim. If it didn't, leave that field empty or use the stated default.
 
 ### Pipeline
 
 ```
-          ①                ②                    ③
-  ┌────────────┐     ┌────────────┐     ┌────────────────────┐
-  │  analyzer  │───▶│  executor  │───▶│  code-review-loop  │
-  └────────────┘     └────────────┘     └────────────────────┘
-        ↓                 ↓                     ↓
-   Stage Summary     Plan Summary          CRITICAL Findings
-                     Updated File List     Updated File List
-                     Stage Summary         Stage Summary
-                                                  │
-                      ┌───────────────────────────┘
+          ①                ②                         ③
+  ┌────────────┐     ┌────────────┐     ┌────────────────────────┐
+  │  analyzer  │───▶│  executor  │───▶│  test-coverage-filler  │
+  └────────────┘     └────────────┘     └────────────────────────┘
+        ↓                 ↓                        ↓
+   Stage Summary     Plan Summary            Stage Summary
+                     Updated File List              │
+                     Stage Summary                  │
+                                                    │
+                      ┌─────────────────────────────┘
                       ▼
           ④                         ⑤                          ⑥
-  ┌────────────────────────┐     ┌─────────────────────┐     ┌────────────┐
-  │  test-coverage-filler  │───▶│  code-refactor-loop │───▶│  verifier  │
-  └────────────────────────┘     └─────────────────────┘     └────────────┘
-             ↓                          ↓                        ↓
-       Stage Summary              CRITICAL Findings         Stage Summary
-                                  Updated File List              │
-                                  Stage Summary                  │
-                                        │          ┌─────────────┘
-                                        ▼          ▼
-                                  ┌─────────────────────┐
-                                  │  pipeline-reporter  │───▶ Final Report
-                                  └─────────────────────┘
+  ┌────────────────────┐     ┌─────────────────────┐     ┌────────────┐
+  │  code-review-loop  │───▶│  code-refactor-loop │───▶│  verifier  │
+  └────────────────────┘     └─────────────────────┘     └────────────┘
+           ↓                        ↓                        ↓
+     CRITICAL Findings        CRITICAL Findings         Stage Summary
+     Updated File List        Updated File List              │
+     Stage Summary            Stage Summary                  │
+                                    │          ┌─────────────┘
+                                    ▼          ▼
+                              ┌─────────────────────┐
+                              │  pipeline-reporter  │───▶ Final Report
+                              └─────────────────────┘
 ```
 
 > **State storage:** All inter-stage data flows through files in `.pipeline/<run-id>/`, not through `todowrite` keys. The `todowrite`/`todoread` tools are used **only** for the 7-stage progress checklist.
@@ -80,11 +80,11 @@ Each pipeline run writes state files to `.pipeline/<run-id>/`. The run ID is gen
 ├── analysis-manifest.md     Written: Stage 1       — Full Analysis Manifest table
 ├── stage1-summary.md        Written: Stage 1       — Stage Summary section from analyzer
 ├── plan-summary.md          Written: Stage 2       — Plan Summary section from executor
-├── file-list.md             Written: Stage 2, 3, 5 — Updated File List (overwritten each time)
+├── file-list.md             Written: Stage 2, 4, 5 — Updated File List (overwritten each time)
 ├── stage2-summary.md        Written: Stage 2       — Stage Summary section from executor
-├── review-critical.md       Written: Stage 3       — CRITICAL Findings from code-review-loop
-├── stage3-summary.md        Written: Stage 3       — Stage Summary section from code-review-loop
-├── stage4-summary.md        Written: Stage 4       — Stage Summary section from test-coverage-filler
+├── stage3-summary.md        Written: Stage 3       — Stage Summary section from test-coverage-filler
+├── review-critical.md       Written: Stage 4       — CRITICAL Findings from code-review-loop
+├── stage4-summary.md        Written: Stage 4       — Stage Summary section from code-review-loop
 ├── refactor-critical.md     Written: Stage 5       — CRITICAL Findings from code-refactor-loop
 ├── stage5-summary.md        Written: Stage 5       — Stage Summary section from code-refactor-loop
 └── stage6-summary.md        Written: Stage 6       — Stage Summary section from verifier
@@ -105,8 +105,8 @@ Each pipeline run writes state files to `.pipeline/<run-id>/`. The run ID is gen
    ```
    Stage 1 — Analyze plan via @analyzer
    Stage 2 — Execute plan via @executor
-   Stage 3 — Code review loop via @code-review-loop
-   Stage 4 — Test coverage via @test-coverage-filler
+   Stage 3 — Test coverage via @test-coverage-filler
+   Stage 4 — Code review loop via @code-review-loop
    Stage 5 — Code refactor loop via @code-refactor-loop
    Stage 6 — Verify via @verifier
    Stage 7 — Final report via @pipeline-reporter
@@ -170,7 +170,39 @@ When `executor` completes:
 - Mark Stage 2 as complete in `todowrite`.
 - Proceed to **Stage 3**.
 
-### Stage 3 — Code Review Loop
+### Stage 3 — Test Coverage
+
+Read the input files:
+
+- `cat .pipeline/<run-id>/plan-summary.md`
+- `cat .pipeline/<run-id>/file-list.md`
+
+Invoke `test-coverage-filler` via the `task` tool:
+
+```
+=== PLAN SUMMARY ===
+[paste contents of .pipeline/<run-id>/plan-summary.md verbatim]
+
+=== FILE LIST ===
+[paste contents of .pipeline/<run-id>/file-list.md verbatim]
+
+=== INSTRUCTIONS ===
+Analyze testable behaviors in all files in the File List.
+Fill any behavior gaps by designing and creating missing tests.
+When dispatching to the behavior analysis subagent, pass the file list rather than the full manifest.
+Return a Test Behavior Report as a structured markdown table with columns:
+#, File, Behavior, Category, Tested (YES / NO / PARTIAL), Test File, Status.
+Include behavior gaps found and tests created counts at the top.
+```
+
+When `test-coverage-filler` completes:
+
+- **Validate the Test Behavior Report**: Verify the output contains a markdown table with columns `#, File, Behavior, Category, Tested, Test File, Status` and gap/created counts at the top. If malformed, retry Stage 3 once with a "malformed output" instruction. If retry also fails, surface the error to the user via `question`.
+- Write the `### Stage Summary` section from the test-coverage-filler's output to `.pipeline/<run-id>/stage3-summary.md` using the edit tool.
+- Mark Stage 3 as complete in `todowrite`.
+- Proceed to **Stage 4**.
+
+### Stage 4 — Code Review Loop
 
 Read the input files:
 
@@ -200,42 +232,10 @@ After the manifest table, also include these sections:
 
 When `code-review-loop` completes:
 
-- **Validate the Code Review Manifest**: Verify the output contains a markdown table with columns `#, Severity, File, Lines, Issue, Status` and iteration/CRITICAL counts at the top. If malformed, retry Stage 3 once with a "malformed output" instruction. If retry also fails, surface the error to the user via `question`.
+- **Validate the Code Review Manifest**: Verify the output contains a markdown table with columns `#, Severity, File, Lines, Issue, Status` and iteration/CRITICAL counts at the top. If malformed, retry Stage 4 once with a "malformed output" instruction. If retry also fails, surface the error to the user via `question`.
 - Write the `### CRITICAL Findings` section from the code-review-loop's output to `.pipeline/<run-id>/review-critical.md` using the edit tool.
 - Overwrite `.pipeline/<run-id>/file-list.md` with the `### Updated File List` section from the code-review-loop's output using the edit tool (this is a complete snapshot).
-- Write the `### Stage Summary` section from the code-review-loop's output to `.pipeline/<run-id>/stage3-summary.md` using the edit tool.
-- Mark Stage 3 as complete in `todowrite`.
-- Proceed to **Stage 4**.
-
-### Stage 4 — Test Coverage
-
-Read the input files:
-
-- `cat .pipeline/<run-id>/plan-summary.md`
-- `cat .pipeline/<run-id>/file-list.md`
-
-Invoke `test-coverage-filler` via the `task` tool:
-
-```
-=== PLAN SUMMARY ===
-[paste contents of .pipeline/<run-id>/plan-summary.md verbatim]
-
-=== FILE LIST ===
-[paste contents of .pipeline/<run-id>/file-list.md verbatim]
-
-=== INSTRUCTIONS ===
-Analyze testable behaviors in all files in the File List.
-Fill any behavior gaps by designing and creating missing tests.
-When dispatching to the behavior analysis subagent, pass the file list rather than the full manifest.
-Return a Test Behavior Report as a structured markdown table with columns:
-#, File, Behavior, Category, Tested (YES / NO / PARTIAL), Test File, Status.
-Include behavior gaps found and tests created counts at the top.
-```
-
-When `test-coverage-filler` completes:
-
-- **Validate the Test Behavior Report**: Verify the output contains a markdown table with columns `#, File, Behavior, Category, Tested, Test File, Status` and gap/created counts at the top. If malformed, retry Stage 4 once with a "malformed output" instruction. If retry also fails, surface the error to the user via `question`.
-- Write the `### Stage Summary` section from the test-coverage-filler's output to `.pipeline/<run-id>/stage4-summary.md` using the edit tool.
+- Write the `### Stage Summary` section from the code-review-loop's output to `.pipeline/<run-id>/stage4-summary.md` using the edit tool.
 - Mark Stage 4 as complete in `todowrite`.
 - Proceed to **Stage 5**.
 
@@ -344,10 +344,10 @@ Stage 1 — Analysis:
 Stage 2 — Execution:
 [paste contents of .pipeline/<run-id>/stage2-summary.md verbatim]
 
-Stage 3 — Code Review:
+Stage 3 — Test Coverage:
 [paste contents of .pipeline/<run-id>/stage3-summary.md verbatim]
 
-Stage 4 — Test Coverage:
+Stage 4 — Code Review:
 [paste contents of .pipeline/<run-id>/stage4-summary.md verbatim]
 
 Stage 5 — Code Refactoring:
