@@ -64,7 +64,7 @@ Invoke `@code-review` via the `task` tool with the following prompt. Always use 
 
 === INSTRUCTIONS ===
 Review the code changes in the listed files.
-Use `git diff HEAD` to identify which lines are new or changed.
+Use `git diff main...HEAD` to identify which lines are new or changed.
 Use the Plan Summary when dispatching to leaf lens subagents.
 
 Return your results in THREE separate sections. Always include all three
@@ -144,7 +144,7 @@ Run the project build and test suite. Report results as:
 - Build: PASS or FAIL (with error details)
 - Test: PASS or FAIL (N/M passing, failure details)
 
-Additionally, run `git diff --name-only HEAD` and include the output under a
+Additionally, run `git diff --name-only main...HEAD` and include the output under a
 "### Git Changed Files" heading — one file path per line, sorted.
 ```
 
@@ -211,7 +211,7 @@ After the Code Review Manifest table, append these three additional sections:
 | 1 | path/to/file.ext | 10–25 | [issue] | ✅ Fixed |
 ```
 
-**Updated File List** — copy the file list from the `### Git Changed Files` section returned by `@build` in the most recent Step 4 build/test check. Output it verbatim, one file per line, sorted. If the loop exited early with no findings (no `@build` fix calls were made), delegate one final `@build` call to run `git diff --name-only HEAD` and use that output.
+**Updated File List** — copy the file list from the `### Git Changed Files` section returned by `@build` in the most recent Step 4 build/test check. Output it verbatim, one file per line, sorted. If the loop exited early with no findings (no `@build` fix calls were made), delegate one final `@build` call to run `git diff --name-only main...HEAD` and use that output.
 
 ```
 ### Updated File List
@@ -221,6 +221,18 @@ src/utils.ts
 ```
 
 **Stage Summary** — one-line review statistics.
+
+Before appending the Stage Summary, commit all changes made during this stage. Delegate to `@build` via the `task` tool:
+
+```
+=== INSTRUCTIONS ===
+Stage and commit all changes from the code review stage:
+  git add -A
+  git commit -m "code-review: fix findings"
+If there is nothing to commit, report "Nothing to commit." and stop.
+```
+
+If `@build` reports "Nothing to commit", skip silently.
 
 ```
 ### Stage Summary

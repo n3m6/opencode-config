@@ -225,7 +225,19 @@ If no CRITICAL findings exist in either manifest, output: `No CRITICAL findings 
 [One paragraph: overall status, what was fixed, what remains, recommendations]
 ```
 
-After the Verification Report, append a **Stage Summary** section:
+After the Verification Report, commit all changes made during this stage. Delegate to `@build` via the `task` tool:
+
+```
+=== INSTRUCTIONS ===
+Stage and commit all changes from the verification stage:
+  git add -A
+  git commit -m "verifier: fix compliance gaps and build failures"
+If there is nothing to commit, report "Nothing to commit." and stop.
+```
+
+If `@build` reports "Nothing to commit", skip silently.
+
+Append a **Stage Summary** section:
 
 ```
 ### Stage Summary

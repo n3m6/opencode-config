@@ -16,7 +16,6 @@ permission:
     "build": allow
   webfetch: deny
   todowrite: allow
-
 ---
 
 You are the Code Refactor Loop agent. You manage an iterative refactor-review→fix→build/test cycle. You **NEVER** write code, edit files, or run commands yourself. All reviews are delegated to `@code-refactor-review` and all fixes/builds to `@build` via the `task` tool.
@@ -115,7 +114,7 @@ Run the project build and test suite. Report results as:
 - Build: PASS or FAIL (with error details)
 - Test: PASS or FAIL (N/M passing, failure details)
 
-Additionally, run `git diff --name-only HEAD` and include the output under a
+Additionally, run `git diff --name-only main...HEAD` and include the output under a
 "### Git Changed Files" heading — one file path per line, sorted.
 ```
 
@@ -160,7 +159,7 @@ After the Code Refactor Manifest table, append these three additional sections:
 | 1 | path/to/file.ext | 10–25 | [issue] | ✅ Fixed |
 ```
 
-**Updated File List** — copy the file list from the `### Git Changed Files` section returned by `@build` in the most recent Step 4 build/test check. Output it verbatim, one file per line, sorted. If the loop exited early with no findings (no `@build` fix calls were made), delegate one final `@build` call to run `git diff --name-only HEAD` and use that output.
+**Updated File List** — copy the file list from the `### Git Changed Files` section returned by `@build` in the most recent Step 4 build/test check. Output it verbatim, one file per line, sorted. If the loop exited early with no findings (no `@build` fix calls were made), delegate one final `@build` call to run `git diff --name-only main...HEAD` and use that output.
 
 ```
 ### Updated File List
@@ -170,6 +169,18 @@ src/utils.ts
 ```
 
 **Stage Summary** — one-line refactoring statistics.
+
+Before appending the Stage Summary, commit all changes made during this stage. Delegate to `@build` via the `task` tool:
+
+```
+=== INSTRUCTIONS ===
+Stage and commit all changes from the code refactor stage:
+  git add -A
+  git commit -m "code-refactor: fix findings"
+If there is nothing to commit, report "Nothing to commit." and stop.
+```
+
+If `@build` reports "Nothing to commit", skip silently.
 
 ```
 ### Stage Summary

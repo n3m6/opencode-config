@@ -227,8 +227,24 @@ Run the project build and test suite. Report results as:
 - Test: PASS or FAIL (N/M passing, failure details)
 ```
 
-- If build/test **passes** → mark remaining `[TEST-GAP]` todos as complete, proceed to **Output**.
-- If build/test **fails** → delegate one fix attempt to `@build` with the failure details, then retry once. If it still fails, note it and proceed to **Output** anyway.
+- If build/test **passes** → mark remaining `[TEST-GAP]` todos as complete, proceed to **Step G**.
+- If build/test **fails** → delegate one fix attempt to `@build` with the failure details, then retry once. If it still fails, note it and proceed to **Step G** anyway.
+
+### Step G — Commit
+
+After Step F, commit all test changes so downstream stages see them as committed work.
+
+Delegate to `@build` via the `task` tool:
+
+```
+=== INSTRUCTIONS ===
+Stage and commit all test changes:
+  git add -A
+  git commit -m "test-coverage: fill behavior gaps"
+If there is nothing to commit (no new or modified files), report "Nothing to commit." and stop.
+```
+
+If `@build` reports "Nothing to commit", skip silently. Proceed to **Output**.
 
 ### Output
 

@@ -46,8 +46,8 @@ Follow these five steps in order.
 Determine which lens subagents to dispatch based on the nature of the changes.
 
 1. **Read the File List** to identify all modified and created files.
-2. **Run `git diff --stat`** to get an overview of what changed.
-3. **Run `git diff`** and scan the diff output for signal keywords.
+2. **Run `git diff --stat main...HEAD`** to get an overview of what changed.
+3. **Run `git diff main...HEAD`** and scan the diff output for signal keywords.
 4. **Select lenses** based on the signals detected:
 
 | Lens              | Always? | Trigger signals in diff                                                                                               |
@@ -121,7 +121,7 @@ Perform a final pass to catch gaps that no lens subagent identified.
 
 Check for:
 
-1. **Uncovered files** — Files in the File List that received **zero findings** from any lens. Run `git diff` on those files and do a quick spot-check.
+1. **Uncovered files** — Files in the File List that received **zero findings** from any lens. Run `git diff main...HEAD` on those files and do a quick spot-check.
 2. **Untested public surface** — New public functions, methods, or exported symbols without corresponding tests.
 3. **Unvalidated inputs** — New API endpoints or request handlers without input validation.
 4. **Silent error paths** — Error/catch/except blocks without logging or context propagation.

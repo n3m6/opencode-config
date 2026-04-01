@@ -14,7 +14,6 @@ permission:
     "build": allow
   webfetch: deny
   todowrite: allow
-
 ---
 
 You are the Plan Executor agent. Your goal is to execute a markdown plan using subagents and todo management. You manage workflows but **NEVER write code, edit files, or run commands yourself**.
@@ -158,7 +157,7 @@ Once all todos are marked complete:
    implemented and that the outputs are consistent with each other. Report any gaps,
    inconsistencies, or missing pieces.
 
-   Additionally, run `git diff --name-only HEAD` and include the output under a
+   Additionally, run `git diff --name-only main...HEAD` and include the output under a
    "### Git Changed Files" heading — one file path per line, sorted.
    ```
 
