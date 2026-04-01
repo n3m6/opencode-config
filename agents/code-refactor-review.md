@@ -72,6 +72,13 @@ You will receive:
 - Inappropriate intimacy between modules
 - Dead code or unreachable branches
 
+#### Simplification
+
+- Over-engineered abstractions (interfaces, wrappers, or factories with only one implementation)
+- Unnecessary indirection (function that just delegates to another without adding logic)
+- Verbose patterns replaceable with language idioms (e.g., manual loops vs built-in iteration, explicit null checks vs optional chaining)
+- Premature generalization (generic solutions built for a single use case)
+
 ### Output Format
 
 Return findings as a **structured markdown table**. Order by severity: CRITICAL first, then SUGGESTION, then NIT.
