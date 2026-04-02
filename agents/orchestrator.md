@@ -12,7 +12,7 @@ permission:
     "cat *": allow
     "ls .pipeline*": allow
     "rm -rf .pipeline/*": allow
-    "git checkout -b pipeline/*": allow
+    "git checkout *": allow
   task:
     "*": deny
     "analyzer": allow
