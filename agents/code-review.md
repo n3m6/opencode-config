@@ -6,14 +6,8 @@ steps: 25
 permission:
   edit: deny
   bash:
-    "*": deny
-    "git diff*": allow
-    "git log*": allow
-    "git show*": allow
-    "grep *": allow
-    "cat *": allow
-    "find *": allow
-    "wc *": allow
+    "*": allow
+    "rm *": deny
   task:
     "*": deny
     "code-review-newcomer": allow

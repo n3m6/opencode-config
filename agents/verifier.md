@@ -7,17 +7,12 @@ steps: 30
 permission:
   edit: deny
   bash:
-    "*": deny
-    "git diff*": allow
-    "git log*": allow
-    "git show*": allow
-    "grep *": allow
-    "cat *": allow
-    "find *": allow
-    "wc *": allow
+    "*": allow
+    "rm *": deny
   task:
     "*": deny
     "build": allow
+    "general": allow
     "plan-compliance-checker": allow
   webfetch: deny
   todowrite: allow

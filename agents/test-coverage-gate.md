@@ -7,23 +7,8 @@ steps: 20
 permission:
   edit: deny
   bash:
-    "*": deny
-    "git diff*": allow
-    "git log*": allow
-    "git show*": allow
-    "grep *": allow
-    "cat *": allow
-    "find *": allow
-    "wc *": allow
-    "npx *": allow
-    "yarn *": allow
-    "pnpm *": allow
-    "pytest*": allow
-    "python -m pytest*": allow
-    "go test*": allow
-    "cargo tarpaulin*": allow
-    "cargo llvm-cov*": allow
-    "ls *": allow
+    "*": allow
+    "rm *": deny
   task:
     "*": deny
   webfetch: deny

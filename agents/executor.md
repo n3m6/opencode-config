@@ -12,6 +12,7 @@ permission:
     "*": deny
     "coding-agent": allow
     "build": allow
+    "general": allow
   webfetch: deny
   todowrite: allow
 ---

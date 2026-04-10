@@ -7,15 +7,8 @@ steps: 15
 permission:
   edit: deny
   bash:
-    "*": deny
-    "git diff*": allow
-    "git log*": allow
-    "git show*": allow
-    "grep *": allow
-    "cat *": allow
-    "find *": allow
-    "ls *": allow
-    "wc *": allow
+    "*": allow
+    "rm *": deny
   task:
     "*": deny
   webfetch: deny
