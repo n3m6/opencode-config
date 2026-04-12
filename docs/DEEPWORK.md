@@ -41,9 +41,14 @@
                           │  ┌────────────────────────┐  │
                           │  │qrspi-question-generator│  │
                           │  └────────────────────────┘  │
+                          │  ┌────────────────────────┐  │
+                          │  │qrspi-question-leakage- │  │
+                          │  │reviewer                │  │
+                          │  └────────────────────────┘  │
                           └─────────────┬────────────────┘
                                         │
-                          Outputs: questions.md
+                          Outputs: questions.md,
+                                   question-leakage-review.md
                                         │
                                         ▼
                           ┌──────────────────────────────┐
@@ -71,7 +76,7 @@
                              │                     │
                          Full route            Quick-fix
                              │                     │          (Stages 4 & 5 self-skip)
-                             ▼                    ▼ 
+                             ▼                    ▼
                           ┌──────────────────────────────┐
                           │  STAGE 4 — Design           │
                           │  🔒 Human Gate               │
@@ -109,9 +114,13 @@
                           │  ┌────────────────────────┐  │
                           │  │   qrspi-plan-writer    │  │
                           │  └────────────────────────┘  │
+                          │  ┌────────────────────────┐  │
+                          │  │ qrspi-baseline-checker │  │
+                          │  └────────────────────────┘  │
                           └─────────────┬────────────────┘
                                         │
-                          Outputs: plan.md, tasks/task-NN.md
+                          Outputs: plan.md, tasks/task-NN.md,
+                                   baseline-results.md
                                         │
                                         ▼
                           ┌──────────────────────────────┐
@@ -122,12 +131,17 @@
                           │  │  qrspi-implementer     │  │  (per-task TDD)
                           │  │  (× N tasks per wave)  │  │
                           │  └────────────────────────┘  │
+                          │  ┌────────────────────────┐  │
+                          │  │qrspi-integration-checker│ │
+                          │  └────────────────────────┘  │
                           │                              │
                           │  ↺ backward loop possible   │
                           └─────────────┬────────────────┘
                                         │
                           Outputs: execution-manifest.md
                                    stage7-summary.md
+                                   integration-results.md
+                                   stage7-integration-summary.md
                                         │
                                         ▼
                           ┌──────────────────────────────┐
@@ -172,8 +186,7 @@
                                         ▼
                                ┌──────────────────────┐
                                │   POST-PIPELINE      │
-                               │  PASS → cleanup      │
-                               │  PARTIAL/FAIL →      │
+                               │  PASS/PARTIAL/FAIL → │
                                │  preserve audit trail│
                                └──────────────────────┘
 ```
@@ -200,24 +213,28 @@ Route is determined during Stage 1 (Goals) and written to `config.md`. Route cha
 
 All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 
-| File                          | Written By | Purpose                                      |
-| ----------------------------- | ---------- | -------------------------------------------- |
-| `config.md`                   | Stage 1    | Route (full/quick-fix), run_id, and metadata |
-| `goals.md`                    | Stage 1    | Intent, constraints, acceptance criteria     |
-| `questions.md`                | Stage 2    | Tagged research questions                    |
-| `research/q-NN.md`            | Stage 3    | Per-question research findings               |
-| `research/summary.md`         | Stage 3    | Unified research summary                     |
-| `design.md`                   | Stage 4    | Architecture, vertical slices, test strategy |
-| `structure.md`                | Stage 5    | File mapping, interfaces, create/modify      |
-| `plan.md`                     | Stage 6    | Overall implementation plan                  |
-| `tasks/task-NN.md`            | Stage 6    | Per-task specifications                      |
-| `feedback/{step}-round-NN.md` | Any gate   | Rejection feedback + rejected artifact       |
-| `execution-manifest.md`       | Stage 7    | Per-task execution results                   |
-| `stage7-summary.md`           | Stage 7    | Implementation summary                       |
-| `acceptance-results.md`       | Stage 8    | Per-criterion acceptance test results        |
-| `stage8-summary.md`           | Stage 8    | Acceptance testing summary                   |
-| `stage9-summary.md`           | Stage 9    | Verification summary (PASS/PARTIAL/FAIL)     |
-| `stage10-summary.md`          | Stage 10   | Final report                                 |
+| File                            | Written By | Purpose                                      |
+| ------------------------------- | ---------- | -------------------------------------------- |
+| `config.md`                     | Stage 1    | Route (full/quick-fix), run_id, and metadata |
+| `goals.md`                      | Stage 1    | Intent, constraints, acceptance criteria     |
+| `questions.md`                  | Stage 2    | Tagged research questions                    |
+| `question-leakage-review.md`    | Stage 2    | Independent review of question neutrality    |
+| `research/q-NN.md`              | Stage 3    | Per-question research findings               |
+| `research/summary.md`           | Stage 3    | Unified research summary                     |
+| `design.md`                     | Stage 4    | Architecture, vertical slices, test strategy |
+| `structure.md`                  | Stage 5    | File mapping, interfaces, create/modify      |
+| `plan.md`                       | Stage 6    | Overall implementation plan                  |
+| `baseline-results.md`           | Stage 6    | Pre-implementation build/test baseline       |
+| `tasks/task-NN.md`              | Stage 6    | Per-task specifications                      |
+| `feedback/{step}-round-NN.md`   | Any gate   | Rejection feedback + rejected artifact       |
+| `execution-manifest.md`         | Stage 7    | Per-task execution results                   |
+| `stage7-summary.md`             | Stage 7    | Implementation summary                       |
+| `integration-results.md`        | Stage 7    | Lightweight cross-task integration results   |
+| `stage7-integration-summary.md` | Stage 7    | Integration gate summary                     |
+| `acceptance-results.md`         | Stage 8    | Per-criterion acceptance test results        |
+| `stage8-summary.md`             | Stage 8    | Acceptance testing summary                   |
+| `stage9-summary.md`             | Stage 9    | Verification summary (PASS/PARTIAL/FAIL)     |
+| `stage10-summary.md`            | Stage 10   | Final report                                 |
 
 ---
 
@@ -230,6 +247,9 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 - In mechanical stages, the deepwork agent copies subagent outputs verbatim into pipeline state files.
 - In interactive stages (1 and 4), the deepwork agent conducts dialogue via the `question` tool before dispatching synthesizer subagents.
 - Research isolation is structurally enforced: `goals.md` is never passed to any researcher. Researchers receive only the question text from `questions.md`.
+- Stage 2 includes an independent question leakage review before any research begins.
+- Stage 6 records a pre-implementation baseline so later verification can distinguish known failures from new regressions.
+- Stage 7 includes a lightweight integration gate before acceptance testing begins.
 
 ---
 
@@ -278,7 +298,7 @@ Before Stage 1 starts, the deepwork agent:
 
 - If a subagent returns an error or malformed output, the deepwork agent asks the user whether to retry the stage or abort.
 - On abort, the run directory is preserved as a partial audit trail.
-- After Stage 10, PASS deletes `.pipeline/qrspi-<run-id>/`; PARTIAL and FAIL preserve it for debugging.
+- After Stage 10, the full `.pipeline/qrspi-<run-id>/` directory is preserved for PASS, PARTIAL, and FAIL runs as the audit trail.
 
 ---
 
@@ -304,7 +324,11 @@ Synthesizes `goals.md` (intent, constraints, non-goals, acceptance criteria) and
 
 #### qrspi-question-generator
 
-Generates 5–15 neutral, tagged research questions from `goals.md`. Tags each question as `codebase`, `web`, or `hybrid`. Self-reviews every question for goal leakage — ensuring a researcher who reads only the question cannot infer the planned changes. Read-only.
+Generates 5–15 neutral, tagged research questions from `goals.md`. Tags each question as `codebase`, `web`, or `hybrid`. Performs a first-pass self-review for goal leakage and can rewrite questions using reviewer feedback. Read-only.
+
+#### qrspi-question-leakage-reviewer
+
+Independently reviews `questions.md` against `goals.md` and flags any question that leaks the requested change to a goal-blind researcher. Produces `question-leakage-review.md` and forces question regeneration until all questions are safe. Read-only.
 
 ---
 
@@ -346,6 +370,10 @@ Maps each vertical slice from the design to specific files and components. Defin
 
 Writes ordered task specifications with file paths, descriptions, test expectations, dependencies, and LOC estimates. Supports full route (uses all prior artifacts) and quick-fix route (single task from goals + research). Read-only.
 
+#### qrspi-baseline-checker
+
+Records the pre-implementation build and test baseline before Stage 7 begins. Produces `baseline-results.md`, capturing known pre-existing failures without attempting fixes. Delegates execution to `@build`.
+
 ---
 
 ### Stage 7 — Implement
@@ -353,6 +381,10 @@ Writes ordered task specifications with file paths, descriptions, test expectati
 #### qrspi-implementer
 
 Implements a single task using TDD: write failing tests → implement to pass → self-review → commit. Delegates all coding to `@build`. Reports backward loop requests if the task spec is fundamentally unworkable. Max 3 red-green-verify iterations.
+
+#### qrspi-integration-checker
+
+Runs a lightweight integration gate after all implementation waves complete. Checks changed-file build sanity, shared interface compatibility, and targeted smoke checks before Stage 8 acceptance testing begins. Produces `integration-results.md` and `stage7-integration-summary.md`, and can trigger backward loops for structural mismatches.
 
 ---
 
@@ -368,7 +400,7 @@ Maps every acceptance criterion from `goals.md` to tests, writes and runs them v
 
 #### qrspi-verifier
 
-Runs the full build/lint/test suite and checks acceptance results. Fixes issues via a verify→fix loop (max 3 iterations) by delegating to `@build`. Reports PASS / PARTIAL / FAIL.
+Runs the full build/lint/test suite, checks acceptance results, and compares current failures against `baseline-results.md`. Fixes issues via a verify→fix loop (max 3 iterations) by delegating to `@build`. Reports PASS / PARTIAL / FAIL while distinguishing unchanged baseline failures from new regressions.
 
 ---
 
@@ -376,4 +408,4 @@ Runs the full build/lint/test suite and checks acceptance results. Fixes issues 
 
 #### qrspi-reporter
 
-Formats the Final Report from pipeline config, goals summary, `acceptance-results.md`, and the stage summaries. Produces a structured markdown report with per-stage results, build/test status, acceptance criteria results, overall status, and unresolved items. Never writes code or modifies files.
+Formats the Final Report from pipeline config, goals summary, `baseline-results.md`, `acceptance-results.md`, and the stage summaries. Produces a structured markdown report with baseline status, integration status, per-stage results, build/test status, acceptance criteria results, overall status, unresolved items, and the preserved audit trail path. Never writes code or modifies files.

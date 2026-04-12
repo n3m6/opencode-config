@@ -17,13 +17,16 @@ permission:
     "*": deny
     "qrspi-goals-synthesizer": allow
     "qrspi-question-generator": allow
+    "qrspi-question-leakage-reviewer": allow
     "qrspi-codebase-researcher": allow
     "qrspi-web-researcher": allow
     "qrspi-research-synthesizer": allow
     "qrspi-design-synthesizer": allow
     "qrspi-structure-mapper": allow
     "qrspi-plan-writer": allow
+    "qrspi-baseline-checker": allow
     "qrspi-implementer": allow
+    "qrspi-integration-checker": allow
     "qrspi-acceptance-tester": allow
     "qrspi-verifier": allow
     "qrspi-reporter": allow
@@ -84,18 +87,22 @@ Each pipeline run writes state files to `.pipeline/qrspi-<run-id>/`. The run ID 
 ├── config.md                     Written: Stage 1   — Route (full/quick-fix), metadata
 ├── goals.md                      Written: Stage 1   — Intent, constraints, acceptance criteria
 ├── questions.md                  Written: Stage 2   — Tagged research questions
+├── question-leakage-review.md    Written: Stage 2   — Independent review of question neutrality
 ├── research/
 │   ├── q-01.md ... q-NN.md      Written: Stage 3   — Per-question findings
 │   └── summary.md               Written: Stage 3   — Unified research summary
 ├── design.md                     Written: Stage 4   — Architecture, vertical slices, test strategy
 ├── structure.md                  Written: Stage 5   — File mapping, interfaces, create/modify
 ├── plan.md                       Written: Stage 6   — Overall plan document
+├── baseline-results.md           Written: Stage 6   — Pre-implementation build/test baseline
 ├── tasks/
 │   └── task-NN.md               Written: Stage 6   — Per-task specs
 ├── feedback/
 │   └── {step}-round-NN.md       Written: Any gate  — Rejection feedback + rejected artifact
 ├── execution-manifest.md         Written: Stage 7   — Per-task execution results
 ├── stage7-summary.md            Written: Stage 7   — Implement summary
+├── integration-results.md        Written: Stage 7   — Cross-task integration check results
+├── stage7-integration-summary.md Written: Stage 7   — Integration gate summary
 ├── acceptance-results.md         Written: Stage 8   — Per-criterion test results
 ├── stage8-summary.md            Written: Stage 8   — Acceptance test summary
 ├── stage9-summary.md            Written: Stage 9   — Verification summary (PASS/PARTIAL/FAIL)
@@ -218,6 +225,29 @@ Return questions in the specified format with ### Q{N} headers.
 When `qrspi-question-generator` completes:
 
 - Write the output to `.pipeline/qrspi-<run-id>/questions.md` using the edit tool.
+- Invoke `qrspi-question-leakage-reviewer` via the `task` tool:
+
+```
+=== GOALS ===
+[paste contents of goals.md verbatim]
+
+=== QUESTIONS ===
+[paste contents of questions.md verbatim]
+
+=== INSTRUCTIONS ===
+Review every research question independently for goal leakage.
+Apply this test to each question: if a researcher sees ONLY that question,
+could they reasonably infer the planned feature or change?
+
+Return:
+### Status — PASS or FAIL
+### Review Findings — one row per question with status SAFE or LEAKS and notes
+### Rewrite Guidance — only include for questions that leak intent
+### Stage Summary — one-line summary with counts of safe and leaking questions
+```
+
+- Write the reviewer output to `.pipeline/qrspi-<run-id>/question-leakage-review.md` using the edit tool.
+- If the reviewer returns `### Status — FAIL`, re-dispatch `qrspi-question-generator` with the original goals plus the reviewer output under `=== REVIEW FEEDBACK ===`, overwrite `questions.md`, and re-run `qrspi-question-leakage-reviewer` before proceeding.
 - Mark Stage 2 as complete in `todowrite`.
 - Proceed to **Stage 3**.
 
@@ -458,6 +488,31 @@ When `qrspi-plan-writer` completes:
 
 - Write the `### plan.md` section to `.pipeline/qrspi-<run-id>/plan.md` using the edit tool.
 - For each `### task-NN.md` section, write to `.pipeline/qrspi-<run-id>/tasks/task-NN.md` using the edit tool.
+- Invoke `qrspi-baseline-checker` via the `task` tool:
+
+```
+=== PIPELINE CONFIG ===
+[paste contents of config.md verbatim]
+
+=== PLAN ===
+[paste contents of plan.md verbatim]
+
+=== TASK SPECS ===
+[paste contents of all tasks/task-NN.md files verbatim]
+
+=== INSTRUCTIONS ===
+Record the pre-implementation baseline for this repository.
+Run the project's standard build and test checks before any Stage 7 work begins.
+If checks already fail, record them as known baseline failures and do not attempt fixes.
+
+Return:
+### Baseline Status — CLEAN or DIRTY
+### Build/Test Results — table with Check, Status, Details
+### Known Baseline Failures — list each pre-existing failure, or "None"
+### Stage Summary — one-line summary of the baseline state
+```
+
+- Write the output to `.pipeline/qrspi-<run-id>/baseline-results.md` using the edit tool.
 - Mark Stage 6 as complete in `todowrite`.
 - **Route is now locked.** No more route changes allowed.
 - Proceed to **Stage 7**.
@@ -528,6 +583,39 @@ After all waves complete:
   | # | Task | Status | Files Modified | Files Created | Summary |
   ```
 - Write the `### Stage Summary` to `.pipeline/qrspi-<run-id>/stage7-summary.md`.
+- Invoke `qrspi-integration-checker` via the `task` tool:
+
+```
+=== EXECUTION MANIFEST ===
+[paste contents of execution-manifest.md verbatim]
+
+=== PLAN ===
+[paste contents of plan.md verbatim]
+
+=== BASELINE RESULTS ===
+[paste contents of baseline-results.md verbatim]
+
+=== DESIGN CONTEXT ===
+[paste relevant sections of design.md and structure.md, or "N/A" for quick-fix]
+
+=== INSTRUCTIONS ===
+Run a lightweight post-implementation integration gate.
+Check cross-task compatibility only: changed-file build sanity, shared interface compatibility,
+and targeted smoke checks that exercise interactions across completed task outputs.
+If you find a structural mismatch that requires upstream artifact changes, include a
+### Backward Loop Request section. For non-structural integration failures, report FAIL with details.
+
+Return:
+### Status — PASS or FAIL
+### Integration Results — table with Check, Status, Details
+### Stage Summary — one-line summary of the integration gate result
+### Backward Loop Request — only if a structural mismatch was found (otherwise omit)
+```
+
+- Check the integration response for `### Backward Loop Request`. If found, follow the **Backward Loop Protocol**.
+- Write the output to `.pipeline/qrspi-<run-id>/integration-results.md` using the edit tool.
+- Write the `### Stage Summary` to `.pipeline/qrspi-<run-id>/stage7-integration-summary.md`.
+- If the integration checker reports `### Status — FAIL` without a backward loop request, treat Stage 7 as failed and follow the existing **Error Handling** path before proceeding.
 - Mark Stage 7 as complete in `todowrite`.
 - Proceed to **Stage 8**.
 
@@ -537,6 +625,7 @@ Read the input files:
 
 - `cat .pipeline/qrspi-<run-id>/goals.md`
 - `cat .pipeline/qrspi-<run-id>/execution-manifest.md`
+- `cat .pipeline/qrspi-<run-id>/integration-results.md`
 
 Invoke `qrspi-acceptance-tester` via the `task` tool:
 
@@ -578,6 +667,7 @@ Read the input files:
 - `cat .pipeline/qrspi-<run-id>/goals.md`
 - `cat .pipeline/qrspi-<run-id>/execution-manifest.md`
 - `cat .pipeline/qrspi-<run-id>/acceptance-results.md`
+- `cat .pipeline/qrspi-<run-id>/baseline-results.md`
 
 Invoke `qrspi-verifier` via the `task` tool:
 
@@ -591,18 +681,22 @@ Invoke `qrspi-verifier` via the `task` tool:
 === ACCEPTANCE RESULTS ===
 [paste contents of acceptance-results.md verbatim]
 
+=== BASELINE RESULTS ===
+[paste contents of baseline-results.md verbatim]
+
 === INSTRUCTIONS ===
 Verify that the implementation is complete and correct:
 1. Run the full build, lint, and test suite
 2. Verify all acceptance criteria passed
-3. Check for any regressions
+3. Compare current failures against the recorded baseline and distinguish unchanged pre-existing failures from new regressions
 
 If build/lint/test fails, fix and retry (max 3 iterations).
 
 Return:
 ### Build/Lint/Test Results — table with Check, Status, Details columns
+### Baseline Comparison — table with Check, Baseline Status, Current Status, Regression Status columns
 ### Verification Iterations — how many fix cycles were needed
-### Overall Status — PASS (all green) / PARTIAL (some issues remain) / FAIL (build broken or critical failures)
+### Overall Status — PASS (all green) / PARTIAL (only recorded baseline failures remain unchanged) / FAIL (build broken, critical failures, or new regressions)
 ### Stage Summary — one-line summary including overall status
 ```
 
@@ -617,6 +711,8 @@ When `qrspi-verifier` completes:
 Read all stage summary files:
 
 - `cat .pipeline/qrspi-<run-id>/stage7-summary.md`
+- `cat .pipeline/qrspi-<run-id>/stage7-integration-summary.md`
+- `cat .pipeline/qrspi-<run-id>/baseline-results.md`
 - `cat .pipeline/qrspi-<run-id>/acceptance-results.md`
 - `cat .pipeline/qrspi-<run-id>/stage8-summary.md`
 - `cat .pipeline/qrspi-<run-id>/stage9-summary.md`
@@ -632,6 +728,9 @@ Invoke `qrspi-reporter` via the `task` tool:
 === GOALS ===
 [paste contents of goals.md verbatim]
 
+=== BASELINE RESULTS ===
+[paste contents of baseline-results.md verbatim]
+
 === ACCEPTANCE RESULTS ===
 [paste contents of acceptance-results.md verbatim]
 
@@ -639,6 +738,9 @@ Invoke `qrspi-reporter` via the `task` tool:
 
 Stage 7 — Implementation:
 [paste contents of stage7-summary.md verbatim]
+
+Stage 7 — Integration Gate:
+[paste contents of stage7-integration-summary.md verbatim]
 
 Stage 8 — Acceptance Testing:
 [paste contents of stage8-summary.md verbatim]
@@ -648,8 +750,9 @@ Stage 9 — Verification:
 
 === INSTRUCTIONS ===
 Format the Final Report from the above inputs.
-Include: pipeline route, goals summary, per-stage results, build/test status,
-acceptance criteria results, overall status, and any unresolved items.
+Include: pipeline route, goals summary, baseline status, integration status,
+per-stage results, build/test status, acceptance criteria results, overall status,
+unresolved items, and the preserved audit trail path `.pipeline/qrspi-<run-id>/`.
 ```
 
 When `qrspi-reporter` completes:
@@ -742,7 +845,7 @@ If any stage fails or returns an error:
 
 After Stage 10 is marked complete, check the verifier's overall status from `stage9-summary.md`:
 
-- **If PASS**: Auto-delete the run directory by running: `rm -rf .pipeline/qrspi-<run-id>`
-  Log: "Pipeline PASS — cleaned up `.pipeline/qrspi-<run-id>/`"
+- **If PASS**: Keep the full run directory intact.
+  Log: "Pipeline PASS — audit trail preserved at `.pipeline/qrspi-<run-id>/`"
 - **If PARTIAL or FAIL**: Keep the run directory intact for debugging.
   Log: "Pipeline <status> — audit trail preserved at `.pipeline/qrspi-<run-id>/`"
