@@ -1,6 +1,6 @@
-# Plan: qrspi-agent Primary Agent Pipeline
+# Plan: deepwork Primary Agent Pipeline
 
-Build a new `qrspi-agent` primary agent implementing the QRSPI methodology adapted for opencode. It takes a user task from intent capture through research, design, planning, TDD implementation, acceptance testing, and verification — using **13 new agents** and a **10-stage pipeline** with two route variants. Clean-slate design, no modifications to existing orchestrator agents.
+Build a new `deepwork` primary agent implementing the QRSPI methodology adapted for opencode. It takes a user task from intent capture through research, design, planning, TDD implementation, acceptance testing, and verification — using **13 new agents** and a **10-stage pipeline** with two route variants. Clean-slate design, no modifications to existing orchestrator agents.
 
 ## Pipeline Routes
 
@@ -17,7 +17,7 @@ Human gates on: **Goals**, **Design**, **Structure**. All other stages auto-proc
 
 ### Stage 1 — Goals (Human-Gated)
 
-qrspi-agent converses interactively via `question` to capture intent, constraints, and testable acceptance criteria. Also determines route (full vs quick-fix). Dispatches `qrspi-goals-synthesizer` to produce `goals.md` + `config.md`. User approves or rejects with feedback.
+deepwork converses interactively via `question` to capture intent, constraints, and testable acceptance criteria. Also determines route (full vs quick-fix). Dispatches `qrspi-goals-synthesizer` to produce `goals.md` + `config.md`. User approves or rejects with feedback.
 
 Interactive dialogue covers:
 
@@ -49,7 +49,7 @@ Rejection captures feedback in `feedback/goals-round-NN.md` (rejected artifact +
 ### Stage 4 — Design (Human-Gated, SKIP on Quick-Fix)
 
 - Input: `goals.md` + `research/summary.md`
-- qrspi-agent presents 2–3 approaches with trade-offs and a recommendation via `question`
+- deepwork presents 2–3 approaches with trade-offs and a recommendation via `question`
 - Converges with user on approach and vertical slice decomposition (end-to-end slices, not horizontal layers)
 - Dispatches `qrspi-design-synthesizer` with goals + research + conversation summary
 - Produces: `design.md` (approach, patterns, vertical slices, test strategy)
@@ -81,7 +81,7 @@ Rejection captures feedback in `feedback/goals-round-NN.md` (rejected artifact +
 ### Stage 7 — Implement (Auto, Wave-Based)
 
 - Input: `plan.md`, `tasks/*.md`, `design.md`, `structure.md`
-- qrspi-agent analyzes task dependencies → wave grouping
+- deepwork analyzes task dependencies → wave grouping
 - Per wave: dispatch `qrspi-implementer` for each task in parallel
   - TDD per task: write failing tests → implement to pass → inline self-review → commit
 - **Backward loop trigger**: if implementation reveals a fundamental design/plan flaw → ask user via `question` → optionally loop back to Design/Structure/Plan
@@ -117,7 +117,7 @@ Rejection captures feedback in `feedback/goals-round-NN.md` (rejected artifact +
 
 | #   | File                            | Mode     | Purpose                                                           | Key Permissions                                             |
 | --- | ------------------------------- | -------- | ----------------------------------------------------------------- | ----------------------------------------------------------- |
-| 1   | `qrspi-agent.md`                | primary  | Pipeline controller + interactive dialogue                        | edit (state files), question, task, todowrite, limited bash |
+| 1   | `deepwork.md`                   | primary  | Pipeline controller + interactive dialogue                        | edit (state files), question, task, todowrite, limited bash |
 | 2   | `qrspi-goals-synthesizer.md`    | subagent | Synthesize `goals.md` + `config.md` from conversation             | read-only bash                                              |
 | 3   | `qrspi-question-generator.md`   | subagent | Generate neutral research questions, self-review for goal leakage | read-only bash                                              |
 | 4   | `qrspi-codebase-researcher.md`  | subagent | Per-question codebase research (trace logic, find patterns)       | read-only bash (grep, find, cat, ls)                        |
@@ -165,7 +165,7 @@ Rejection captures feedback in `feedback/goals-round-NN.md` (rejected artifact +
 When a later stage discovers a fundamental issue:
 
 1. The subagent (implementer/tester) reports the issue in its output
-2. qrspi-agent asks the user via `question`: "Stage N revealed [issue]. Options: (A) Loop back to [Design/Structure/Plan], (B) Attempt a local fix, (C) Continue as-is"
+2. deepwork asks the user via `question`: "Stage N revealed [issue]. Options: (A) Loop back to [Design/Structure/Plan], (B) Attempt a local fix, (C) Continue as-is"
 3. If loop-back approved:
    - Capture current context as feedback in `feedback/{step}-loop-NN.md`
    - Delete artifacts from loop target stage onward
@@ -196,7 +196,7 @@ Route change is allowed before Plan executes (Stage 6). After Plan approval, the
 
 | Wave | Steps                                                                                                                                    | Depends On |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| 1    | `qrspi-agent.md` + `docs/QRSPI.md`                                                                                                       | —          |
+| 1    | `deepwork.md` + `docs/DEEPWORK.md`                                                                                                       | —          |
 | 2    | `qrspi-goals-synthesizer`, `qrspi-question-generator`, `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer` | Wave 1     |
 | 3    | `qrspi-design-synthesizer`, `qrspi-structure-mapper`, `qrspi-plan-writer`                                                                | Wave 2     |
 | 4    | `qrspi-implementer`, `qrspi-acceptance-tester`, `qrspi-verifier`, `qrspi-reporter`                                                       | Wave 3     |
@@ -229,5 +229,5 @@ Route change is allowed before Plan executes (Stage 6). After Plan approval, the
 ## Further Considerations
 
 1. **Question goal-leakage reviewer**: Currently self-reviewed by the question-generator. A separate reviewer that only sees questions (not goals) would be structurally stronger. Recommend deferring to v2.
-2. **Step count tuning**: qrspi-agent handles interactive dialogue + 10 stages. May need ~65 steps. If interactive stages consume too many, consider splitting into separate primary modes.
+2. **Step count tuning**: deepwork handles interactive dialogue + 10 stages. May need ~65 steps. If interactive stages consume too many, consider splitting into separate primary modes.
 3. **Multi-phase execution**: QRSPI-plus supports multi-phase (Phase 1 = PoC, Phase 2 = full feature) with Replan between phases. Current design is single-phase. Could add in v2.

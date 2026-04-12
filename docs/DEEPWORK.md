@@ -223,12 +223,12 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 
 ## Operational Rules
 
-- The qrspi-agent never writes project code or runs project commands itself. It delegates all implementation work through subagents via the `task` tool.
+- The deepwork agent never writes project code or runs project commands itself. It delegates all implementation work through subagents via the `task` tool.
 - Its edit permission is limited to pipeline state files inside `.pipeline/qrspi-<run-id>/`.
-- After each `task` dispatch, the qrspi-agent stops and waits for the subagent response before continuing.
+- After each `task` dispatch, the deepwork agent stops and waits for the subagent response before continuing.
 - Inter-stage state lives in pipeline files, not in todo metadata. The `todowrite` tool is only for the 10-stage progress checklist.
-- In mechanical stages, the qrspi-agent copies subagent outputs verbatim into pipeline state files.
-- In interactive stages (1 and 4), the qrspi-agent conducts dialogue via the `question` tool before dispatching synthesizer subagents.
+- In mechanical stages, the deepwork agent copies subagent outputs verbatim into pipeline state files.
+- In interactive stages (1 and 4), the deepwork agent conducts dialogue via the `question` tool before dispatching synthesizer subagents.
 - Research isolation is structurally enforced: `goals.md` is never passed to any researcher. Researchers receive only the question text from `questions.md`.
 
 ---
@@ -249,7 +249,7 @@ Rejection captures feedback in `feedback/{step}-round-NN.md`. The re-generation 
 
 ## Backward Loops
 
-Stages 7 (Implement) and 8 (Accept-Test) can trigger backward loops when a fundamental issue is discovered. The qrspi-agent presents the issue to the user with options:
+Stages 7 (Implement) and 8 (Accept-Test) can trigger backward loops when a fundamental issue is discovered. The deepwork agent presents the issue to the user with options:
 
 - **Loop to Design**: Re-architect the approach (cascades through Structure → Plan)
 - **Loop to Structure**: Re-map files and interfaces (cascades through Plan)
@@ -263,7 +263,7 @@ Loop-backs delete downstream artifacts and re-run from the target stage, with fe
 
 ## Pre-Flight
 
-Before Stage 1 starts, the qrspi-agent:
+Before Stage 1 starts, the deepwork agent:
 
 1. Requires an actionable task description from the user.
 2. Generates a run ID with `date +%Y%m%d-%H%M%S`, prefixed with `qrspi-`.
@@ -276,7 +276,7 @@ Before Stage 1 starts, the qrspi-agent:
 
 ## Validation and Error Handling
 
-- If a subagent returns an error or malformed output, the qrspi-agent asks the user whether to retry the stage or abort.
+- If a subagent returns an error or malformed output, the deepwork agent asks the user whether to retry the stage or abort.
 - On abort, the run directory is preserved as a partial audit trail.
 - After Stage 10, PASS deletes `.pipeline/qrspi-<run-id>/`; PARTIAL and FAIL preserve it for debugging.
 
@@ -286,9 +286,9 @@ Before Stage 1 starts, the qrspi-agent:
 
 ### Primary Agent
 
-#### qrspi-agent
+#### deepwork
 
-The top-level QRSPI pipeline controller. Accepts a user's task and drives it through a 10-stage pipeline with two route variants (full and quick-fix). Conducts interactive dialogue for alignment stages (Goals, Design) and delegates all implementation to subagents. Manages inter-stage data through pipeline state files and tracks progress via a 10-item todo checklist. Supports backward loops from execution stages back to alignment stages with user approval.
+The top-level deepwork pipeline controller. Accepts a user's task and drives it through a 10-stage pipeline with two route variants (full and quick-fix). Conducts interactive dialogue for alignment stages (Goals, Design) and delegates all implementation to subagents. Manages inter-stage data through pipeline state files and tracks progress via a 10-item todo checklist. Supports backward loops from execution stages back to alignment stages with user approval.
 
 ---
 
