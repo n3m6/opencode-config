@@ -79,6 +79,7 @@ Each pipeline run writes state files to `.pipeline/<run-id>/`. The run ID is gen
 ├── analysis-manifest.md     Written: Stage 1       — Full Analysis Manifest table
 ├── stage1-summary.md        Written: Stage 1       — Stage Summary section from analyzer
 ├── plan-summary.md          Written: Stage 2       — Plan Summary section from executor
+├── execution-manifest.md    Written: Stage 2       — Full Execution Manifest table
 ├── file-list.md             Written: Stage 2, 4, 5 — Updated File List (overwritten each time)
 ├── stage2-summary.md        Written: Stage 2       — Stage Summary section from executor
 ├── stage3-summary.md        Written: Stage 3       — Stage Summary section from test-coverage-filler
@@ -155,7 +156,7 @@ Invoke `executor` via the `task` tool:
 [paste contents of .pipeline/<run-id>/analysis-manifest.md verbatim]
 
 === INSTRUCTIONS ===
-Execute this plan. Implement all tasks by delegating to the build agent.
+Execute this plan. Implement all tasks by delegating implementation and command work to the `coding-agent` -- invoke agent via the `task` tool.
 For tasks flagged with GAP/RISK/AMBIGUOUS in the Analysis Manifest, incorporate the
 analyzer's recommendations into your approach.
 Return an Execution Manifest as a structured markdown table with columns:
@@ -165,6 +166,7 @@ Return an Execution Manifest as a structured markdown table with columns:
 When `executor` completes:
 
 - **Validate the Execution Manifest**: Verify the output contains a markdown table with columns `#, Plan Task, Status, Files Modified, Files Created, Summary` and at least one data row. If malformed, retry Stage 2 once with an added instruction: "Your previous output was malformed — the Execution Manifest table was missing or had incorrect columns. Please output a valid markdown table with the specified columns." If retry also fails, surface the error to the user via `question`.
+- Write the full Execution Manifest table to `.pipeline/<run-id>/execution-manifest.md` using the edit tool.
 - Write the `### Plan Summary` section from the executor's output to `.pipeline/<run-id>/plan-summary.md` using the edit tool.
 - Write the `### Updated File List` section from the executor's output to `.pipeline/<run-id>/file-list.md` using the edit tool.
 - Write the `### Stage Summary` section from the executor's output to `.pipeline/<run-id>/stage2-summary.md` using the edit tool.
@@ -283,7 +285,7 @@ When `code-refactor-loop` completes:
 Read the input files:
 
 - `cat .pipeline/<run-id>/plan-summary.md`
-- `cat .pipeline/<run-id>/file-list.md`
+- `cat .pipeline/<run-id>/execution-manifest.md`
 - `cat .pipeline/<run-id>/review-critical.md`
 - `cat .pipeline/<run-id>/refactor-critical.md`
 
@@ -293,8 +295,8 @@ Invoke `verifier` via the `task` tool:
 === PLAN SUMMARY ===
 [paste contents of .pipeline/<run-id>/plan-summary.md verbatim]
 
-=== FILE LIST ===
-[paste contents of .pipeline/<run-id>/file-list.md verbatim]
+=== EXECUTION MANIFEST ===
+[paste contents of .pipeline/<run-id>/execution-manifest.md verbatim]
 
 === CRITICAL REVIEW FINDINGS ===
 [paste contents of .pipeline/<run-id>/review-critical.md verbatim]

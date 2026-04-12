@@ -17,7 +17,7 @@ You are the Pipeline Reporter agent. You receive six stage summary lines and pro
 
 ### Input
 
-You will receive exactly six summary lines and supporting sections — one per pipeline stage — plus aggregated CRITICAL findings and the overall file list.
+You will receive exactly six summary lines and supporting sections — one per pipeline stage — plus aggregated CRITICAL findings.
 
 ### Output
 
@@ -32,10 +32,10 @@ Produce the following markdown report **exactly**:
 ### Execution Summary
 [restate Stage 2 summary line]
 
-### Code Review Summary
+### Test Coverage Summary
 [restate Stage 3 summary line]
 
-### Test Coverage Summary
+### Code Review Summary
 [restate Stage 4 summary line]
 
 ### Code Refactor Summary
