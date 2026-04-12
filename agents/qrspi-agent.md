@@ -163,6 +163,9 @@ After the user responds, you have the information needed to dispatch the synthes
 Invoke `qrspi-goals-synthesizer` via the `task` tool:
 
 ```
+=== RUN ID ===
+[paste the generated qrspi-<timestamp> run ID verbatim]
+
 === USER TASK ===
 [paste the user's original task description verbatim]
 
@@ -172,7 +175,8 @@ Invoke `qrspi-goals-synthesizer` via the `task` tool:
 === INSTRUCTIONS ===
 Synthesize goals.md and config.md from the user's task and responses.
 goals.md must contain: Intent, Constraints, Non-Goals, and Acceptance Criteria sections.
-config.md must contain YAML frontmatter with: created date, route (full or quick-fix).
+config.md must contain YAML frontmatter with: created date, route (full or quick-fix), run_id.
+Use the provided run ID verbatim in config.md.
 Classify as quick-fix if the user estimates 1–3 files and no design alignment needed; otherwise full.
 Each acceptance criterion must be specific and testable — reject subjective criteria by rephrasing them.
 ```
@@ -268,7 +272,7 @@ When `qrspi-research-synthesizer` completes:
 
 - Write the output to `.pipeline/qrspi-<run-id>/research/summary.md` using the edit tool.
 - Mark Stage 3 as complete in `todowrite`.
-- Read `config.md` to check the route. If **quick-fix**: skip to **Stage 6**. If **full**: proceed to **Stage 4**.
+- Proceed to **Stage 4**. Stages 4 and 5 will check the route and self-skip on quick-fix runs.
 
 ### Stage 4 — Design (Interactive + Human Gate, SKIP on Quick-Fix)
 
@@ -613,6 +617,7 @@ When `qrspi-verifier` completes:
 Read all stage summary files:
 
 - `cat .pipeline/qrspi-<run-id>/stage7-summary.md`
+- `cat .pipeline/qrspi-<run-id>/acceptance-results.md`
 - `cat .pipeline/qrspi-<run-id>/stage8-summary.md`
 - `cat .pipeline/qrspi-<run-id>/stage9-summary.md`
 - `cat .pipeline/qrspi-<run-id>/goals.md`
@@ -626,6 +631,9 @@ Invoke `qrspi-reporter` via the `task` tool:
 
 === GOALS ===
 [paste contents of goals.md verbatim]
+
+=== ACCEPTANCE RESULTS ===
+[paste contents of acceptance-results.md verbatim]
 
 === STAGE SUMMARIES ===
 

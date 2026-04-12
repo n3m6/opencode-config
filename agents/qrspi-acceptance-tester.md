@@ -110,6 +110,7 @@ If a failing criterion cannot be fixed with a simple code change — e.g., the e
 ### Rules
 
 - Every acceptance criterion from goals.md MUST appear in the results table.
-- PASS means the test ran and the assertion passed. FAIL means the test ran and the assertion failed, or the test could not be written.
+- Every acceptance criterion result must be either PASS or FAIL.
+- PASS means the test ran and the assertion passed. FAIL means the test ran and the assertion failed, the test could not be written, or the criterion itself was not objectively testable.
 - Do not re-test behaviors that were already tested in Stage 7. Acceptance tests verify end-to-end criteria, not implementation details.
-- If a criterion is too vague to test ("it should be fast"), note it as SKIP with explanation "Criterion not objectively testable."
+- If a criterion is too vague to test, report it as FAIL and explain that the acceptance criterion should have been refined or rejected during Stage 1 goals approval.

@@ -47,8 +47,8 @@
                                         │
                                         ▼
                           ┌──────────────────────────────┐
-                          │  STAGE 3 — Research          │
-                          │  ⚠️ Strict Isolation          │
+                          │  STAGE 3 — Research         │
+                          │  ⚠️ Strict Isolation         │
                           │  (goals.md NEVER passed)     │
                           │                              │
                           │  Per-question parallel:      │
@@ -60,7 +60,7 @@
                           │  └────────────────────────┘  │
                           │                              │
                           │  ┌────────────────────────┐  │
-                          │  │qrspi-research-synthesizerr│  (combine findings)
+                          │  │qrspi-research-synthesizer││  (combine findings)
                           │  └────────────────────────┘  │
                           └─────────────┬────────────────┘
                                         │
@@ -70,10 +70,10 @@
                              ┌──────────┴──────────┐
                              │                     │
                          Full route            Quick-fix
-                             │              (skip 4 & 5)
-                             ▼                     │
+                             │                     │          (Stages 4 & 5 self-skip)
+                             ▼                    ▼ 
                           ┌──────────────────────────────┐
-                          │  STAGE 4 — Design            │
+                          │  STAGE 4 — Design           │
                           │  🔒 Human Gate               │
                           │  (SKIP on quick-fix)         │
                           │                              │
@@ -99,11 +99,11 @@
                                         │
                           Outputs: structure.md
                                         │
-                             └──────────┬──────────┘
+                                        │
                                         │
                                         ▼
                           ┌──────────────────────────────┐
-                          │  STAGE 6 — Plan              │
+                          │  STAGE 6 — Plan             │
                           │  (route locked after this)   │
                           │                              │
                           │  ┌────────────────────────┐  │
@@ -115,7 +115,7 @@
                                         │
                                         ▼
                           ┌──────────────────────────────┐
-                          │  STAGE 7 — Implement         │
+                          │  STAGE 7 — Implement        │
                           │  (wave-based parallel)       │
                           │                              │
                           │  ┌────────────────────────┐  │
@@ -186,7 +186,7 @@
 Goals → Questions → Research → Design → Structure → Plan → Implement → Accept-Test → Verify → Report
 ```
 
-**Quick-fix** — for targeted bug fixes, small changes, and 1–3 file modifications. Skips Design and Structure:
+**Quick-fix** — for targeted bug fixes, small changes, and 1–3 file modifications. It still reaches Stages 4 and 5, but those stages self-skip and mark themselves skipped before continuing to Stage 6:
 
 ```
 Goals → Questions → Research → Plan → Implement → Accept-Test → Verify → Report
@@ -202,7 +202,7 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 
 | File                          | Written By | Purpose                                      |
 | ----------------------------- | ---------- | -------------------------------------------- |
-| `config.md`                   | Stage 1    | Route (full/quick-fix) and metadata          |
+| `config.md`                   | Stage 1    | Route (full/quick-fix), run_id, and metadata |
 | `goals.md`                    | Stage 1    | Intent, constraints, acceptance criteria     |
 | `questions.md`                | Stage 2    | Tagged research questions                    |
 | `research/q-NN.md`            | Stage 3    | Per-question research findings               |
@@ -268,8 +268,9 @@ Before Stage 1 starts, the qrspi-agent:
 1. Requires an actionable task description from the user.
 2. Generates a run ID with `date +%Y%m%d-%H%M%S`, prefixed with `qrspi-`.
 3. Creates `.pipeline/qrspi-<run-id>/` and checks out `qrspi/<run-id>` from `main`.
-4. Creates ten todo items for stage progress.
-5. Immediately enters Stage 1.
+4. Passes that run ID into Stage 1 so `config.md` records it as pipeline metadata.
+5. Creates ten todo items for stage progress.
+6. Immediately enters Stage 1.
 
 ---
 
@@ -295,7 +296,7 @@ The top-level QRSPI pipeline controller. Accepts a user's task and drives it thr
 
 #### qrspi-goals-synthesizer
 
-Synthesizes `goals.md` (intent, constraints, non-goals, acceptance criteria) and `config.md` (route, metadata) from the interactive dialogue context. Ensures all acceptance criteria are specific and testable. Handles feedback-driven re-generation. Read-only.
+Synthesizes `goals.md` (intent, constraints, non-goals, acceptance criteria) and `config.md` (route, created date, run_id, metadata) from the interactive dialogue context. Ensures all acceptance criteria are specific and testable. Handles feedback-driven re-generation. Read-only.
 
 ---
 
@@ -359,7 +360,7 @@ Implements a single task using TDD: write failing tests → implement to pass �
 
 #### qrspi-acceptance-tester
 
-Maps every acceptance criterion from `goals.md` to tests, writes and runs them via `@build`. Reports per-criterion pass/fail. Flags design-level failures for backward loops.
+Maps every acceptance criterion from `goals.md` to tests, writes and runs them via `@build`. Reports per-criterion PASS or FAIL only. If a criterion is not objectively testable, that is treated as a Stage 1 quality failure rather than a third runtime status. Flags design-level failures for backward loops.
 
 ---
 
@@ -375,4 +376,4 @@ Runs the full build/lint/test suite and checks acceptance results. Fixes issues 
 
 #### qrspi-reporter
 
-Formats the Final Report from pipeline config, goals summary, and all stage summaries. Produces a structured markdown report with per-stage results, build/test status, acceptance criteria results, overall status, and unresolved items. Never writes code or modifies files.
+Formats the Final Report from pipeline config, goals summary, `acceptance-results.md`, and the stage summaries. Produces a structured markdown report with per-stage results, build/test status, acceptance criteria results, overall status, and unresolved items. Never writes code or modifies files.
