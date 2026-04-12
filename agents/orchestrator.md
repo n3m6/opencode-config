@@ -77,6 +77,7 @@ Each pipeline run writes state files to `.pipeline/<run-id>/`. The run ID is gen
 .pipeline/<run-id>/
 ├── plan.md                  Written: Pre-Flight    — Full user plan (verbatim)
 ├── analysis-manifest.md     Written: Stage 1       — Full Analysis Manifest table
+├── holistic-findings.md     Written: Stage 1       — Holistic Findings section from analyzer (optional)
 ├── stage1-summary.md        Written: Stage 1       — Stage Summary section from analyzer
 ├── plan-summary.md          Written: Stage 2       — Plan Summary section from executor
 ├── execution-manifest.md    Written: Stage 2       — Full Execution Manifest table
@@ -135,6 +136,7 @@ When `analyzer` completes:
 
 - **Validate the Analysis Manifest**: Verify the output contains a markdown table with columns `#, Plan Task, Status, Finding, Recommendation, Scope` and at least one data row. If malformed, retry Stage 1 once with an added instruction: "Your previous output was malformed — the Analysis Manifest table was missing or had incorrect columns. Please output a valid markdown table with the specified columns." If retry also fails, surface the error to the user via `question`.
 - Write the full Analysis Manifest table to `.pipeline/<run-id>/analysis-manifest.md` using the edit tool.
+- If the analyzer output includes a `### Holistic Findings` section, write that section verbatim to `.pipeline/<run-id>/holistic-findings.md` using the edit tool. If the section is absent, do not create a placeholder file.
 - Write the `### Stage Summary` section from the analyzer's output to `.pipeline/<run-id>/stage1-summary.md` using the edit tool.
 - Mark Stage 1 as complete in `todowrite`.
 - Proceed to **Stage 2**.
@@ -145,6 +147,7 @@ Read the input files:
 
 - `cat .pipeline/<run-id>/plan.md`
 - `cat .pipeline/<run-id>/analysis-manifest.md`
+- If `.pipeline/<run-id>/holistic-findings.md` exists: `cat .pipeline/<run-id>/holistic-findings.md`
 
 Invoke `executor` via the `task` tool:
 
@@ -155,10 +158,18 @@ Invoke `executor` via the `task` tool:
 === ANALYSIS MANIFEST ===
 [paste contents of .pipeline/<run-id>/analysis-manifest.md verbatim]
 
+=== HOLISTIC FINDINGS ===
+[if `.pipeline/<run-id>/holistic-findings.md` exists, paste its contents verbatim; otherwise omit this section entirely]
+
 === INSTRUCTIONS ===
 Execute this plan. Implement all tasks by delegating implementation and command work to the `coding-agent` -- invoke agent via the `task` tool.
 For tasks flagged with GAP/RISK/AMBIGUOUS in the Analysis Manifest, incorporate the
 analyzer's recommendations into your approach.
+Treat Holistic Findings as execution-routing inputs:
+- `[Schedule]`: adjust dependency ordering, serialization, or wave planning for existing tasks.
+- `[Gap]`: create a synthetic executor task only when the finding identifies missing work not covered by any explicit plan task.
+- `[Guidance]`: carry the finding into relevant task delegations as shared execution context.
+- `[Escalate]`: ask the user before proceeding if the finding implies plan restructuring that should not be guessed through autonomously.
 Return an Execution Manifest as a structured markdown table with columns:
 #, Plan Task, Status, Files Modified, Files Created, Summary.
 ```

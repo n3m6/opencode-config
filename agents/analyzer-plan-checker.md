@@ -64,8 +64,10 @@ After the table, optionally include a **Holistic Findings** section:
 ```
 ### Holistic Findings
 
-- [plan-wide observation 1]
-- [plan-wide observation 2]
+- [Schedule][Tasks: 2, 5] Task 5 should run after task 2 because both rely on the same schema change.
+- [Gap][Tasks: —] No task creates the required database migration for the new persistence layer.
+- [Guidance][Tasks: 1, 3, 4] Treat these tasks as one API surface so naming and error handling stay consistent.
+- [Escalate][Tasks: 2, 7] The plan likely needs to split rollout work from refactoring before execution.
 ```
 
 Include Holistic Findings **only if** you identify plan-wide observations that don't belong to a single task row. Examples:
@@ -77,6 +79,15 @@ Include Holistic Findings **only if** you identify plan-wide observations that d
 
 **Omit the Holistic Findings section entirely if there are none.**
 
+Each holistic finding must start with one of these routing tags so the executor can route it correctly:
+
+- `[Schedule]` — change dependency ordering, serialization, or wave planning for existing tasks.
+- `[Gap]` — identify missing work that is not covered by any explicit plan task.
+- `[Guidance]` — provide shared execution context that should shape relevant task delegations.
+- `[Escalate]` — identify plan restructuring or ambiguity that executor should not guess through.
+
+Follow the tag with an optional affected task list in the form `[Tasks: 2, 5]` or `[Tasks: —]`, then write the finding itself in natural language.
+
 ### Rules
 
 1. **Always output the Cross-Task Findings table.** Never return prose-only results.
@@ -86,3 +97,5 @@ Include Holistic Findings **only if** you identify plan-wide observations that d
 5. **Do NOT delegate to other agents.** You have no `task` tool.
 6. **Report conflicts on the downstream task's row**, referencing the upstream task number.
 7. **Do NOT analyze tasks in isolation.** Entity existence, convention compliance, and scope assessment are handled by a separate agent. Focus only on task interactions.
+8. **Use Holistic Findings only for plan-wide execution signals.** If an issue can be attached to a specific task row, keep it in the Cross-Task Findings table instead.
+9. **Every holistic finding bullet must begin with a routing tag.** Use exactly one of `[Schedule]`, `[Gap]`, `[Guidance]`, or `[Escalate]`.

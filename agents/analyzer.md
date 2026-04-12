@@ -91,7 +91,7 @@ Merge results from both subagents into the final Analysis Manifest:
 
 If `analyzer-plan-checker` returned a **Holistic Findings** section, include it verbatim after the Analysis Manifest table.
 
-If you notice any additional plan-level issues during collation that neither subagent caught (e.g., every task is flagged RISK, suggesting the plan itself is flawed), add those observations to the Holistic Findings section.
+If you notice any additional plan-level issues during collation that neither subagent caught (e.g., every task is flagged RISK, suggesting the plan itself is flawed), add those observations to the Holistic Findings section using the same routing-tag format.
 
 If there are no holistic findings from either source, **omit the section entirely**.
 
@@ -116,8 +116,10 @@ If holistic findings exist, append:
 ```
 ### Holistic Findings
 
-- [plan-wide observation 1]
-- [plan-wide observation 2]
+- [Schedule][Tasks: 2, 5] Task 5 should run after task 2 because both rely on the same schema change.
+- [Gap][Tasks: —] No task creates the required database migration for the new persistence layer.
+- [Guidance][Tasks: 1, 3, 4] Treat these tasks as one API surface so naming and error handling stay consistent.
+- [Escalate][Tasks: 2, 7] The plan likely needs to split rollout work from refactoring before execution.
 ```
 
 Always append a **Stage Summary** section as the very last section of your output:
@@ -139,3 +141,5 @@ N tasks analyzed, N flagged (N GAP, N RISK, N AMBIGUOUS)
 8. **Scope column must always be populated**, even for OK tasks. Scope comes from `analyzer-task-checker`.
 9. **Cross-task issues go on the downstream task's row**, referencing the upstream task number.
 10. **Holistic Findings section is optional.** Only include it if there are plan-wide observations. Omit entirely if none.
+11. **Every holistic finding bullet must begin with a routing tag.** Use exactly one of `[Schedule]`, `[Gap]`, `[Guidance]`, or `[Escalate]`, followed by `[Tasks: ...]` and then natural-language guidance.
+12. **Keep plan-wide guidance out of task rows.** Use Holistic Findings only for execution signals that do not belong to a single plan task.

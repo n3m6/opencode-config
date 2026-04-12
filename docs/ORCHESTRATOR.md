@@ -33,6 +33,7 @@
                           └─────────────┬────────────────┘
                                         │
                           Outputs: analysis-manifest.md
+                                   holistic-findings.md (optional)
                                    stage1-summary.md
                                         │
                                         ▼
@@ -41,6 +42,8 @@
                           │                              │
                           │  Reads: plan.md,             │
                           │         analysis-manifest.md │
+                          │         holistic-findings.md │
+                          │         (optional)           │
                           │                              │
                           │  Delegates to: @coding-agent │
                           │  (wave-based parallel exec)  │
@@ -167,6 +170,7 @@ All inter-stage data flows through files in `.pipeline/<run-id>/`:
 | ----------------------- | ------------- | -------------------------------------------- |
 | `plan.md`               | Pre-Flight    | Full user plan (verbatim)                    |
 | `analysis-manifest.md`  | Stage 1       | Analysis Manifest table                      |
+| `holistic-findings.md`  | Stage 1       | Holistic Findings section from analyzer      |
 | `stage1-summary.md`     | Stage 1       | Analyzer stage summary                       |
 | `plan-summary.md`       | Stage 2       | Condensed plan summary for downstream stages |
 | `execution-manifest.md` | Stage 2       | Execution Manifest table                     |
@@ -188,6 +192,8 @@ All inter-stage data flows through files in `.pipeline/<run-id>/`:
 - After each `task` dispatch, the orchestrator stops and waits for the subagent response before continuing.
 - Inter-stage state lives in pipeline files, not in todo metadata. The `todowrite` tool is only for the 7-stage progress checklist.
 - The orchestrator is intentionally mechanical: it copies the user plan and named subagent output sections verbatim into pipeline state files rather than summarizing, deduplicating, or reinterpreting them.
+- When Stage 1 emits `holistic-findings.md`, the orchestrator passes it through verbatim to Stage 2. The orchestrator does not interpret those findings itself.
+- Executor treats holistic findings as routing signals: `Schedule` adjusts wave planning, `Gap` creates synthetic `[Holistic Gap]` tasks, `Guidance` shapes delegations, and `Escalate` pauses for user confirmation.
 
 ## Pre-Flight
 
@@ -224,7 +230,7 @@ The top-level pipeline controller. Accepts a user-provided markdown plan and dri
 
 #### analyzer
 
-Coordinator agent that dispatches plan analysis to two specialized subagents in parallel, then collates their results into a unified **Analysis Manifest** (a table with columns: `#, Plan Task, Status, Finding, Recommendation, Scope`). Read-only — never modifies files.
+Coordinator agent that dispatches plan analysis to two specialized subagents in parallel, then collates their results into a unified **Analysis Manifest** (a table with columns: `#, Plan Task, Status, Finding, Recommendation, Scope`). It can also append optional **Holistic Findings** tagged as `Schedule`, `Gap`, `Guidance`, or `Escalate` for plan-wide execution signals. Read-only — never modifies files.
 
 #### analyzer-task-checker
 
@@ -232,7 +238,7 @@ Analyzes each plan task **individually** against the current codebase — checki
 
 #### analyzer-plan-checker
 
-Analyzes **cross-task interactions** in the plan — dependency ordering, conflicts, and plan-level gaps. Returns a cross-task findings table and optional holistic findings. Read-only.
+Analyzes **cross-task interactions** in the plan — dependency ordering, conflicts, and plan-level gaps. Returns a cross-task findings table and optional holistic findings tagged for executor routing. Read-only.
 
 ---
 
@@ -240,7 +246,7 @@ Analyzes **cross-task interactions** in the plan — dependency ordering, confli
 
 #### executor
 
-Executes the plan by delegating implementation and command work to `@coding-agent`. Analyzes task dependencies, groups them into parallelizable **waves**, and executes wave-by-wave. Incorporates the analyzer's GAP/RISK/AMBIGUOUS recommendations into delegation prompts. Returns an **Execution Manifest** with per-task status, files modified/created, plus a plan summary, updated file list, and stage summary.
+Executes the plan by delegating implementation and command work to `@coding-agent`. Analyzes task dependencies, groups them into parallelizable **waves**, and executes wave-by-wave. Incorporates the analyzer's GAP/RISK/AMBIGUOUS recommendations into delegation prompts and triages optional holistic findings: `Schedule` changes wave planning, `Gap` creates synthetic `[Holistic Gap]` tasks, `Guidance` adds shared delegation context, and `Escalate` pauses for user confirmation. Returns an **Execution Manifest** with per-task status, any synthetic gap rows, files modified/created, plus a plan summary, updated file list, and stage summary.
 
 ---
 
