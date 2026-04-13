@@ -24,6 +24,7 @@ You will receive:
 2. **User Task** — the original task description
 3. **User Responses** — answers to the dialogue questions (intent, constraints, non-goals, acceptance criteria, size estimate)
 4. **Feedback History** (optional) — prior rejected artifacts and user feedback for re-generation
+5. **Review Feedback** (optional) — reviewer findings from the current automated review round
 
 ### Process
 
@@ -35,6 +36,7 @@ You will receive:
    - **quick-fix**: 1–3 files, no architectural decisions needed, targeted bug fix or small change.
    - **full**: Everything else — multi-file changes, new features, architectural decisions required.
 6. **Incorporate feedback**: If feedback history is provided, read ALL prior rounds. Identify what the user objected to and adjust accordingly. Do not repeat previously rejected approaches.
+7. **Apply review feedback**: If review feedback is provided, address every FAIL finding in the regenerated draft. Improve the wording and structure without inventing new requirements.
 
 ### Output Format
 
@@ -80,3 +82,61 @@ run_id: [qrspi-YYYYMMDD-HHMMSS]
 - The `created` date in config.md should be today's date in ISO format.
 - The `run_id` in config.md must match the provided Run ID input exactly.
 - Do not invent requirements the user didn't mention. Only structure what was provided.
+
+### Worked Examples
+
+Good example:
+
+```markdown
+# Goals
+
+## Intent
+
+Add per-client rate limiting to the public REST API to prevent abuse and ensure fair usage across API consumers.
+
+## Constraints
+
+- Must use Redis for shared state because it is already in the stack.
+- Must add less than 5 ms p99 overhead on rate-limited paths.
+- Must support rolling deploys with no downtime.
+
+## Non-Goals
+
+- Per-endpoint rate limits.
+- Admin UI for configuring limits.
+- Billing-tier differentiation.
+
+## Acceptance Criteria
+
+1. Clients exceeding 100 requests per minute receive HTTP 429.
+2. Responses include a `Retry-After` header with seconds until reset.
+3. Existing automated tests pass with no regressions.
+4. Load testing shows less than 5 ms p99 overhead on rate-limited paths.
+```
+
+Why it is good: concrete constraints, explicit boundaries, and every success condition is measurable.
+
+Bad example:
+
+```markdown
+# Goals
+
+## Intent
+
+Add rate limiting so the API is better.
+
+## Constraints
+
+- Use the existing stack.
+
+## Non-Goals
+
+None specified.
+
+## Acceptance Criteria
+
+1. Rate limiting works.
+2. The API stays fast.
+```
+
+Why it is bad: the intent does not explain why, the constraint is too vague to guide implementation, and the acceptance criteria are subjective and not directly testable.
