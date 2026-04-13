@@ -119,8 +119,9 @@ When `qrspi-goals-synthesizer` completes:
 
 After writing the artifacts, run an internal review loop before showing the draft to the user.
 
-1. Create the reviews directory if needed: `mkdir -p .pipeline/<run-id>/reviews`
-2. Dispatch `qrspi-goals-reviewer` via the `task` tool:
+1. Set an internal counter: `review_round = 1`
+2. Create the reviews directory if needed: `mkdir -p .pipeline/<run-id>/reviews`
+3. For each review round, dispatch `qrspi-goals-reviewer` via the `task` tool:
 
 ```
 === GOALS ===
@@ -131,91 +132,82 @@ Review this goals draft for clarity, scope control, and testability.
 Flag vague constraints, subjective acceptance criteria, missing boundaries, or oversized scope.
 ```
 
-3. Write the reviewer output to `.pipeline/<run-id>/reviews/goals-review-round-{NN}.md` using the edit tool.
-4. If the reviewer returns `### Status — PASS`, proceed to the human gate.
-5. If the reviewer returns `### Status — FAIL`:
+4. Write the reviewer output to `.pipeline/<run-id>/reviews/goals-review-round-{NN}.md` using the edit tool.
+5. Apply this decision logic in order:
 
-- Re-dispatch `qrspi-goals-synthesizer` with the original inputs plus:
+- If the reviewer returns `### Status — PASS` and `review_round` is 3 or greater, stop the review loop and proceed to the human gate.
+- If the reviewer returns `### Status — PASS` and `review_round` is less than 3, increment `review_round` and run the reviewer again on the unchanged current artifact. This satisfies the minimum 3-round requirement.
+- If the reviewer returns `### Status — FAIL` and `review_round` is less than 5, re-dispatch `qrspi-goals-synthesizer` with the original inputs plus:
 
   ```
   === REVIEW FEEDBACK ===
   [paste the reviewer output verbatim]
   ```
 
-- Overwrite `goals.md` and `config.md` with the regenerated output.
-- Re-run the reviewer on the new draft.
-- Continue until the reviewer passes clean or 5 review rounds have completed.
+  Then overwrite `goals.md` and `config.md`, increment `review_round`, and continue the loop.
 
-6. You must run at least 3 review rounds unless the user explicitly asked for a lighter process in earlier context. If the draft passes before round 3, continue re-running the reviewer on the current artifact until 3 total rounds complete, then proceed.
-7. If the draft still fails after round 5, proceed to the human gate and note that automated review found remaining issues that were addressed but not verified in a clean final round.
+- If the reviewer returns `### Status — FAIL` and `review_round` is 5, stop the review loop and proceed to the human gate with the latest draft. Do not run a sixth review round.
+
+6. The loop therefore guarantees both of these conditions:
+
+- At least 3 review rounds total.
+- At most 5 review rounds total.
+
+7. Track the terminal review state for the human gate:
+
+- `clean` if the final round passed.
+- `unclean-cap` if round 5 still failed.
 
 ### Step E — Human Gate
 
 1. Read the artifact: `cat .pipeline/<run-id>/goals.md`
 2. Present the artifact to the user via `question`:
 
-   ```
-   ### Goals — Review
-   ```
+```
+### Goals — Review
 
-Review status: [either "Automated reviews passed clean in round {NN}." or "Automated reviews completed through round {NN}; remaining concerns are documented in reviews/goals-review-round-{NN}.md."]
+Review status: [if terminal review state is `clean`, say "Automated reviews passed clean in round {NN}." If terminal review state is `unclean-cap`, say "Automated reviews reached the 5-round cap; remaining concerns are documented in reviews/goals-review-round-{NN}.md."]
 
 [paste the goals.md content]
 
 Reply **approve** to proceed, or provide your feedback for revision.
-
 ```
 
 3. **If the user approves** (responds with "approve", "yes", "looks good", "lgtm", or similar affirmative): proceed to the return step.
 4. **If the user provides feedback**:
-a. Determine the round number (first rejection = round 1, next = round 2, etc.).
-b. Create the feedback directory if needed: `mkdir -p .pipeline/<run-id>/feedback`
-c. Write feedback to `.pipeline/<run-id>/feedback/goals-round-{NN}.md` using the edit tool:
+   a. Determine the round number (first rejection = round 1, next = round 2, etc.).
+   b. Create the feedback directory if needed: `mkdir -p .pipeline/<run-id>/feedback`
+   c. Write feedback to `.pipeline/<run-id>/feedback/goals-round-{NN}.md` using the edit tool:
 
 ```
-
 ## Round {NN} Feedback
 
 ### User Feedback
-
 [user's feedback verbatim]
 
 ### Rejected Artifact
-
 [full content of the rejected goals.md]
-
 ```
 
 d. Read all prior feedback files for this step: `cat .pipeline/<run-id>/feedback/goals-round-*.md`
 e. Re-dispatch `qrspi-goals-synthesizer` with original inputs plus a `=== FEEDBACK HISTORY ===` section containing all feedback files.
-f. When the synthesizer returns, overwrite `goals.md` and `config.md`, then return to Step D so the automated review loop restarts from round 1 before the next human review.
+f. When the synthesizer returns, overwrite `goals.md` and `config.md`, reset `review_round = 1`, and return to Step D so the automated review loop restarts before the next human review.
 
 ### Return
 
 After the user approves the goals, read `config.md` to extract the route. Return:
 
 ```
-
 ### Status — PASS
-
 ### Files Written — goals.md, config.md
-
 ### Route — [full or quick-fix, from config.md]
-
 ### Summary — Goals captured and approved. Route: [route].
-
 ```
 
 If any step fails unrecoverably, return:
 
 ```
-
 ### Status — FAIL
-
 ### Files Written — [list any files written before failure]
-
 ### Summary — [description of what went wrong]
-
-```
-
 ```
