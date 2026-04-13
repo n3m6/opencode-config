@@ -83,7 +83,7 @@ Each stage is handled by a dedicated subagent that:
 | 1 — Goals       | `qrspi-goals`     | Yes        | `qrspi-goals-synthesizer`                                                                                    |
 | 2 — Questions   | `qrspi-questions` | Yes        | `qrspi-question-generator`, `qrspi-question-leakage-reviewer`, `qrspi-question-quality-reviewer`             |
 | 3 — Research    | `qrspi-research`  | No         | `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer`, `qrspi-research-reviewer` |
-| 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`                                                                                   |
+| 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`, `qrspi-design-reviewer`                                                          |
 | 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`                                                                                     |
 | 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-baseline-checker`                                                                |
 | 7 — Implement   | `qrspi-implement` | No         | `qrspi-implementer`, `qrspi-integration-checker`                                                             |
@@ -119,7 +119,8 @@ Each pipeline run writes state files to `.pipeline/qrspi-<run-id>/`. The run ID 
 │   └── summary.md               Written: Stage 3   — Unified research summary
 ├── reviews/
 │   ├── goals-review-round-NN.md Written: Stage 1   — Goals automated review history
-│   └── research-review-round-NN.md Written: Stage 3   — Research automated review history
+│   ├── research-review-round-NN.md Written: Stage 3   — Research automated review history
+│   └── design-review-round-NN.md Written: Stage 4   — Design automated review history
 ├── design.md                     Written: Stage 4   — Architecture, vertical slices, test strategy
 ├── structure.md                  Written: Stage 5   — File mapping, interfaces, create/modify
 ├── plan.md                       Written: Stage 6   — Overall plan document
