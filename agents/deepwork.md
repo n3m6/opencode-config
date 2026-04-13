@@ -52,7 +52,7 @@ Full Pipeline:
   │  Goals  │──▶│ Questions │──▶│ Research │──▶│ Design │──▶│ Structure │──▶│ Plan │
   │   (1)   │    │    (2)    │    │   (3)    │    │  (4)   │    │    (5)    │    │ (6)  │
   └─────────┘    └───────────┘    └──────────┘    └────────┘    └───────────┘    └──────┘
-   🔒 Gate                                         🔒 Gate       🔒 Gate          │
+   🔒 Gate      🔒 Gate                           🔒 Gate       🔒 Gate          │
                                                                                    │
       ┌────────────────────────────────────────────────────────────────────────────┘
       ▼
@@ -78,18 +78,18 @@ Each stage is handled by a dedicated subagent that:
 - Writes its outputs to the pipeline directory
 - Returns a structured status to deepwork
 
-| Stage            | Agent             | Human Gate | Leaf Subagents Called                                                             |
-| ---------------- | ----------------- | ---------- | --------------------------------------------------------------------------------- |
-| 1 — Goals       | `qrspi-goals`     | Yes        | `qrspi-goals-synthesizer`                                                         |
-| 2 — Questions   | `qrspi-questions` | No         | `qrspi-question-generator`, `qrspi-question-leakage-reviewer`                     |
-| 3 — Research    | `qrspi-research`  | No         | `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer` |
-| 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`                                                        |
-| 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`                                                          |
-| 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-baseline-checker`                                     |
-| 7 — Implement   | `qrspi-implement` | No         | `qrspi-implementer`, `qrspi-integration-checker`                                  |
-| 8 — Accept-Test | `qrspi-accept`    | No         | `qrspi-acceptance-tester`                                                         |
-| 9 — Verify      | `qrspi-verify`    | No         | `qrspi-verifier`                                                                  |
-| 10 — Report     | `qrspi-report`    | No         | `qrspi-reporter`                                                                  |
+| Stage            | Agent             | Human Gate | Leaf Subagents Called                                                                            |
+| ---------------- | ----------------- | ---------- | ------------------------------------------------------------------------------------------------ |
+| 1 — Goals       | `qrspi-goals`     | Yes        | `qrspi-goals-synthesizer`                                                                        |
+| 2 — Questions   | `qrspi-questions` | Yes        | `qrspi-question-generator`, `qrspi-question-leakage-reviewer`, `qrspi-question-quality-reviewer` |
+| 3 — Research    | `qrspi-research`  | No         | `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer`                |
+| 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`                                                                       |
+| 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`                                                                         |
+| 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-baseline-checker`                                                    |
+| 7 — Implement   | `qrspi-implement` | No         | `qrspi-implementer`, `qrspi-integration-checker`                                                 |
+| 8 — Accept-Test | `qrspi-accept`    | No         | `qrspi-acceptance-tester`                                                                        |
+| 9 — Verify      | `qrspi-verify`    | No         | `qrspi-verifier`                                                                                 |
+| 10 — Report     | `qrspi-report`    | No         | `qrspi-reporter`                                                                                 |
 
 ### Return Contract (Stage → Deepwork)
 
@@ -113,6 +113,7 @@ Each pipeline run writes state files to `.pipeline/qrspi-<run-id>/`. The run ID 
 ├── goals.md                      Written: Stage 1   — Intent, constraints, acceptance criteria
 ├── questions.md                  Written: Stage 2   — Tagged research questions
 ├── question-leakage-review.md    Written: Stage 2   — Independent review of question neutrality
+├── question-quality-review.md    Written: Stage 2   — Independent review of question coverage and tagging quality
 ├── research/
 │   ├── q-01.md ... q-NN.md      Written: Stage 3   — Per-question findings
 │   └── summary.md               Written: Stage 3   — Unified research summary
