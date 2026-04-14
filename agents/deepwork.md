@@ -195,6 +195,7 @@ Rules:
 
 - `current_phase` is `1` until `phase-manifest.md` exists.
 - `total_phases` is `1` for quick-fix, and `0` until Plan produces `phase-manifest.md` for full route.
+- Phase directory names are always zero-padded two-digit identifiers: `phases/phase-01`, `phases/phase-02`, ..., `phases/phase-NN`.
 - `resume_source` is `state` when recovered from `state.md`, `artifacts` when reconstructed from files on disk, and `fresh` on a brand-new run.
 - `stages_completed` may include `replan` once at least one phase transition completes.
 - `phase_history` records per-phase stage-boundary completion. For single-phase runs, keep one entry.
@@ -476,6 +477,7 @@ When `qrspi-plan` completes:
 - Parse `### Status`. If FAIL, follow **Error Handling**.
 - Mark Stage 6 as complete in `todowrite`.
 - Read `=== NEXT REMAINING PHASE ===` from the Stage 6 input and treat it as the earliest incomplete phase number. Use `1` for fresh runs.
+- Format `next_remaining_phase` as a zero-padded two-digit phase directory name before creating or referencing any `phases/phase-NN/` path.
 - Read `phase-manifest.md` to determine `total_phases`. If it is missing, treat the run as single-phase.
 - If the route is quick-fix, set `total_phases: 1`.
 - Create `.pipeline/<run-id>/phases/phase-NN/` for `next_remaining_phase` and create that phase's task symlink by running `ln -s ../../tasks .pipeline/<run-id>/phases/phase-NN/tasks`.
