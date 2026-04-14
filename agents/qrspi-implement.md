@@ -1,5 +1,5 @@
 ---
-description: "Stage 7 orchestrator — analyzes task dependencies into waves, dispatches implementers in parallel per wave, runs integration check. Writes execution-manifest.md, stage7-summary.md, integration-results.md."
+description: "Stage 7 orchestrator — analyzes task dependencies into waves, forwards task review status to implementers, runs integration check, and reports execution results. Writes execution-manifest.md, stage7-summary.md, integration-results.md."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -51,7 +51,7 @@ If the route is **full**, also read:
 
 ### Step B — Wave Analysis
 
-Parse dependencies from each task file. Group tasks into waves:
+Parse dependencies and final review status from each task file. Group tasks into waves:
 
 - **Wave 1**: Tasks with no dependencies.
 - **Wave N**: Tasks whose dependencies are ALL in waves < N.
@@ -65,6 +65,9 @@ For each wave in order, dispatch `qrspi-implementer` for every task in the wave.
 === TASK ===
 [paste contents of tasks/task-NN.md verbatim]
 
+=== PLAN REVIEW STATUS ===
+[paste the task's final review state and outstanding concerns verbatim]
+
 === DESIGN CONTEXT ===
 [paste relevant sections of design.md and structure.md, or "N/A" for quick-fix]
 
@@ -77,6 +80,11 @@ Implement this task using TDD:
 2. Implement minimal code to pass all tests
 3. Self-review: check for obvious issues
 4. Commit changes with a descriptive message
+
+Use the plan review status as an execution risk signal:
+- If the review state is `clean`, proceed normally.
+- If the review state is `unclean-cap`, treat the outstanding concerns as unresolved planning risk.
+- If those concerns show the task is ambiguous, structurally unsafe, or dependent on missing upstream clarification, request a backward loop instead of guessing.
 
 If you discover a fundamental issue that makes the task's design or spec unworkable,
 include a ### Backward Loop Request section describing the issue and which upstream
@@ -102,7 +110,7 @@ After all waves complete (or after stopping for backward loop):
 
 - Write the execution manifest to `.pipeline/<run-id>/execution-manifest.md` using the edit tool. The manifest is a markdown table:
   ```
-  | # | Task | Status | Files Modified | Files Created | Summary |
+  | # | Task | Review Status | Status | Files Modified | Files Created | Summary |
   ```
 - Write a stage summary to `.pipeline/<run-id>/stage7-summary.md`.
 
@@ -120,6 +128,9 @@ If all tasks passed and no backward loop was triggered, invoke `qrspi-integratio
 === BASELINE RESULTS ===
 [paste contents of .pipeline/<run-id>/baseline-results.md verbatim]
 
+=== REVIEW STATUS SUMMARY ===
+[for each task: Task NN — clean or unclean-cap; outstanding concerns summary]
+
 === DESIGN CONTEXT ===
 [paste relevant sections of design.md and structure.md, or "N/A" for quick-fix]
 
@@ -127,6 +138,10 @@ If all tasks passed and no backward loop was triggered, invoke `qrspi-integratio
 Run a lightweight post-implementation integration gate.
 Check cross-task compatibility only: changed-file build sanity, shared interface compatibility,
 and targeted smoke checks that exercise interactions across completed task outputs.
+Use the review status summary as a risk signal when interpreting failures:
+- `clean` means the task entered Stage 7 without unresolved plan-review concerns.
+- `unclean-cap` means the task entered Stage 7 with unresolved plan-review concerns.
+- If an integration failure lines up with those unresolved concerns, prefer reporting a structural mismatch.
 If you find a structural mismatch that requires upstream artifact changes, include a
 ### Backward Loop Request section. For non-structural integration failures, report FAIL with details.
 

@@ -23,7 +23,8 @@ You will receive:
 1. **Execution Manifest** — the execution-manifest.md artifact
 2. **Plan** — the plan.md artifact
 3. **Baseline Results** — the baseline-results.md artifact
-4. **Design Context** — relevant sections of design.md and structure.md, or `N/A` for quick-fix runs
+4. **Review Status Summary** — the final review state and outstanding concerns for each task
+5. **Design Context** — relevant sections of design.md and structure.md, or `N/A` for quick-fix runs
 
 ### Process
 
@@ -39,6 +40,9 @@ Delegate to `@build` via the `task` tool:
 === BASELINE RESULTS ===
 [paste baseline results verbatim]
 
+=== REVIEW STATUS SUMMARY ===
+[paste review-status summary verbatim]
+
 === DESIGN CONTEXT ===
 [paste design context verbatim]
 
@@ -48,6 +52,11 @@ Check only cross-task compatibility:
 1. Changed-file build sanity
 2. Shared interface compatibility across completed task outputs
 3. Targeted smoke checks that exercise interactions between the implemented tasks
+
+Use the review-status summary as a structural-risk signal:
+- `clean` means the task entered Stage 7 without unresolved plan-review concerns.
+- `unclean-cap` means the task entered Stage 7 with unresolved plan-review concerns.
+- If an integration failure lines up with those unresolved concerns, call it out as stronger evidence that the upstream artifact is wrong.
 
 Do not run the full verification suite.
 If you find an issue that requires changing design, structure, or the plan itself,
