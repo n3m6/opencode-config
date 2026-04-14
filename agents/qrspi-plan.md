@@ -37,8 +37,12 @@ You will receive from deepwork:
 
 1. **Run ID** — the `qrspi-<timestamp>` identifier for this pipeline run
 2. **Route** — `full` or `quick-fix`
+3. **Next Remaining Phase** — optional phase number for the earliest remaining phase when Plan is re-entered from a later-phase backward loop; default to `1`
+4. **Prior Phase Manifest** — optional last known phase-manifest that must be preserved for already-completed phases during a later-phase backward loop
+5. **Completed Phases Context** — optional preserved execution, integration, acceptance, and stage summaries from already-completed phases
+6. **Failure Context** — optional backward-loop analysis, failed-phase summaries, and loop feedback when Plan is re-entered from a later-phase backward loop
 
-Extract the run ID and route from the prompt. Use the run ID to construct all pipeline file paths: `.pipeline/<run-id>/`.
+Extract the run ID and route from the prompt. Also parse any optional loopback context blocks. Use the run ID to construct all pipeline file paths: `.pipeline/<run-id>/`.
 
 ### Step A — Read Inputs
 
@@ -56,11 +60,17 @@ Read `config.md` to confirm the route: `cat .pipeline/<run-id>/config.md`
 - `cat .pipeline/<run-id>/goals.md`
 - `cat .pipeline/<run-id>/research/summary.md`
 
+If `Next Remaining Phase`, `Prior Phase Manifest`, `Completed Phases Context`, or `Failure Context` was provided in the prompt, treat it as additional planning input for a later-phase loopback. In that mode:
+
+- preserve the already-completed phases as historical fact
+- keep completed phase numbering unchanged
+- rewrite only the remaining work beginning at `Next Remaining Phase`
+
 ### Step B — Create Working Directories
 
 - `mkdir -p .pipeline/<run-id>/tasks`
 - `mkdir -p .pipeline/<run-id>/reviews`
-- `mkdir -p .pipeline/<run-id>/phases/phase-01`
+- `mkdir -p .pipeline/<run-id>/phases`
 
 ### Step C — Dispatch Plan Writer
 
@@ -78,6 +88,18 @@ For **full** route, invoke `qrspi-plan-writer` via the `task` tool:
 
 === STRUCTURE ===
 [paste contents of structure.md verbatim]
+
+=== NEXT REMAINING PHASE ===
+[paste the provided next remaining phase number, or `1`]
+
+=== PRIOR PHASE MANIFEST ===
+[paste the provided prior phase manifest verbatim, or `None.`]
+
+=== COMPLETED PHASES CONTEXT ===
+[paste the provided completed phases context verbatim, or `None.`]
+
+=== FAILURE CONTEXT ===
+[paste the provided failure context verbatim, or `None.`]
 
 === INSTRUCTIONS ===
 Write an ordered implementation plan overview and delegate every task spec.
@@ -97,6 +119,7 @@ Each task spec must include:
 The phase manifest must include:
 - `total_phases`
 - one section per phase with a phase name, included tasks, covered acceptance criteria, and the replan gate
+If loopback context is provided, preserve the already-completed phases from `PRIOR PHASE MANIFEST` unchanged and number the replanned remaining phases starting at `NEXT REMAINING PHASE` instead of restarting at Phase 1.
 Task numbers are globally stable IDs for the full run. Assign them in monotonic order and do not rely on future renumbering.
 No placeholders, no TBDs, no "similar to Task N," and no "see design.md" shortcuts.
 Return a plan.md, a phase-manifest.md, and individual task-NN.md content for each task.
@@ -158,6 +181,18 @@ After writing the draft artifacts, run an internal review loop before baseline c
 === STRUCTURE ===
 [paste contents of structure.md verbatim, or N/A for quick-fix]
 
+=== NEXT REMAINING PHASE ===
+[paste the provided next remaining phase number, or `1`]
+
+=== PRIOR PHASE MANIFEST ===
+[paste the provided prior phase manifest verbatim, or `None.`]
+
+=== COMPLETED PHASES CONTEXT ===
+[paste the provided completed phases context verbatim, or `None.`]
+
+=== FAILURE CONTEXT ===
+[paste the provided failure context verbatim, or `None.`]
+
 === PLAN ===
 [paste contents of plan.md verbatim]
 
@@ -170,8 +205,8 @@ After writing the draft artifacts, run an internal review loop before baseline c
 === INSTRUCTIONS ===
 Review this plan draft for goals coverage, dependency correctness, phase and wave coherence,
 task self-containment, file specificity, test expectation specificity, LOC realism,
-and placeholder-free quality. Flag forward dependencies, vague files, vague tests,
-missing coverage, or overview/task mismatches.
+and placeholder-free quality. When later-phase loopback context is present, also verify that completed phases remain preserved unchanged and that replanned phases start at `NEXT REMAINING PHASE`. Flag forward dependencies, vague files, vague tests,
+missing coverage, overview/task mismatches, or conflicts with preserved completed-phase history.
 ```
 
 4. Write the reviewer output to `.pipeline/<run-id>/reviews/plan-review-round-{NN}.md` using the edit tool.

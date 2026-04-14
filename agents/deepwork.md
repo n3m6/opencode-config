@@ -115,7 +115,7 @@ Every stage subagent returns:
 ### Files Written — list of pipeline files created
 ### Route — (only from qrspi-goals)
 ### Phase — (from qrspi-implement, qrspi-accept, qrspi-replan when applicable)
-### Backward Loop Request — (only from qrspi-implement, qrspi-accept if applicable)
+### Backward Loop Request — (from qrspi-implement, qrspi-accept, qrspi-replan if applicable)
 ### Summary — one-line description
 ```
 
@@ -457,17 +457,30 @@ Invoke `qrspi-plan` via the `task` tool:
 
 === ROUTE ===
 [full or quick-fix]
+
+=== NEXT REMAINING PHASE ===
+[1 for fresh runs, or the earliest incomplete phase number when re-entering Plan from a later-phase backward loop]
+
+=== PRIOR PHASE MANIFEST ===
+[paste the last known phase-manifest verbatim when re-entering Plan from a later-phase backward loop, otherwise `None.`]
+
+=== COMPLETED PHASES CONTEXT ===
+[paste preserved completed-phase artifacts when re-entering Plan from Phase 2 or later, otherwise `None.`]
+
+=== FAILURE CONTEXT ===
+[paste failed-phase backward-loop analysis, loop feedback, and summaries when re-entering Plan from Phase 2 or later, otherwise `None.`]
 ```
 
 When `qrspi-plan` completes:
 
 - Parse `### Status`. If FAIL, follow **Error Handling**.
 - Mark Stage 6 as complete in `todowrite`.
+- Read `=== NEXT REMAINING PHASE ===` from the Stage 6 input and treat it as the earliest incomplete phase number. Use `1` for fresh runs.
 - Read `phase-manifest.md` to determine `total_phases`. If it is missing, treat the run as single-phase.
 - If the route is quick-fix, set `total_phases: 1`.
-- Create `.pipeline/<run-id>/phases/phase-01/` and create the Phase 1 task symlink by running `ln -s ../../tasks .pipeline/<run-id>/phases/phase-01/tasks`.
-- If the route is full and `phase-manifest.md` declares more than one phase, create empty phase directories for each planned future phase and rebuild `todowrite` so every planned phase gets its own Implement and Acceptance test entry.
-- Overwrite `state.md` with `last_completed_stage: plan`, `next_stage: implement`, `current_phase: 1`, and `total_phases` from `phase-manifest.md`.
+- Create `.pipeline/<run-id>/phases/phase-NN/` for `next_remaining_phase` and create that phase's task symlink by running `ln -s ../../tasks .pipeline/<run-id>/phases/phase-NN/tasks`.
+- If the route is full and `phase-manifest.md` declares more than one remaining phase, create empty phase directories for each planned remaining future phase starting at `next_remaining_phase`, preserving any already-completed prior phase directories, and rebuild `todowrite` so every remaining planned phase gets its own Implement and Acceptance test entry.
+- Overwrite `state.md` with `last_completed_stage: plan`, `next_stage: implement`, `current_phase: next_remaining_phase`, and `total_phases` from `phase-manifest.md`.
 - **Route is now locked.** No more route changes allowed.
 - Proceed to **Stage 7**.
 
@@ -571,6 +584,7 @@ phases/phase-[NN+1]
 When `qrspi-replan` completes:
 
 - Parse `### Status`. If FAIL, follow **Error Handling**.
+- Check for `### Backward Loop Request`. If present, follow the **Backward Loop Protocol**.
 - Re-read the updated `phase-manifest.md` with `cat` and recompute `total_phases` from the refreshed remaining-work plan.
 - Archive any unstarted future phase directories that are no longer active by moving them under `.pipeline/<run-id>/phases/archive/` with `mv`.
 - Rebuild `todowrite` from the refreshed manifest so stale unstarted phases are removed and newly-added phases appear.
@@ -612,7 +626,7 @@ When `qrspi-report` completes:
 
 ### Backward Loop Protocol
 
-When a stage subagent (`qrspi-implement` or `qrspi-accept`) includes a `### Backward Loop Request` section in its return:
+When a stage subagent (`qrspi-implement`, `qrspi-accept`, or `qrspi-replan`) includes a `### Backward Loop Request` section in its return:
 
 1. Read the backward loop request details.
 2. Present the issue to the user via `question`:
@@ -657,11 +671,18 @@ g. Delete regenerated top-level artifacts based on the loop target:
   - Structure: all Plan artifacts plus `structure.md`
   - Design: all Structure artifacts plus `design.md`
 h. Reset the todo items for the target stage and all downstream stages to not-started, and remove stale unstarted phase entries that no longer match the active manifest.
-i. Overwrite `state.md` with the loop target as `next_stage`, increment `backward_loops`, reset `current_phase` to `1` if the target is before phased execution, and preserve `phase_history` for already-completed phases.
+i. Overwrite `state.md` with the loop target as `next_stage`, increment `backward_loops`, set `current_phase` to the earliest incomplete phase number when completed phases are preserved, reset it to `1` only when no completed phases remain or the target is before phased execution, and preserve `phase_history` for already-completed phases.
 j. Re-enter the pipeline at the target stage. The re-run must receive the feedback file as additional context.
 k. When re-entering Design, Structure, or Plan from Phase 2 or later, also include:
 
 ```
+
+=== NEXT REMAINING PHASE ===
+Include the earliest incomplete phase number that must be replanned.
+
+=== PRIOR PHASE MANIFEST ===
+Include the last known phase-manifest.md so the rerun can preserve completed
+phase numbering and only regenerate the remaining phases.
 
 === COMPLETED PHASES CONTEXT ===
 For each completed prior phase, include the full execution-manifest.md,

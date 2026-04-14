@@ -35,17 +35,22 @@ You will receive one of two input sets:
 
 You may also receive:
 
-5. **Review Feedback** — prior plan review findings that must be addressed before returning the next draft
+5. **Next Remaining Phase** — optional phase number to use as the first replanned phase when Plan is re-entered after a later-phase backward loop; default to `1`
+6. **Prior Phase Manifest** — optional last known phase manifest that preserves already-completed phase numbering and summaries
+7. **Completed Phases Context** — optional execution, integration, acceptance, and stage summaries from already-completed phases
+8. **Failure Context** — optional backward-loop analysis, failed-phase summaries, and loop feedback from the triggering phase
+9. **Review Feedback** — prior plan review findings that must be addressed before returning the next draft
 
 ### Process
 
 **For full route:**
 
-1. **Order tasks by dependency.** Using the vertical slices, phases, and file map, define tasks that can be implemented sequentially or in parallel waves. Each task should map to a coherent portion of a vertical slice.
-2. **Assign task metadata.** For each task, decide the task number, title, phase, slice, dependencies, approximate LOC, and concrete file set. Task numbers are globally stable IDs for the full run, so assign them in monotonic order and avoid any scheme that assumes later renumbering.
-3. **Validate completeness.** Every file in the structure file map must appear in at least one task. Every acceptance criterion from goals.md must be materially addressed by at least one task.
-4. **Write the plan overview and phase manifest.** Draft the overview, phase summary, task order table, wave analysis, and a phase manifest that names each phase, lists its tasks, maps the covered acceptance criteria, and records its replan gate before dispatching task writers.
-5. **Dispatch every task.** Invoke `qrspi-task-spec-writer` once per task using the plan overview plus that task's specific outline and relevant context.
+1. **Preserve completed phases when loopback context is present.** If `Prior Phase Manifest`, `Completed Phases Context`, or `Failure Context` is provided, treat all phases before `Next Remaining Phase` as locked historical fact. Do not reuse or renumber those completed phases.
+2. **Order remaining tasks by dependency.** Using the vertical slices, phases, file map, and any failure context, define the remaining tasks that can be implemented sequentially or in parallel waves. Each task should map to a coherent portion of a vertical slice.
+3. **Assign task metadata.** For each remaining task, decide the task number, title, phase, slice, dependencies, approximate LOC, and concrete file set. Task numbers are globally stable IDs for the full run, so assign them in monotonic order and avoid any scheme that assumes later renumbering.
+4. **Validate completeness.** Every file in the structure file map that is still relevant to unfinished work must appear in at least one remaining task. Every acceptance criterion from goals.md must still be materially addressed by the remaining task set.
+5. **Write the plan overview and phase manifest.** Draft the overview, phase summary, task order table, wave analysis, and a phase manifest that names each phase, lists its tasks, maps the covered acceptance criteria, and records its replan gate before dispatching task writers. If loopback context is present, preserve completed phases from `Prior Phase Manifest` unchanged and number replanned phases starting at `Next Remaining Phase`.
+6. **Dispatch every task.** Invoke `qrspi-task-spec-writer` once per task using the plan overview plus that task's specific outline and relevant context.
 
 **For quick-fix route:**
 
@@ -185,6 +190,7 @@ For quick-fix, always emit exactly:
 - **No ambiguity in test expectations.** Each test expectation must specify a concrete trigger and a concrete expected outcome.
 - **Dependencies are explicit.** List the specific task numbers and what each task needs from them.
 - **Task IDs stay stable.** Treat task numbers as permanent identifiers for the run. Future replans may add new task numbers, but they should not need to renumber these original tasks.
+- **Preserve completed phase numbering.** When `Next Remaining Phase` is greater than `1`, keep earlier completed phases unchanged and number replanned phases from that phase onward rather than restarting at Phase 1.
 - **LOC estimates are honest.** Include test code in the estimate. If unsure, estimate high.
 - **File paths are exact.** Use the paths from structure.md (full route) or from research findings (quick-fix).
 - **Quick-fix means one task.** For quick-fix, produce exactly one task (`task-01.md`).
