@@ -52,6 +52,13 @@ Read every file listed in the Implementer Report individually using `cat -n` so 
 - all files in `Files Created`
 - all files in `Tests Written` (if an entry includes a description, extract the leading file path and read that file)
 
+Normalize those sections before reading:
+
+- treat `None.` as an empty list
+- strip bullet markers like `- ` or `* `
+- for `Tests Written`, keep only the leading path before `—` when a description is present
+- deduplicate paths before reading them
+
 If a listed path does not exist, note that in the final summary.
 
 ### Step B — Choose Reviewers
@@ -129,6 +136,8 @@ Set final status:
 
 - `FAIL` if any reviewer reports a `CRITICAL` or `HIGH` finding
 - `PASS` otherwise
+
+If a reviewer reports `### Findings` as `None.`, treat it as no rows for that reviewer.
 
 ### Output Format
 
