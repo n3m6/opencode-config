@@ -1,5 +1,5 @@
 ---
-description: "Stage 10 orchestrator — reads all stage summaries and dispatches reporter to produce the final pipeline report. Writes stage10-summary.md."
+description: "Stage 10 orchestrator — reads all stage summaries, phase metadata, and replan notes and dispatches the reporter to produce the final pipeline report. Writes stage10-summary.md."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -40,12 +40,21 @@ Read all stage summary files:
 
 - `cat .pipeline/<run-id>/config.md`
 - `cat .pipeline/<run-id>/goals.md`
+- `ls .pipeline/<run-id>/phase-manifest.md`
 - `cat .pipeline/<run-id>/baseline-results.md`
 - `cat .pipeline/<run-id>/acceptance-results.md`
 - `cat .pipeline/<run-id>/stage7-summary.md`
 - `cat .pipeline/<run-id>/stage7-integration-summary.md`
 - `cat .pipeline/<run-id>/stage8-summary.md`
 - `cat .pipeline/<run-id>/stage9-summary.md`
+
+If `phase-manifest.md` exists, read it with `cat`. Otherwise use `N/A`.
+
+Read any replan notes if they exist:
+
+- `ls .pipeline/<run-id>/replan/phase-*.md`
+
+If replan notes exist, read them with `cat`. Otherwise use `None.`
 
 ### Step B — Dispatch Reporter
 
@@ -57,6 +66,9 @@ Invoke `qrspi-reporter` via the `task` tool:
 
 === GOALS ===
 [paste contents of goals.md verbatim]
+
+=== PHASE MANIFEST ===
+[paste contents of phase-manifest.md verbatim, or `N/A`]
 
 === BASELINE RESULTS ===
 [paste contents of baseline-results.md verbatim]
@@ -78,9 +90,12 @@ Stage 8 — Acceptance Testing:
 Stage 9 — Verification:
 [paste contents of stage9-summary.md verbatim]
 
+=== REPLAN NOTES ===
+[paste any `replan/phase-*.md` contents verbatim, or `None.`]
+
 === INSTRUCTIONS ===
 Format the Final Report from the above inputs.
-Include: pipeline route, goals summary, baseline status, integration status,
+Include: pipeline route, phase structure, goals summary, baseline status, integration status,
 per-stage results, build/test status, acceptance criteria results, overall status,
 unresolved items, and the preserved audit trail path `.pipeline/qrspi-<run-id>/`.
 ```

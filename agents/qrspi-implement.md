@@ -1,5 +1,5 @@
 ---
-description: "Stage 7 orchestrator — analyzes task dependencies into waves, forwards goals and review context to implementers, records per-task review outcomes, runs integration check, and reports execution results. Writes execution-manifest.md, stage7-summary.md, integration-results.md."
+description: "Stage 7 orchestrator — analyzes current-phase task dependencies into waves, forwards goals and review context to implementers, records per-task review outcomes, runs integration checks, and reports cumulative execution results. Writes cumulative execution-manifest.md, stage7-summary.md, integration-results.md, and stage7-integration-summary.md."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -34,8 +34,9 @@ You will receive from deepwork:
 
 1. **Run ID** — the `qrspi-<timestamp>` identifier for this pipeline run
 2. **Route** — `full` or `quick-fix`
+3. **Current Phase** — the phase number to execute
 
-Extract the run ID and route from the prompt. Use the run ID to construct all pipeline file paths: `.pipeline/<run-id>/`.
+Extract the run ID, route, and current phase from the prompt. Use the run ID to construct all pipeline file paths: `.pipeline/<run-id>/`.
 
 ### Step A — Read Inputs
 
@@ -43,6 +44,7 @@ Read the goals, plan, and all task files:
 
 - `cat .pipeline/<run-id>/goals.md`
 - `cat .pipeline/<run-id>/plan.md`
+- `cat .pipeline/<run-id>/phase-manifest.md`
 - `cat .pipeline/<run-id>/tasks/task-*.md` (read each task file individually)
 
 If the route is **full**, also read:
@@ -50,13 +52,23 @@ If the route is **full**, also read:
 - `cat .pipeline/<run-id>/design.md`
 - `cat .pipeline/<run-id>/structure.md`
 
+Then detect prior phase outputs:
+
+- `ls .pipeline/<run-id>/execution-manifest.md`
+- `ls .pipeline/<run-id>/stage7-summary.md`
+- `ls .pipeline/<run-id>/integration-results.md`
+- `ls .pipeline/<run-id>/stage7-integration-summary.md`
+
+If any of those files exist, read them so you can preserve prior phase history instead of overwriting it.
+
 ### Step B — Wave Analysis
 
-Parse dependencies and final review status from each task file. Group tasks into waves:
+Parse dependencies and final review status from each task file. First filter to the tasks assigned to the current phase in `phase-manifest.md`. Then group only those tasks into waves:
 
 - **Wave 1**: Tasks with no dependencies.
 - **Wave N**: Tasks whose dependencies are ALL in waves < N.
 - If circular dependencies detected: report FAIL immediately with details.
+- If no tasks belong to the current phase, report FAIL immediately with details.
 
 ### Step C — Execute Waves
 
@@ -71,6 +83,9 @@ For each wave in order, dispatch `qrspi-implementer` for every task in the wave.
 
 === ROUTE ===
 [paste `full` or `quick-fix`]
+
+=== CURRENT PHASE ===
+[paste the current phase number]
 
 === PLAN REVIEW STATUS ===
 [paste the task's final review state and outstanding concerns verbatim]
@@ -122,11 +137,11 @@ After each wave completes:
 
 After all waves complete, or before returning due to a backward loop or unrecoverable task failure:
 
-- Write the execution manifest to `.pipeline/<run-id>/execution-manifest.md` using the edit tool. The manifest is a markdown table:
+- Write the execution manifest to `.pipeline/<run-id>/execution-manifest.md` using the edit tool. Preserve prior phase rows if the file already exists, and append the current phase rows. The manifest is a markdown table:
   ```
-  | # | Task | Plan Review Status | Implementation Status | Review Status | Review Notes | Files Modified | Files Created | Summary |
+  | Phase | # | Task | Plan Review Status | Implementation Status | Review Status | Review Notes | Files Modified | Files Created | Summary |
   ```
-- Write a stage summary to `.pipeline/<run-id>/stage7-summary.md`, including whether any tasks completed with `Review Status = UNRESOLVED`.
+- Write a stage summary to `.pipeline/<run-id>/stage7-summary.md`, preserving prior phase sections if the file already exists. Include the current phase result and whether any tasks completed with `Review Status = UNRESOLVED`.
 - If the stage is ending early because a task failed, include the failing task number, failure summary, and any tasks that completed before the failure.
 
 ### Step E — Integration Check
@@ -140,6 +155,12 @@ If all tasks passed and no backward loop was triggered, invoke `qrspi-integratio
 === PLAN ===
 [paste contents of plan.md verbatim]
 
+=== PHASE MANIFEST ===
+[paste contents of phase-manifest.md verbatim]
+
+=== CURRENT PHASE ===
+[paste the current phase number]
+
 === BASELINE RESULTS ===
 [paste contents of .pipeline/<run-id>/baseline-results.md verbatim]
 
@@ -151,9 +172,10 @@ If all tasks passed and no backward loop was triggered, invoke `qrspi-integratio
 [paste relevant sections of design.md and structure.md, or "N/A" for quick-fix]
 
 === INSTRUCTIONS ===
-Run a lightweight post-implementation integration gate.
-Check cross-task compatibility only: changed-file build sanity, shared interface compatibility,
-and targeted smoke checks that exercise interactions across completed task outputs.
+Run a lightweight post-implementation integration gate for the current phase.
+Check cross-task compatibility for the current phase and compatibility with already-completed phases:
+changed-file build sanity, shared interface compatibility, and targeted smoke checks that
+exercise interactions across current-phase outputs plus prior completed phases.
 Use the review status summary as a risk signal when interpreting failures:
 - `clean` means the task entered Stage 7 without unresolved plan-review concerns.
 - `unclean-cap` means the task entered Stage 7 with unresolved plan-review concerns.
@@ -172,8 +194,8 @@ Return:
 
 When `qrspi-integration-checker` completes:
 
-- Write the output to `.pipeline/<run-id>/integration-results.md` using the edit tool.
-- Write the `### Stage Summary` to `.pipeline/<run-id>/stage7-integration-summary.md`.
+- Write the output to `.pipeline/<run-id>/integration-results.md` using the edit tool, preserving prior phase sections if the file already exists.
+- Write the `### Stage Summary` to `.pipeline/<run-id>/stage7-integration-summary.md`, preserving prior phase sections if the file already exists.
 
 ### Return
 
@@ -181,23 +203,26 @@ If all tasks passed and integration passed:
 
 ```
 ### Status — PASS
+### Phase — [current phase number]
 ### Files Written — execution-manifest.md, stage7-summary.md, integration-results.md, stage7-integration-summary.md
-### Summary — All [N] tasks implemented. Integration: PASS.
+### Summary — Phase [N]: all assigned tasks implemented. Integration: PASS.
 ```
 
 If a backward loop was requested (from implementer or integration checker):
 
 ```
 ### Status — PASS
+### Phase — [current phase number]
 ### Files Written — execution-manifest.md, stage7-summary.md, [integration files if reached]
 ### Backward Loop Request — [paste the backward loop request details verbatim]
-### Summary — Backward loop requested: [brief description].
+### Summary — Phase [N]: backward loop requested: [brief description].
 ```
 
 If any step fails unrecoverably (not a backward loop):
 
 ```
 ### Status — FAIL
+### Phase — [current phase number]
 ### Files Written — [list any files written before failure, including execution-manifest.md and stage7-summary.md if written]
-### Summary — [description of what went wrong]
+### Summary — Phase [N]: [description of what went wrong]
 ```

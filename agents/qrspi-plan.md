@@ -1,5 +1,5 @@
 ---
-description: "Stage 6 orchestrator — reads route-appropriate inputs, dispatches the plan writer, runs automated review rounds, enriches task review metadata, and dispatches the baseline checker. Writes plan.md, tasks/task-NN.md, review artifacts, and baseline-results.md."
+description: "Stage 6 orchestrator — reads route-appropriate inputs, dispatches the plan writer, runs automated review rounds, enriches task review metadata, and dispatches the baseline checker. Writes plan.md, phase-manifest.md, tasks/task-NN.md, review artifacts, and baseline-results.md."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -93,8 +93,11 @@ Each task spec must include:
 - Files (exact paths, CREATE or MODIFY)
 - Test Expectations (specific behaviors to verify, edge cases, error conditions)
 - LOC Estimate
+The phase manifest must include:
+- `total_phases`
+- one section per phase with a phase name, included tasks, covered acceptance criteria, and the replan gate
 No placeholders, no TBDs, no "similar to Task N," and no "see design.md" shortcuts.
-Return a plan.md with the overview and individual task-NN.md content for each task.
+Return a plan.md, a phase-manifest.md, and individual task-NN.md content for each task.
 ```
 
 For **quick-fix** route, invoke `qrspi-plan-writer` via the `task` tool:
@@ -122,12 +125,14 @@ The task spec must include:
 - Files (exact paths, CREATE or MODIFY)
 - Test Expectations (specific behaviors to verify)
 - LOC Estimate
-Return a plan.md with the overview and a single task-01.md.
+Also produce a phase-manifest.md with exactly one phase that contains Task 01 and the relevant acceptance criteria.
+Return a plan.md, a phase-manifest.md, and a single task-01.md.
 ```
 
 When `qrspi-plan-writer` completes:
 
 - Write the `### plan.md` section to `.pipeline/<run-id>/plan.md` using the edit tool.
+- Write the `### phase-manifest.md` section to `.pipeline/<run-id>/phase-manifest.md` using the edit tool.
 - For each `### task-NN.md` section, write to `.pipeline/<run-id>/tasks/task-NN.md` using the edit tool.
 
 ### Step D — Automated Review Loop
@@ -153,6 +158,9 @@ After writing the draft artifacts, run an internal review loop before baseline c
 
 === PLAN ===
 [paste contents of plan.md verbatim]
+
+=== PHASE MANIFEST ===
+[paste contents of phase-manifest.md verbatim]
 
 === TASK SPECS ===
 [paste contents of all tasks/task-NN.md files verbatim]
@@ -236,7 +244,7 @@ When `qrspi-baseline-checker` completes:
 
 ```
 ### Status — PASS
-### Files Written — plan.md, tasks/task-01.md, ..., tasks/task-NN.md, reviews/plan-review-round-{NN}.md, baseline-results.md
+### Files Written — plan.md, phase-manifest.md, tasks/task-01.md, ..., tasks/task-NN.md, reviews/plan-review-round-{NN}.md, baseline-results.md
 ### Summary — Plan written with [N] tasks. Final review state: [clean|unclean-cap]. Baseline: [CLEAN/DIRTY].
 ```
 
@@ -253,6 +261,7 @@ If any step fails unrecoverably, return:
 - An acceptance criterion from goals.md is not addressed by any task.
 - A task depends on a later task.
 - The plan overview and the task specs disagree about order, phase, or scope.
+- phase-manifest.md disagrees with the plan overview or task metadata.
 - A task uses placeholders or shortcut references instead of a self-contained spec.
 - Test expectations are vague or omit important error handling.
 - The quick-fix route produces more than one task.
