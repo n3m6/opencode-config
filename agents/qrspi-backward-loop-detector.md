@@ -38,13 +38,15 @@ You will receive:
 8. **Persistent Failures** — failures still remaining after the acceptance inner loop
 9. **Current Phase** — the completed phase number
 10. **Phase Manifest** — the phase map and replan gates
+11. **Completed Phase Summaries** — optional summaries from earlier completed phases (execution manifests, acceptance results, and stage summaries)
 
 ### Process
 
 1. Group persistent failures by likely root cause.
 2. Use the severity table below to classify each root cause.
 3. Choose the earliest affected artifact as the loop-back target, unless the issue is better handled at the next already-defined phase boundary.
-4. Check your reasoning against the Red Flags and Common Rationalizations sections before finalizing the result.
+4. Use any completed-phase summaries to distinguish a new current-phase defect from a problem inherited from an earlier architectural or planning choice.
+5. Check your reasoning against the Red Flags and Common Rationalizations sections before finalizing the result.
 
 ### Severity Classification Table
 

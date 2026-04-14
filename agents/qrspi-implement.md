@@ -1,5 +1,5 @@
 ---
-description: "Stage 7 orchestrator — analyzes current-phase task dependencies into waves, forwards goals and review context to implementers, records per-task review outcomes, runs integration checks, and reports cumulative execution results. Writes cumulative execution-manifest.md, stage7-summary.md, integration-results.md, and stage7-integration-summary.md."
+description: "Stage 7 orchestrator — analyzes current-phase task dependencies into waves, forwards goals and review context to implementers, records per-task review outcomes, runs integration checks, and reports results for the active phase. Writes execution-manifest.md, stage7-summary.md, integration-results.md, and stage7-integration-summary.md inside the current phase directory."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -35,8 +35,9 @@ You will receive from deepwork:
 1. **Run ID** — the `qrspi-<timestamp>` identifier for this pipeline run
 2. **Route** — `full` or `quick-fix`
 3. **Current Phase** — the phase number to execute
+4. **Phase Dir** — the relative path to the current phase directory (for example `phases/phase-01`)
 
-Extract the run ID, route, and current phase from the prompt. Use the run ID to construct all pipeline file paths: `.pipeline/<run-id>/`.
+Extract the run ID, route, current phase, and phase dir from the prompt. Use the run ID to construct all pipeline file paths: `.pipeline/<run-id>/`.
 
 ### Step A — Read Inputs
 
@@ -45,21 +46,26 @@ Read the goals, plan, and all task files:
 - `cat .pipeline/<run-id>/goals.md`
 - `cat .pipeline/<run-id>/plan.md`
 - `cat .pipeline/<run-id>/phase-manifest.md`
-- `cat .pipeline/<run-id>/tasks/task-*.md` (read each task file individually)
+- `cat .pipeline/<run-id>/<phase-dir>/tasks/task-*.md` (read each task file individually)
 
 If the route is **full**, also read:
 
 - `cat .pipeline/<run-id>/design.md`
 - `cat .pipeline/<run-id>/structure.md`
 
-Then detect prior phase outputs:
+### Step A.5 — Validate Task Files Against Manifest
 
-- `ls .pipeline/<run-id>/execution-manifest.md`
-- `ls .pipeline/<run-id>/stage7-summary.md`
-- `ls .pipeline/<run-id>/integration-results.md`
-- `ls .pipeline/<run-id>/stage7-integration-summary.md`
+Read `phase-manifest.md` and extract the task numbers assigned to the current phase.
 
-If any of those files exist, read them so you can preserve prior phase history instead of overwriting it.
+- Verify that every listed task has a matching file at `.pipeline/<run-id>/<phase-dir>/tasks/task-NN.md`.
+- If any listed task file is missing, return FAIL immediately:
+
+  ```
+  ### Status — FAIL
+  ### Phase — [current phase number]
+  ### Files Written — []
+  ### Summary — Phase [N]: task-NN.md is listed in phase-manifest.md but not found in <phase-dir>/tasks/. Cannot proceed with implementation.
+  ```
 
 ### Step B — Wave Analysis
 
@@ -76,7 +82,7 @@ For each wave in order, dispatch `qrspi-implementer` for every task in the wave.
 
 ```
 === TASK ===
-[paste contents of tasks/task-NN.md verbatim]
+[paste contents of <phase-dir>/tasks/task-NN.md verbatim]
 
 === GOALS ===
 [paste the acceptance criteria this task directly supports; if relevance is ambiguous, paste the full acceptance-criteria section from goals.md]
@@ -137,11 +143,11 @@ After each wave completes:
 
 After all waves complete, or before returning due to a backward loop or unrecoverable task failure:
 
-- Write the execution manifest to `.pipeline/<run-id>/execution-manifest.md` using the edit tool. Preserve prior phase rows if the file already exists, and append the current phase rows. The manifest is a markdown table:
+- Write the execution manifest to `.pipeline/<run-id>/<phase-dir>/execution-manifest.md` using the edit tool. The manifest is phase-scoped and contains only the current phase rows. Use this markdown table:
   ```
   | Phase | # | Task | Plan Review Status | Implementation Status | Review Status | Review Notes | Files Modified | Files Created | Summary |
   ```
-- Write a stage summary to `.pipeline/<run-id>/stage7-summary.md`, preserving prior phase sections if the file already exists. Include the current phase result and whether any tasks completed with `Review Status = UNRESOLVED`.
+- Write a stage summary to `.pipeline/<run-id>/<phase-dir>/stage7-summary.md`. Include the current phase result and whether any tasks completed with `Review Status = UNRESOLVED`.
 - If the stage is ending early because a task failed, include the failing task number, failure summary, and any tasks that completed before the failure.
 
 ### Step E — Integration Check
@@ -150,7 +156,7 @@ If all tasks passed and no backward loop was triggered, invoke `qrspi-integratio
 
 ```
 === EXECUTION MANIFEST ===
-[paste contents of execution-manifest.md verbatim]
+[paste contents of <phase-dir>/execution-manifest.md verbatim]
 
 === PLAN ===
 [paste contents of plan.md verbatim]
@@ -163,6 +169,9 @@ If all tasks passed and no backward loop was triggered, invoke `qrspi-integratio
 
 === BASELINE RESULTS ===
 [paste contents of .pipeline/<run-id>/baseline-results.md verbatim]
+
+=== COMPLETED PHASE SUMMARIES ===
+[for each completed prior phase, paste execution-manifest.md and integration-results.md from that phase directory, or `None.` if this is Phase 1]
 
 === REVIEW STATUS SUMMARY ===
 [for each task: Task NN — Plan Review: clean or unclean-cap; Implementation Review: CLEAN or UNRESOLVED; Outstanding Concerns summary; Unresolved Findings summary if any]
@@ -194,8 +203,8 @@ Return:
 
 When `qrspi-integration-checker` completes:
 
-- Write the output to `.pipeline/<run-id>/integration-results.md` using the edit tool, preserving prior phase sections if the file already exists.
-- Write the `### Stage Summary` to `.pipeline/<run-id>/stage7-integration-summary.md`, preserving prior phase sections if the file already exists.
+- Write the output to `.pipeline/<run-id>/<phase-dir>/integration-results.md` using the edit tool.
+- Write the `### Stage Summary` to `.pipeline/<run-id>/<phase-dir>/stage7-integration-summary.md`.
 
 ### Return
 
@@ -204,7 +213,7 @@ If all tasks passed and integration passed:
 ```
 ### Status — PASS
 ### Phase — [current phase number]
-### Files Written — execution-manifest.md, stage7-summary.md, integration-results.md, stage7-integration-summary.md
+### Files Written — <phase-dir>/execution-manifest.md, <phase-dir>/stage7-summary.md, <phase-dir>/integration-results.md, <phase-dir>/stage7-integration-summary.md
 ### Summary — Phase [N]: all assigned tasks implemented. Integration: PASS.
 ```
 
@@ -213,7 +222,7 @@ If a backward loop was requested (from implementer or integration checker):
 ```
 ### Status — PASS
 ### Phase — [current phase number]
-### Files Written — execution-manifest.md, stage7-summary.md, [integration files if reached]
+### Files Written — <phase-dir>/execution-manifest.md, <phase-dir>/stage7-summary.md, [integration files in <phase-dir> if reached]
 ### Backward Loop Request — [paste the backward loop request details verbatim]
 ### Summary — Phase [N]: backward loop requested: [brief description].
 ```
@@ -223,6 +232,6 @@ If any step fails unrecoverably (not a backward loop):
 ```
 ### Status — FAIL
 ### Phase — [current phase number]
-### Files Written — [list any files written before failure, including execution-manifest.md and stage7-summary.md if written]
+### Files Written — [list any files written before failure, including <phase-dir>/execution-manifest.md and <phase-dir>/stage7-summary.md if written]
 ### Summary — Phase [N]: [description of what went wrong]
 ```

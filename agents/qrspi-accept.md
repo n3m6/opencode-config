@@ -1,5 +1,5 @@
 ---
-description: "Stage 8 orchestrator — dispatches the acceptance tester inner loop for the current phase and, when failures persist, a backward-loop detector. Writes cumulative coverage-plan.md, acceptance-results.md, review artifacts, backward-loop-analysis.md, and stage8-summary.md."
+description: "Stage 8 orchestrator — dispatches the acceptance tester inner loop for the current phase and, when failures persist, a backward-loop detector. Writes coverage-plan.md, acceptance-results.md, backward-loop-analysis.md, and stage8-summary.md inside the current phase directory, plus phase-scoped review artifacts."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -35,8 +35,9 @@ You will receive from deepwork:
 
 1. **Run ID** — the `qrspi-<timestamp>` identifier for this pipeline run
 2. **Current Phase** — the phase number under test
+3. **Phase Dir** — the relative path to the current phase directory (for example `phases/phase-01`)
 
-Extract the run ID and current phase from the prompt. Use them to construct all pipeline file paths: `.pipeline/<run-id>/`.
+Extract the run ID, current phase, and phase dir from the prompt. Use them to construct all pipeline file paths: `.pipeline/<run-id>/`.
 
 ### Step A — Read Inputs
 
@@ -44,8 +45,8 @@ Read the input files:
 
 - `cat .pipeline/<run-id>/config.md`
 - `cat .pipeline/<run-id>/goals.md`
-- `cat .pipeline/<run-id>/execution-manifest.md`
-- `cat .pipeline/<run-id>/integration-results.md`
+- `cat .pipeline/<run-id>/<phase-dir>/execution-manifest.md`
+- `cat .pipeline/<run-id>/<phase-dir>/integration-results.md`
 - `cat .pipeline/<run-id>/phase-manifest.md`
 
 Then detect whether design and structure artifacts exist for this run:
@@ -65,13 +66,12 @@ If `config.md` says the route is `quick-fix` and either `design.md` or `structur
 ### Summary — Quick-fix route inconsistency: design.md and structure.md must not exist because stages 4 and 5 are skipped.
 ```
 
-Then detect prior acceptance outputs:
+If the current phase number is greater than 1, read completed prior phase summaries as optional loop-analysis context:
 
-- `ls .pipeline/<run-id>/coverage-plan.md`
-- `ls .pipeline/<run-id>/acceptance-results.md`
-- `ls .pipeline/<run-id>/stage8-summary.md`
+- `cat .pipeline/<run-id>/phases/phase-*/execution-manifest.md`
+- `cat .pipeline/<run-id>/phases/phase-*/acceptance-results.md`
 
-If any of those files exist, read them so you can preserve prior phase history instead of overwriting it.
+Ignore the current phase directory when building this prior-phase context.
 
 ### Step B — Dispatch Acceptance Tester
 
@@ -82,7 +82,7 @@ Invoke `qrspi-acceptance-tester` via the `task` tool:
 [paste contents of goals.md verbatim]
 
 === EXECUTION MANIFEST ===
-[paste contents of execution-manifest.md verbatim]
+[paste contents of <phase-dir>/execution-manifest.md verbatim]
 
 === PHASE MANIFEST ===
 [paste contents of phase-manifest.md verbatim]
@@ -91,7 +91,7 @@ Invoke `qrspi-acceptance-tester` via the `task` tool:
 [paste the current phase number]
 
 === INTEGRATION RESULTS ===
-[paste contents of integration-results.md verbatim]
+[paste contents of <phase-dir>/integration-results.md verbatim]
 
 === DESIGN CONTEXT ===
 [paste contents of design.md verbatim, or `N/A`]
@@ -123,8 +123,8 @@ Return:
 
 When `qrspi-acceptance-tester` completes:
 
-- Write `### Coverage Plan` to `.pipeline/<run-id>/coverage-plan.md`, preserving prior phase sections if the file already exists.
-- Write `### Acceptance Results` to `.pipeline/<run-id>/acceptance-results.md`, preserving prior phase rows if the file already exists.
+- Write `### Coverage Plan` to `.pipeline/<run-id>/<phase-dir>/coverage-plan.md`.
+- Write `### Acceptance Results` to `.pipeline/<run-id>/<phase-dir>/acceptance-results.md`.
 - Write each round block from `### Review Round Artifacts` to `.pipeline/<run-id>/reviews/acceptance-phase-[PP]-review-round-NN.md` so prior phases are not overwritten.
 
 ### Step D — Dispatch Backward-Loop Detector When Needed
@@ -138,7 +138,7 @@ If persistent failures remain, invoke `qrspi-backward-loop-detector` via the `ta
 [paste contents of goals.md verbatim]
 
 === EXECUTION MANIFEST ===
-[paste contents of execution-manifest.md verbatim]
+[paste contents of <phase-dir>/execution-manifest.md verbatim]
 
 === PHASE MANIFEST ===
 [paste contents of phase-manifest.md verbatim]
@@ -147,7 +147,7 @@ If persistent failures remain, invoke `qrspi-backward-loop-detector` via the `ta
 [paste the current phase number]
 
 === INTEGRATION RESULTS ===
-[paste contents of integration-results.md verbatim]
+[paste contents of <phase-dir>/integration-results.md verbatim]
 
 === DESIGN CONTEXT ===
 [paste contents of design.md verbatim, or `N/A`]
@@ -159,7 +159,10 @@ If persistent failures remain, invoke `qrspi-backward-loop-detector` via the `ta
 [paste the final coverage plan verbatim]
 
 === ACCEPTANCE RESULTS ===
-[paste acceptance-results.md verbatim]
+[paste <phase-dir>/acceptance-results.md verbatim]
+
+=== COMPLETED PHASE SUMMARIES ===
+[for each completed prior phase, paste execution-manifest.md and acceptance-results.md from that phase directory, or `None.` if this is Phase 1]
 
 === PERSISTENT FAILURES ===
 [paste the persistent failures verbatim]
@@ -183,11 +186,11 @@ Return:
 
 When `qrspi-backward-loop-detector` completes:
 
-- Write its full output to `.pipeline/<run-id>/backward-loop-analysis.md`.
+- Write its full output to `.pipeline/<run-id>/<phase-dir>/backward-loop-analysis.md`.
 
 ### Step E — Write Stage Summary
 
-Write `.pipeline/<run-id>/stage8-summary.md`.
+Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md`.
 
 The summary should include:
 
@@ -197,7 +200,7 @@ The summary should include:
 - whether persistent failures remained
 - whether the detector recommended a loop, and which target if any
 
-Preserve prior phase sections if the file already exists.
+This summary is phase-scoped and should describe only the current phase.
 
 ### Return
 
@@ -206,7 +209,7 @@ If all criteria passed:
 ```
 ### Status — PASS
 ### Phase — [current phase number]
-### Files Written — coverage-plan.md, acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, stage8-summary.md
+### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/stage8-summary.md
 ### Summary — Phase [N]: all assigned acceptance criteria passed.
 ```
 
@@ -215,7 +218,7 @@ If persistent failures remain and the backward-loop detector recommends anything
 ```
 ### Status — PASS
 ### Phase — [current phase number]
-### Files Written — coverage-plan.md, acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, backward-loop-analysis.md, stage8-summary.md
+### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/backward-loop-analysis.md, <phase-dir>/stage8-summary.md
 ### Backward Loop Request — [paste the backward loop request details verbatim]
 ### Summary — Phase [N]: follow-up routing requested: [brief description].
 ```
@@ -225,7 +228,7 @@ If persistent failures remain and the backward-loop detector recommends `NO_LOOP
 ```
 ### Status — FAIL
 ### Phase — [current phase number]
-### Files Written — coverage-plan.md, acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, backward-loop-analysis.md, stage8-summary.md
+### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/backward-loop-analysis.md, <phase-dir>/stage8-summary.md
 ### Summary — Phase [N]: [N] of [M] acceptance criteria still failed after the acceptance loop; no structural backward loop was recommended.
 ```
 

@@ -39,9 +39,10 @@ Extract the run ID from the prompt. Use it to construct all pipeline file paths:
 Read the input files:
 
 - `cat .pipeline/<run-id>/goals.md`
-- `cat .pipeline/<run-id>/execution-manifest.md`
-- `cat .pipeline/<run-id>/acceptance-results.md`
 - `cat .pipeline/<run-id>/baseline-results.md`
+- `ls .pipeline/<run-id>/phases/phase-*/`
+- For each phase directory: `cat .pipeline/<run-id>/phases/phase-NN/execution-manifest.md`
+- For each phase directory: `cat .pipeline/<run-id>/phases/phase-NN/acceptance-results.md`
 
 ### Step B — Dispatch Verifier
 
@@ -51,11 +52,11 @@ Invoke `qrspi-verifier` via the `task` tool:
 === GOALS ===
 [paste contents of goals.md verbatim]
 
-=== EXECUTION MANIFEST ===
-[paste contents of execution-manifest.md verbatim]
+=== EXECUTION MANIFEST (ALL PHASES) ===
+[for each phase directory, prepend `## Phase N` and paste that phase's execution-manifest.md verbatim]
 
-=== ACCEPTANCE RESULTS ===
-[paste contents of acceptance-results.md verbatim]
+=== ACCEPTANCE RESULTS (ALL PHASES) ===
+[for each phase directory, prepend `## Phase N` and paste that phase's acceptance-results.md verbatim]
 
 === BASELINE RESULTS ===
 [paste contents of baseline-results.md verbatim]

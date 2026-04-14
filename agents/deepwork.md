@@ -11,6 +11,8 @@ permission:
     "mkdir *": allow
     "cat *": allow
     "ls .pipeline*": allow
+    "ln -s *": allow
+    "mv .pipeline/*": allow
     "rm -rf .pipeline/*": allow
     "git checkout *": allow
   task:
@@ -128,20 +130,39 @@ If the user provides a run ID, asks to resume, or points at an existing `.pipeli
    - recover `current_phase`
    - recover `total_phases`
    - recover `next_stage`
-4. If `state.md` is missing or inconsistent, infer progress from disk using this completion map:
-   - Goals complete if `goals.md` exists
-   - Questions complete if `questions.md` exists
-   - Research complete if `research/summary.md` exists
-   - Design complete if `design.md` exists, or the route is quick-fix
-   - Structure complete if `structure.md` exists, or the route is quick-fix
-   - Plan complete if `baseline-results.md` exists
-   - Implement complete for the current phase if `stage7-summary.md` exists
-   - Accept-Test complete for the current phase if `stage8-summary.md` exists
-   - Verify complete if `stage9-summary.md` exists
-   - Report complete if `stage10-summary.md` exists
-5. Read `config.md` to confirm the route and then resume at the first incomplete stage.
-6. For quick-fix runs, force `current_phase: 1` during recovery.
-7. Reconstruct the visible todo checklist from the recovered route and phase.
+4. If `state.md` is missing or inconsistent, reconstruct progress from artifacts on disk using this phase-aware algorithm:
+   - Read `config.md` to confirm the route.
+   - Check pre-phase completion markers:
+     - Goals complete if `goals.md` exists
+     - Questions complete if `questions.md` exists
+     - Research complete if `research/summary.md` exists
+     - Design complete if `design.md` exists, or the route is quick-fix
+     - Structure complete if `structure.md` exists, or the route is quick-fix
+     - Plan complete if `baseline-results.md` exists
+   - If any pre-phase stage is incomplete, resume at the first incomplete stage and force `current_phase: 1`.
+   - Otherwise read `phase-manifest.md` to determine `total_phases`.
+   - Scan only active phase directories with `ls .pipeline/qrspi-<run-id>/phases/phase-*/`. Ignore anything under `phases/archive/`.
+   - For each active phase directory in numeric order:
+     - `phases/phase-NN/stage7-summary.md` means Implement is complete for phase `NN`
+     - `phases/phase-NN/stage8-summary.md` means Accept-Test is complete for phase `NN`
+     - `phases/phase-NN/replan/phase-NN-replan.md` means Replan is complete for phase `NN`
+   - Determine the recovery cursor as follows:
+     - If no active phase directory has any stage artifact yet, set `current_phase: 1` and `next_stage: implement`
+     - If the highest active phase with artifacts has no `stage7-summary.md`, restart `implement` for that phase
+     - If it has `stage7-summary.md` but no `stage8-summary.md`, restart `accept` for that phase
+     - If it has `stage8-summary.md` but no replan note:
+       - if the route is quick-fix, or that phase equals `total_phases`, set `next_stage: verify`
+       - otherwise set `next_stage: replan`
+     - If it has a replan note:
+       - if that completed phase now equals `total_phases`, set `next_stage: verify`
+       - otherwise set `current_phase` to the next phase number and set `next_stage: implement`
+   - Stage-level recovery only: if a phase directory contains partial in-stage artifacts without the stage summary file, restart that entire stage from its beginning.
+   - Override phase recovery with post-phase markers when present:
+     - `stage9-summary.md` means `next_stage: report`
+     - `stage10-summary.md` means the run is complete
+5. Immediately overwrite `state.md` from the recovered route, phase, and next-stage cursor with `resume_source: artifacts` when artifact recovery was used.
+6. For quick-fix runs, always force `current_phase: 1` and `total_phases: 1` during recovery.
+7. Reconstruct the visible todo checklist from the recovered route and the refreshed `phase-manifest.md`, ignoring archived future phases.
 
 If both `state.md` and the artifact set imply the run is already complete, present the preserved report path and stop.
 
@@ -175,7 +196,41 @@ Rules:
 - `current_phase` is `1` until `phase-manifest.md` exists.
 - `total_phases` is `1` for quick-fix, and `0` until Plan produces `phase-manifest.md` for full route.
 - `resume_source` is `state` when recovered from `state.md`, `artifacts` when reconstructed from files on disk, and `fresh` on a brand-new run.
-- `phase_history` records per-phase completion. For single-phase runs, keep one entry.
+- `stages_completed` may include `replan` once at least one phase transition completes.
+- `phase_history` records per-phase stage-boundary completion. For single-phase runs, keep one entry.
+- Update `phase_history` after every successful `implement`, `accept`, and `replan` transition for the affected phase.
+- `state.md` is a stage-boundary checkpoint only. If a run is interrupted mid-stage, restart `next_stage` from the beginning of that stage instead of attempting sub-step recovery.
+
+Example after Phase 1 Replan completes in a three-phase full route:
+
+```yaml
+---
+run_id: qrspi-YYYYMMDD-HHMMSS
+route: full
+current_phase: 2
+total_phases: 3
+last_completed_stage: replan
+next_stage: implement
+stages_completed:
+  - goals
+  - questions
+  - research
+  - design
+  - structure
+  - plan
+  - implement
+  - accept
+  - replan
+phase_history:
+  - phase: 1
+    completed_stages:
+      - implement
+      - accept
+      - replan
+backward_loops: 0
+resume_source: state
+---
+```
 
 ### Pipeline Files Convention
 
@@ -183,45 +238,73 @@ Each pipeline run writes state files to `.pipeline/qrspi-<run-id>/`. The run ID 
 
 ```
 .pipeline/qrspi-<run-id>/
-├── state.md                      Written: Deepwork  — Recovery state and next-stage cursor
-├── config.md                     Written: Stage 1   — Route (full/quick-fix), metadata
-├── goals.md                      Written: Stage 1   — Intent, constraints, acceptance criteria
-├── questions.md                  Written: Stage 2   — Tagged research questions
-├── question-leakage-review.md    Written: Stage 2   — Independent review of question neutrality
-├── question-quality-review.md    Written: Stage 2   — Independent review of question coverage and tagging quality
+├── state.md                           Written: Deepwork  — Recovery state and next-stage cursor
+├── config.md                          Written: Stage 1   — Route (full/quick-fix), metadata
+├── goals.md                           Written: Stage 1   — Intent, constraints, acceptance criteria
+├── questions.md                       Written: Stage 2   — Tagged research questions
+├── question-leakage-review.md         Written: Stage 2   — Independent review of question neutrality
+├── question-quality-review.md         Written: Stage 2   — Independent review of question coverage and tagging quality
 ├── research/
-│   ├── q-01.md ... q-NN.md      Written: Stage 3   — Per-question findings
-│   └── summary.md               Written: Stage 3   — Unified research summary
-├── reviews/
-│   ├── goals-review-round-NN.md Written: Stage 1   — Goals automated review history
-│   ├── research-review-round-NN.md Written: Stage 3   — Research automated review history
-│   ├── design-review-round-NN.md Written: Stage 4   — Design automated review history
-│   ├── structure-review-round-NN.md Written: Stage 5   — Structure automated review history
-│   ├── plan-review-round-NN.md Written: Stage 6   — Plan automated review history
-│   ├── acceptance-phase-NN-review-round-MM.md Written: Stage 8   — Acceptance review history per phase
-│   └── replan-review-round-NN.md Written: Stage 8.5 — Replan automated review history
-├── design.md                     Written: Stage 4   — Architecture, vertical slices, test strategy
-├── structure.md                  Written: Stage 5   — File mapping, interfaces, create/modify
-├── plan.md                       Written: Stage 6   — Overall plan document
-├── phase-manifest.md             Written: Stage 6   — Phase ordering, task-to-phase mapping, replan gates
-├── baseline-results.md           Written: Stage 6   — Pre-implementation build/test baseline
+│   ├── q-01.md ... q-NN.md           Written: Stage 3   — Per-question findings
+│   └── summary.md                    Written: Stage 3   — Unified research summary
+├── design.md                          Written: Stage 4   — Architecture, vertical slices, test strategy
+├── structure.md                       Written: Stage 5   — File mapping, interfaces, create/modify
+├── plan.md                            Written: Stage 6   — Overall plan document; updated by Replan for remaining work
+├── phase-manifest.md                  Written: Stage 6   — Phase ordering, task-to-phase mapping, replan gates; updated by Replan
+├── baseline-results.md                Written: Stage 6   — Pre-implementation build/test baseline
 ├── tasks/
-│   └── task-NN.md               Written: Stage 6   — Per-task specs
+│   └── task-NN.md                    Written: Stage 6   — Canonical initial task specs with stable task IDs
+├── reviews/
+│   ├── goals-review-round-NN.md      Written: Stage 1   — Goals automated review history
+│   ├── research-review-round-NN.md   Written: Stage 3   — Research automated review history
+│   ├── design-review-round-NN.md     Written: Stage 4   — Design automated review history
+│   ├── structure-review-round-NN.md  Written: Stage 5   — Structure automated review history
+│   ├── plan-review-round-NN.md       Written: Stage 6   — Plan automated review history
+│   ├── acceptance-phase-NN-review-round-MM.md Written: Stage 8   — Acceptance review history per phase
+│   └── replan-review-round-NN.md     Written: Stage 8.5 — Replan automated review history
 ├── feedback/
-│   └── {step}-round-NN.md       Written: Any gate  — Rejection feedback + rejected artifact
-│   ├── deferred-replan-NN.md    Written: Deepwork  — Deferred phase-boundary issues
-│   └── goals-reset-context.md   Written: Deepwork  — Accumulated learnings before full reset
-├── execution-manifest.md         Written: Stage 7   — Cumulative per-task execution and review results across completed phases
-├── stage7-summary.md            Written: Stage 7   — Cumulative implement summary across completed phases
-├── integration-results.md        Written: Stage 7   — Cumulative cross-task integration results across completed phases
-├── stage7-integration-summary.md Written: Stage 7   — Cumulative integration gate summary across completed phases
-├── acceptance-results.md         Written: Stage 8   — Cumulative per-criterion test results across completed phases
-├── stage8-summary.md            Written: Stage 8   — Cumulative acceptance summaries across completed phases
-├── replan/
-│   └── phase-NN-replan.md       Written: Stage 8.5 — Phase transition notes and remaining-work updates
-├── stage9-summary.md            Written: Stage 9   — Verification summary (PASS/PARTIAL/FAIL)
-└── stage10-summary.md           Written: Stage 10  — Final report
+│   ├── {step}-round-NN.md            Written: Any gate  — Rejection feedback + rejected artifact
+│   ├── deferred-replan-NN.md         Written: Deepwork  — Deferred phase-boundary issues
+│   └── goals-reset-context.md        Written: Deepwork  — Accumulated learnings before full reset
+├── phases/
+│   ├── archive/
+│   │   └── phase-NN/                 Written: Deepwork  — Archived unstarted future phase directories after replan or loopback
+│   ├── phase-01/
+│   │   ├── tasks/ -> ../../tasks/    Written: Deepwork  — Symlink to canonical Stage 6 task specs for Phase 1
+│   │   ├── execution-manifest.md     Written: Stage 7   — Phase 1 task execution and review results
+│   │   ├── stage7-summary.md         Written: Stage 7   — Phase 1 implementation summary
+│   │   ├── integration-results.md    Written: Stage 7   — Phase 1 integration results
+│   │   ├── stage7-integration-summary.md Written: Stage 7 — Phase 1 integration summary
+│   │   ├── coverage-plan.md          Written: Stage 8   — Phase 1 acceptance coverage plan
+│   │   ├── acceptance-results.md     Written: Stage 8   — Phase 1 acceptance results
+│   │   ├── backward-loop-analysis.md Written: Stage 8   — Phase 1 backward-loop analysis when needed
+│   │   ├── stage8-summary.md         Written: Stage 8   — Phase 1 acceptance summary
+│   │   └── replan/
+│   │       └── phase-01-replan.md    Written: Stage 8.5 — Phase 1 replan note for remaining work
+│   ├── phase-02/
+│   │   ├── tasks/                    Written: Stage 8.5 — Complete next-phase task set with stable IDs
+│   │   │   └── task-NN.md
+│   │   ├── execution-manifest.md
+│   │   ├── stage7-summary.md
+│   │   ├── integration-results.md
+│   │   ├── stage7-integration-summary.md
+│   │   ├── coverage-plan.md
+│   │   ├── acceptance-results.md
+│   │   ├── backward-loop-analysis.md
+│   │   ├── stage8-summary.md
+│   │   └── replan/
+│   │       └── phase-02-replan.md
+│   └── phase-NN/
+│       └── ...                       Written: Stages 7, 8, and 8.5 — same structure for later phases
+├── stage9-summary.md                 Written: Stage 9   — Verification summary (PASS/PARTIAL/FAIL)
+└── stage10-summary.md                Written: Stage 10  — Final report
 ```
+
+Rules:
+
+- The top-level `tasks/` directory remains the canonical Stage 6 output. `phases/phase-01/tasks/` is a symlink to it.
+- Phase 2 and later use real per-phase task copies written by Replan into `phases/phase-NN/tasks/`.
+- Archived future phase directories live under `phases/archive/` and are preserved for audit only. Active execution and recovery ignore archived directories.
 
 ### Route Handling
 
@@ -245,7 +328,7 @@ Phase handling rules:
 3. Validate the task description is actionable. If too vague, ask clarifying questions via `question`.
 4. **Generate a run ID** by running: `date +%Y%m%d-%H%M%S`
    Prepend `qrspi-` to form the run ID: `qrspi-<timestamp>`.
-5. **Create the pipeline directory** by running: `mkdir -p .pipeline/qrspi-<run-id>`
+5. **Create the pipeline directory and phase parent** by running: `mkdir -p .pipeline/qrspi-<run-id>/phases`
 6. **Create the pipeline branch** by running: `git checkout -b qrspi/<run-id> main`
 7. Write initial `.pipeline/qrspi-<run-id>/state.md` with:
 
@@ -382,7 +465,8 @@ When `qrspi-plan` completes:
 - Mark Stage 6 as complete in `todowrite`.
 - Read `phase-manifest.md` to determine `total_phases`. If it is missing, treat the run as single-phase.
 - If the route is quick-fix, set `total_phases: 1`.
-- If the route is full and `phase-manifest.md` declares more than one phase, expand `todowrite` so each phase gets its own Implement and Acceptance test entry.
+- Create `.pipeline/<run-id>/phases/phase-01/` and create the Phase 1 task symlink by running `ln -s ../../tasks .pipeline/<run-id>/phases/phase-01/tasks`.
+- If the route is full and `phase-manifest.md` declares more than one phase, create empty phase directories for each planned future phase and rebuild `todowrite` so every planned phase gets its own Implement and Acceptance test entry.
 - Overwrite `state.md` with `last_completed_stage: plan`, `next_stage: implement`, `current_phase: 1`, and `total_phases` from `phase-manifest.md`.
 - **Route is now locked.** No more route changes allowed.
 - Proceed to **Stage 7**.
@@ -400,6 +484,9 @@ Invoke `qrspi-implement` via the `task` tool:
 
 === CURRENT PHASE ===
 [current phase number]
+
+=== PHASE DIR ===
+phases/phase-[NN]
 ```
 
 For quick-fix route, always pass:
@@ -407,6 +494,9 @@ For quick-fix route, always pass:
 ```
 === CURRENT PHASE ===
 1
+
+=== PHASE DIR ===
+phases/phase-01
 ```
 
 When `qrspi-implement` completes:
@@ -414,7 +504,7 @@ When `qrspi-implement` completes:
 - Parse `### Status`. If FAIL, follow **Error Handling**.
 - Check for `### Backward Loop Request`. If present, follow the **Backward Loop Protocol**.
 - Mark the current phase's Implement entry as complete in `todowrite`.
-- Overwrite `state.md` with `last_completed_stage: implement`, `next_stage: accept`, and the current phase number.
+- Overwrite `state.md` with `last_completed_stage: implement`, `next_stage: accept`, the current phase number, and updated `phase_history` for that phase.
 - Proceed to **Stage 8**.
 
 ### Stage 8 — Acceptance Test
@@ -427,6 +517,9 @@ Invoke `qrspi-accept` via the `task` tool:
 
 === CURRENT PHASE ===
 [current phase number]
+
+=== PHASE DIR ===
+phases/phase-[NN]
 ```
 
 For quick-fix route, always pass:
@@ -434,6 +527,9 @@ For quick-fix route, always pass:
 ```
 === CURRENT PHASE ===
 1
+
+=== PHASE DIR ===
+phases/phase-01
 ```
 
 When `qrspi-accept` completes:
@@ -441,7 +537,7 @@ When `qrspi-accept` completes:
 - Parse `### Status`. If FAIL (without backward loop), follow **Error Handling**.
 - Check for `### Backward Loop Request`. If present, follow the **Backward Loop Protocol**.
 - Mark the current phase's Acceptance test entry as complete in `todowrite`.
-- Overwrite `state.md` with `last_completed_stage: accept`, `current_phase`, and a provisional `next_stage`.
+- Overwrite `state.md` with `last_completed_stage: accept`, `current_phase`, a provisional `next_stage`, and updated `phase_history` for that phase.
 - If the route is quick-fix, or `total_phases` is `1`, or the current phase is the final phase, set `next_stage: verify` and proceed to **Stage 9**.
 - Otherwise set `next_stage: replan` and proceed to **Stage 8.5**.
 
@@ -464,16 +560,23 @@ Invoke `qrspi-replan` via the `task` tool:
 
 === COMPLETED PHASE ===
 [current phase number]
+
+=== COMPLETED PHASE DIR ===
+phases/phase-[NN]
+
+=== NEXT PHASE DIR ===
+phases/phase-[NN+1]
 ```
 
 When `qrspi-replan` completes:
 
 - Parse `### Status`. If FAIL, follow **Error Handling**.
-- Mark the current phase transition as complete in `todowrite` if you are tracking it explicitly.
-- Increment `current_phase` by 1.
-- If the new phase does not already have visible checklist entries, add `Phase N — Implement` and `Phase N — Acceptance test` to `todowrite`.
-- Overwrite `state.md` with `last_completed_stage: replan`, `next_stage: implement`, and the incremented phase number.
-- Re-enter the pipeline at **Stage 7** for the next phase.
+- Re-read the updated `phase-manifest.md` with `cat` and recompute `total_phases` from the refreshed remaining-work plan.
+- Archive any unstarted future phase directories that are no longer active by moving them under `.pipeline/<run-id>/phases/archive/` with `mv`.
+- Rebuild `todowrite` from the refreshed manifest so stale unstarted phases are removed and newly-added phases appear.
+- If the refreshed manifest still has another implementation phase after the completed phase, increment `current_phase`, ensure the next phase directory exists, and overwrite `state.md` with `last_completed_stage: replan`, `next_stage: implement`, the incremented phase number, refreshed `total_phases`, and updated `phase_history`.
+- If the refreshed manifest no longer has remaining implementation phases, overwrite `state.md` with `last_completed_stage: replan`, `next_stage: verify`, the completed phase number, refreshed `total_phases`, and updated `phase_history`.
+- Re-enter the pipeline at **Stage 7** for the next phase, or proceed to **Stage 9** when Replan closes out the remaining phase plan.
 
 ### Stage 9 — Verify
 
@@ -546,10 +649,32 @@ Do not present Design or Structure as loop targets on the quick-fix route.
 a. Determine the loop target stage number (Design=4, Structure=5, Plan=6).
 b. Write loop feedback to `.pipeline/qrspi-<run-id>/feedback/{stage}-loop-{NN}.md` with the backward loop request details using the edit tool.
 c. Create the feedback directory if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback`
-d. Delete all artifacts from the target stage onward using bash `rm` commands.
-e. Reset the todo items for the target stage and all downstream stages to not-started.
-f. Overwrite `state.md` with the loop target as `next_stage`, increment `backward_loops`, and reset `current_phase` if the target is before phased execution.
-g. Re-enter the pipeline at the target stage. The stage subagent's re-run will pick up the feedback file as additional context.
+d. Preserve completed phase directories `phases/phase-01/` through `phases/phase-(N-1)/` unchanged.
+e. Delete the current incomplete phase directory with `rm -rf .pipeline/qrspi-<run-id>/phases/phase-NN/`.
+f. Archive any unstarted future phase directories by moving them under `.pipeline/qrspi-<run-id>/phases/archive/phase-NN/` before regenerating the remaining plan.
+g. Delete regenerated top-level artifacts based on the loop target:
+  - Plan: `plan.md`, `phase-manifest.md`, `baseline-results.md`, and `tasks/`
+  - Structure: all Plan artifacts plus `structure.md`
+  - Design: all Structure artifacts plus `design.md`
+h. Reset the todo items for the target stage and all downstream stages to not-started, and remove stale unstarted phase entries that no longer match the active manifest.
+i. Overwrite `state.md` with the loop target as `next_stage`, increment `backward_loops`, reset `current_phase` to `1` if the target is before phased execution, and preserve `phase_history` for already-completed phases.
+j. Re-enter the pipeline at the target stage. The re-run must receive the feedback file as additional context.
+k. When re-entering Design, Structure, or Plan from Phase 2 or later, also include:
+
+```
+
+=== COMPLETED PHASES CONTEXT ===
+For each completed prior phase, include the full execution-manifest.md,
+integration-results.md, acceptance-results.md, stage7-summary.md, and
+stage8-summary.md from that phase directory.
+
+=== FAILURE CONTEXT ===
+Include the failed phase's backward-loop-analysis.md, the loop feedback file,
+and any relevant stage7/stage8 summaries from the failed phase.
+
+```
+
+Stage 6 will recreate active phase directories and task locations after the loop target completes.
 4. **If the user chooses D** (defer to Replan):
 a. Create the feedback directory if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback`
 b. Write `.pipeline/qrspi-<run-id>/feedback/deferred-replan-{NN}.md` with the current stage, current phase, and backward-loop request details.
@@ -560,7 +685,7 @@ d. Continue the current stage as non-blocking. The next Replan stage must read a
 7. **If the user chooses G** (full reset to Goals):
 a. Create the feedback directory if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback`
 b. Write `.pipeline/qrspi-<run-id>/feedback/goals-reset-context.md` containing the backward-loop request, current phase, and a concise summary of what was learned before the reset.
-c. Delete every pipeline artifact except `feedback/`.
+c. Delete every pipeline artifact except `feedback/`, including all active and archived `phases/` directories.
 d. Recreate `state.md` with `route: unknown`, `current_phase: 1`, `total_phases: 0`, `last_completed_stage: none`, `next_stage: goals`, incremented `backward_loops`, and `resume_source: state`.
 e. Reset the visible checklist to the initial pre-plan state.
 f. Re-enter the pipeline at **Stage 1** and include the contents of `feedback/goals-reset-context.md` as `=== PRIOR RUN LEARNINGS ===` in the Goals dispatch.

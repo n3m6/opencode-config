@@ -42,7 +42,7 @@ You may also receive:
 **For full route:**
 
 1. **Order tasks by dependency.** Using the vertical slices, phases, and file map, define tasks that can be implemented sequentially or in parallel waves. Each task should map to a coherent portion of a vertical slice.
-2. **Assign task metadata.** For each task, decide the task number, title, phase, slice, dependencies, approximate LOC, and concrete file set.
+2. **Assign task metadata.** For each task, decide the task number, title, phase, slice, dependencies, approximate LOC, and concrete file set. Task numbers are globally stable IDs for the full run, so assign them in monotonic order and avoid any scheme that assumes later renumbering.
 3. **Validate completeness.** Every file in the structure file map must appear in at least one task. Every acceptance criterion from goals.md must be materially addressed by at least one task.
 4. **Write the plan overview and phase manifest.** Draft the overview, phase summary, task order table, wave analysis, and a phase manifest that names each phase, lists its tasks, maps the covered acceptance criteria, and records its replan gate before dispatching task writers.
 5. **Dispatch every task.** Invoke `qrspi-task-spec-writer` once per task using the plan overview plus that task's specific outline and relevant context.
@@ -184,6 +184,7 @@ For quick-fix, always emit exactly:
 - **No placeholders.** Every field must be filled. No `TBD`, `similar to Task N`, or `see design.md`.
 - **No ambiguity in test expectations.** Each test expectation must specify a concrete trigger and a concrete expected outcome.
 - **Dependencies are explicit.** List the specific task numbers and what each task needs from them.
+- **Task IDs stay stable.** Treat task numbers as permanent identifiers for the run. Future replans may add new task numbers, but they should not need to renumber these original tasks.
 - **LOC estimates are honest.** Include test code in the estimate. If unsure, estimate high.
 - **File paths are exact.** Use the paths from structure.md (full route) or from research findings (quick-fix).
 - **Quick-fix means one task.** For quick-fix, produce exactly one task (`task-01.md`).

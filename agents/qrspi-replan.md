@@ -1,5 +1,5 @@
 ---
-description: "Stage 8.5 orchestrator — revises the remaining plan after a completed phase, runs automated review rounds, and writes updated remaining-work artifacts. Writes plan.md, phase-manifest.md, changed task specs, review artifacts, and replan/phase-NN-replan.md."
+description: "Stage 8.5 orchestrator — revises the remaining plan after a completed phase, runs automated review rounds, and writes updated remaining-work artifacts. Writes plan.md, phase-manifest.md, next-phase task specs, review artifacts, and a phase-local replan note."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -37,8 +37,10 @@ You will receive from deepwork:
 1. **Run ID** — the `qrspi-<timestamp>` identifier for this pipeline run
 2. **Route** — `full`
 3. **Completed Phase** — the phase number that just finished
+4. **Completed Phase Dir** — the relative path to the completed phase directory (for example `phases/phase-01`)
+5. **Next Phase Dir** — the relative path to the next phase directory (for example `phases/phase-02`)
 
-Extract the run ID, route, and completed phase from the prompt. Use the run ID to construct all pipeline file paths: `.pipeline/<run-id>/`.
+Extract the run ID, route, completed phase, completed phase dir, and next phase dir from the prompt. Use the run ID to construct all pipeline file paths: `.pipeline/<run-id>/`.
 
 ### Step A — Read Inputs
 
@@ -49,12 +51,14 @@ Read the current artifacts:
 - `cat .pipeline/<run-id>/structure.md`
 - `cat .pipeline/<run-id>/plan.md`
 - `cat .pipeline/<run-id>/phase-manifest.md`
-- `cat .pipeline/<run-id>/execution-manifest.md`
-- `cat .pipeline/<run-id>/integration-results.md`
-- `cat .pipeline/<run-id>/acceptance-results.md`
-- `cat .pipeline/<run-id>/stage7-summary.md`
-- `cat .pipeline/<run-id>/stage8-summary.md`
-- `cat .pipeline/<run-id>/tasks/task-*.md` (read each task file individually)
+- `cat .pipeline/<run-id>/<completed-phase-dir>/execution-manifest.md`
+- `cat .pipeline/<run-id>/<completed-phase-dir>/integration-results.md`
+- `cat .pipeline/<run-id>/<completed-phase-dir>/acceptance-results.md`
+- `cat .pipeline/<run-id>/<completed-phase-dir>/stage7-summary.md`
+- `cat .pipeline/<run-id>/<completed-phase-dir>/stage8-summary.md`
+- `cat .pipeline/<run-id>/<completed-phase-dir>/tasks/task-*.md` (read each task file individually)
+
+If the completed phase number is greater than 1, also read summaries from each prior completed phase directory so later replans can reason about what already shipped.
 
 Then detect deferred replan feedback:
 
@@ -65,7 +69,8 @@ If deferred replan feedback exists, read all matching files with `cat`. Otherwis
 ### Step B — Create Working Directories
 
 - `mkdir -p .pipeline/<run-id>/reviews`
-- `mkdir -p .pipeline/<run-id>/replan`
+- `mkdir -p .pipeline/<run-id>/<completed-phase-dir>/replan`
+- `mkdir -p .pipeline/<run-id>/<next-phase-dir>/tasks`
 
 ### Step C — Dispatch Replan Writer
 
@@ -88,28 +93,31 @@ Invoke `qrspi-replan-writer` via the `task` tool:
 [paste contents of phase-manifest.md verbatim]
 
 === EXECUTION MANIFEST ===
-[paste contents of execution-manifest.md verbatim]
+[paste contents of <completed-phase-dir>/execution-manifest.md verbatim]
 
 === INTEGRATION RESULTS ===
-[paste contents of integration-results.md verbatim]
+[paste contents of <completed-phase-dir>/integration-results.md verbatim]
 
 === ACCEPTANCE RESULTS ===
-[paste contents of acceptance-results.md verbatim]
+[paste contents of <completed-phase-dir>/acceptance-results.md verbatim]
 
 === STAGE 7 SUMMARY ===
-[paste contents of stage7-summary.md verbatim]
+[paste contents of <completed-phase-dir>/stage7-summary.md verbatim]
 
 === STAGE 8 SUMMARY ===
-[paste contents of stage8-summary.md verbatim]
+[paste contents of <completed-phase-dir>/stage8-summary.md verbatim]
 
-=== CURRENT TASK SPECS ===
-[paste contents of all tasks/task-NN.md files verbatim]
+=== COMPLETED PHASE TASK SPECS ===
+[paste contents of all <completed-phase-dir>/tasks/task-NN.md files verbatim]
 
 === COMPLETED PHASE ===
 [paste the completed phase number]
 
 === DEFERRED REPLAN FEEDBACK ===
 [paste all deferred replan feedback verbatim, or `None.`]
+
+=== PRIOR COMPLETED PHASE SUMMARIES ===
+[for each completed prior phase before the current one, paste execution-manifest.md, acceptance-results.md, and stage summaries, or `None.` if this is Phase 1]
 
 === INSTRUCTIONS ===
 Revise only the remaining work after the completed phase.
@@ -124,7 +132,10 @@ You must not:
 - change goals.md
 - change the chosen design approach
 - rewrite or renumber completed phases
+- renumber active unfinished tasks that remain valid; keep globally stable task IDs across the run and assign new IDs only for genuinely new tasks
 - silently expand scope beyond the current acceptance criteria
+
+Write the complete task set for the next implementation phase only. If no further implementation phase remains after this replan, do not invent placeholder tasks.
 
 Return:
 ### plan.md
@@ -134,7 +145,7 @@ Return:
 [full updated phase manifest]
 
 ### task-NN.md
-[one section for every new or changed remaining task]
+[one section for every task assigned to the next phase — both carried-forward unchanged tasks and new or modified tasks]
 
 ### Tasks Added
 [list or `None.`]
@@ -153,17 +164,17 @@ When `qrspi-replan-writer` completes:
 
 - Write the `### plan.md` section to `.pipeline/<run-id>/plan.md` using the edit tool.
 - Write the `### phase-manifest.md` section to `.pipeline/<run-id>/phase-manifest.md` using the edit tool.
-- For each returned `### task-NN.md` section, write to `.pipeline/<run-id>/tasks/task-NN.md` using the edit tool.
-- Write the `### Replan Note` section to `.pipeline/<run-id>/replan/phase-[PP]-replan.md` where `[PP]` is the completed phase number.
+- For each returned `### task-NN.md` section, write to `.pipeline/<run-id>/<next-phase-dir>/tasks/task-NN.md` using the edit tool.
+- Write the `### Replan Note` section to `.pipeline/<run-id>/<completed-phase-dir>/replan/phase-[PP]-replan.md` where `[PP]` is the completed phase number.
 
-Do not delete superseded task files. They remain as audit artifacts unless they are explicitly overwritten by a returned replacement task file.
+Do not delete completed-phase task files. They remain as audit artifacts in their phase directory.
 
 ### Step D — Automated Review Loop
 
 After writing the updated artifacts, run an internal review loop.
 
 1. Set an internal counter: `review_round = 1`
-2. For each review round, read the current `plan.md`, `phase-manifest.md`, the changed or added task files, and the replan note.
+2. For each review round, read the current `plan.md`, `phase-manifest.md`, the next-phase task files, and the replan note.
 3. Dispatch `qrspi-replan-reviewer` via the `task` tool:
 
 ```
@@ -182,14 +193,14 @@ After writing the updated artifacts, run an internal review loop.
 === PHASE MANIFEST ===
 [paste contents of phase-manifest.md verbatim]
 
-=== CHANGED TASK SPECS ===
-[paste contents of the changed or added task-NN.md files verbatim]
+=== NEXT PHASE TASK SPECS ===
+[paste contents of the task-NN.md files in <next-phase-dir>/tasks/ verbatim]
 
 === COMPLETED PHASE ===
 [paste the completed phase number]
 
 === REPLAN NOTE ===
-[paste contents of replan/phase-[PP]-replan.md verbatim]
+[paste contents of <completed-phase-dir>/replan/phase-[PP]-replan.md verbatim]
 
 === INSTRUCTIONS ===
 Review the replanned remaining work for:
@@ -223,6 +234,18 @@ Review the replanned remaining work for:
 - `clean` if the final round passed
 - `unclean-cap` if round 5 still failed
 
+### Step E — Append Review Status To Next-Phase Task Specs
+
+After the review loop ends, append a final review status block to every task file written in `<next-phase-dir>/tasks/`:
+
+```
+## Review Status
+- **State:** [clean (round NN) or unclean-cap (round 5)]
+- **Outstanding Concerns:** ["None." if clean, otherwise paste the final review summary verbatim]
+```
+
+If the refreshed manifest has no further implementation phase and no task files were written, skip this step.
+
 ### Return
 
 If the replan succeeds:
@@ -230,7 +253,7 @@ If the replan succeeds:
 ```
 ### Status — PASS
 ### Phase — [completed phase number]
-### Files Written — plan.md, phase-manifest.md, changed tasks/task-NN.md, reviews/replan-review-round-{NN}.md, replan/phase-[PP]-replan.md
+### Files Written — plan.md, phase-manifest.md, <next-phase-dir>/tasks/task-NN.md, reviews/replan-review-round-{NN}.md, <completed-phase-dir>/replan/phase-[PP]-replan.md
 ### Summary — Replan completed after phase [N]. Remaining work updated for the next phase. Final review state: [clean|unclean-cap].
 ```
 

@@ -170,9 +170,10 @@
   │  │  ↺ backward loop possible   │                           │
   │  └─────────────┬────────────────┘                           │
   │                │                                            │
-  │  Outputs: execution-manifest.md, stage7-summary.md,         │
-  │           integration-results.md,                           │
-  │           stage7-integration-summary.md                     │
+     │  Outputs: phases/phase-NN/execution-manifest.md,            │
+     │           phases/phase-NN/stage7-summary.md,                │
+     │           phases/phase-NN/integration-results.md,           │
+     │           phases/phase-NN/stage7-integration-summary.md     │
   │                │                                            │
   │                ▼                                           │
   │  ┌──────────────────────────────┐                           │
@@ -189,9 +190,11 @@
   │  │  ↺ backward loop possible   │                           │
   │  └─────────────┬────────────────┘                           │
   │                │                                            │
-  │  Outputs: coverage-plan.md, acceptance-results.md,         │
-  │           reviews/acceptance-phase-PP-review-round-NN.md,  │
-  │           backward-loop-analysis.md, stage8-summary.md     │
+     │  Outputs: phases/phase-NN/coverage-plan.md,                │
+     │           phases/phase-NN/acceptance-results.md,           │
+     │           reviews/acceptance-phase-PP-review-round-NN.md,  │
+     │           phases/phase-NN/backward-loop-analysis.md,       │
+     │           phases/phase-NN/stage8-summary.md                │
   │                │                                            │
   │                ▼                                            │
   │  ┌──────────────────────────────┐                           │
@@ -209,10 +212,10 @@
   │  │  single-phase, or final phase│                           │
   │  └─────────────┬────────────────┘                           │
   │                │                                            │
-  │  Outputs: plan.md (updated), phase-manifest.md (updated),  │
-  │           tasks/task-NN.md (changed),                       │
-  │           reviews/replan-review-round-NN.md,               │
-  │           replan/phase-NN-replan.md                         │
+     │  Outputs: plan.md (updated), phase-manifest.md (updated),  │
+     │           phases/phase-(NN+1)/tasks/task-NN.md,            │
+     │           reviews/replan-review-round-NN.md,               │
+     │           phases/phase-NN/replan/phase-NN-replan.md        │
   │                │                                            │
   │                └───────▶ loop back to Stage 7 ──────────┐  │
   │                                                          │  │
@@ -282,43 +285,53 @@ Phase handling rules:
 
 All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 
-| File                                            | Written By  | Purpose                                                                              |
-| ----------------------------------------------- | ----------- | ------------------------------------------------------------------------------------ |
-| `state.md`                                      | Deepwork    | Recovery state and next-stage cursor (YAML frontmatter)                              |
-| `config.md`                                     | Stage 1     | Route (full/quick-fix), run_id, and metadata                                         |
-| `goals.md`                                      | Stage 1     | Intent, constraints, non-goals, acceptance criteria                                  |
-| `questions.md`                                  | Stage 2     | Tagged research questions                                                            |
-| `question-leakage-review.md`                    | Stage 2     | Independent review of question neutrality                                            |
-| `question-quality-review.md`                    | Stage 2     | Independent review of question coverage and tagging quality                          |
-| `research/q-NN.md`                              | Stage 3     | Per-question research findings                                                       |
-| `research/summary.md`                           | Stage 3     | Unified research summary                                                             |
-| `design.md`                                     | Stage 4     | Architecture, vertical slices, phases, replan gates, test strategy                   |
-| `structure.md`                                  | Stage 5     | File mapping, interfaces, create/modify, Mermaid diagram                             |
-| `plan.md`                                       | Stage 6     | Overall implementation plan                                                          |
-| `phase-manifest.md`                             | Stage 6     | Phase ordering, task-to-phase mapping, replan gates                                  |
-| `baseline-results.md`                           | Stage 6     | Pre-implementation build/test baseline                                               |
-| `tasks/task-NN.md`                              | Stage 6     | Per-task specifications (with appended review status)                                |
-| `reviews/goals-review-round-NN.md`              | Stage 1     | Goals automated review history                                                       |
-| `reviews/research-review-round-NN.md`           | Stage 3     | Research automated review history                                                    |
-| `reviews/design-review-round-NN.md`             | Stage 4     | Design automated review history                                                      |
-| `reviews/structure-review-round-NN.md`          | Stage 5     | Structure automated review history                                                   |
-| `reviews/plan-review-round-NN.md`               | Stage 6     | Plan automated review history                                                        |
-| `reviews/acceptance-phase-NN-review-round-MM.md`| Stage 8     | Acceptance review history per phase                                                  |
-| `reviews/replan-review-round-NN.md`             | Stage 8.5   | Replan automated review history                                                      |
-| `feedback/{step}-round-NN.md`                   | Any gate    | Rejection feedback + rejected artifact                                               |
-| `feedback/deferred-replan-NN.md`                | Deepwork    | Deferred phase-boundary issues from backward loops                                   |
-| `feedback/goals-reset-context.md`               | Deepwork    | Accumulated learnings before a full reset to Goals                                   |
-| `execution-manifest.md`                         | Stage 7     | Cumulative per-task execution and review results across completed phases             |
-| `stage7-summary.md`                             | Stage 7     | Cumulative implement summary across completed phases                                 |
-| `integration-results.md`                        | Stage 7     | Cumulative cross-task integration results across completed phases                    |
-| `stage7-integration-summary.md`                 | Stage 7     | Cumulative integration gate summary across completed phases                          |
-| `coverage-plan.md`                              | Stage 8     | Cumulative acceptance test coverage plan across completed phases                     |
-| `acceptance-results.md`                         | Stage 8     | Cumulative per-criterion test results across completed phases                        |
-| `backward-loop-analysis.md`                     | Stage 8     | Backward-loop detector severity analysis and recommendation                          |
-| `stage8-summary.md`                             | Stage 8     | Cumulative acceptance summaries across completed phases                              |
-| `replan/phase-NN-replan.md`                     | Stage 8.5   | Phase transition notes and remaining-work updates                                    |
-| `stage9-summary.md`                             | Stage 9     | Verification summary (PASS/PARTIAL/FAIL)                                             |
-| `stage10-summary.md`                            | Stage 10    | Final report                                                                         |
+### Top-Level Artifacts
+
+| File                              | Written By                   | Purpose                                                            |
+| --------------------------------- | ---------------------------- | ------------------------------------------------------------------ |
+| `state.md`                        | Deepwork                     | Recovery state and next-stage cursor (YAML frontmatter)            |
+| `config.md`                       | Stage 1                      | Route, run_id, and metadata                                        |
+| `goals.md`                        | Stage 1                      | Intent, constraints, non-goals, acceptance criteria                |
+| `questions.md`                    | Stage 2                      | Tagged research questions                                          |
+| `question-leakage-review.md`      | Stage 2                      | Independent review of question neutrality                          |
+| `question-quality-review.md`      | Stage 2                      | Independent review of question coverage and tagging quality        |
+| `research/q-NN.md`                | Stage 3                      | Per-question research findings                                     |
+| `research/summary.md`             | Stage 3                      | Unified research summary                                           |
+| `design.md`                       | Stage 4                      | Architecture, vertical slices, phases, replan gates, test strategy |
+| `structure.md`                    | Stage 5                      | File mapping, interfaces, create/modify, Mermaid diagram           |
+| `plan.md`                         | Stage 6, 8.5                 | Current remaining-work implementation plan                         |
+| `phase-manifest.md`               | Stage 6, 8.5                 | Current phase ordering, task-to-phase mapping, and replan gates    |
+| `baseline-results.md`             | Stage 6                      | Pre-implementation build/test baseline                             |
+| `tasks/task-NN.md`                | Stage 6                      | Canonical initial task specs with appended review status           |
+| `reviews/*.md`                    | Stages 1, 3, 4, 5, 6, 8, 8.5 | Automated review history                                           |
+| `feedback/{step}-round-NN.md`     | Any gate                     | Rejection feedback + rejected artifact                             |
+| `feedback/deferred-replan-NN.md`  | Deepwork                     | Deferred phase-boundary issues from backward loops                 |
+| `feedback/goals-reset-context.md` | Deepwork                     | Accumulated learnings before a full reset to Goals                 |
+| `stage9-summary.md`               | Stage 9                      | Verification summary (PASS/PARTIAL/FAIL)                           |
+| `stage10-summary.md`              | Stage 10                     | Final report                                                       |
+
+### Phase-Scoped Artifacts
+
+| File Pattern                                    | Written By | Purpose                                                                   |
+| ----------------------------------------------- | ---------- | ------------------------------------------------------------------------- |
+| `phases/archive/phase-NN/`                      | Deepwork   | Archived unstarted future phase directories removed by Replan or loopback |
+| `phases/phase-01/tasks/ -> ../../tasks/`        | Deepwork   | Symlink from Phase 1 to the canonical Stage 6 task set                    |
+| `phases/phase-NN/tasks/task-NN.md`              | Stage 8.5  | Complete task set for that phase, with stable task IDs and review status  |
+| `phases/phase-NN/execution-manifest.md`         | Stage 7    | Per-phase execution and review results                                    |
+| `phases/phase-NN/stage7-summary.md`             | Stage 7    | Per-phase implementation summary                                          |
+| `phases/phase-NN/integration-results.md`        | Stage 7    | Per-phase integration results                                             |
+| `phases/phase-NN/stage7-integration-summary.md` | Stage 7    | Per-phase integration summary                                             |
+| `phases/phase-NN/coverage-plan.md`              | Stage 8    | Per-phase acceptance coverage plan                                        |
+| `phases/phase-NN/acceptance-results.md`         | Stage 8    | Per-phase acceptance results                                              |
+| `phases/phase-NN/backward-loop-analysis.md`     | Stage 8    | Per-phase backward-loop classification output when needed                 |
+| `phases/phase-NN/stage8-summary.md`             | Stage 8    | Per-phase acceptance summary                                              |
+| `phases/phase-NN/replan/phase-NN-replan.md`     | Stage 8.5  | Replan note describing the delta after that completed phase               |
+
+Rules:
+
+- Phase-local execution artifacts are the authoritative audit trail for multi-phase runs.
+- Active execution ignores anything under `phases/archive/`; archived phase directories are kept only for audit.
+- Phase 2 and later receive real task copies in their phase directory. Replan does not rely on shared top-level cumulative execution or acceptance files.
 
 ---
 
@@ -352,7 +365,9 @@ Rules:
 - `current_phase` is `1` until `phase-manifest.md` exists.
 - `total_phases` is `1` for quick-fix, and `0` until Plan produces `phase-manifest.md` for full route.
 - `resume_source` is `state` when recovered from `state.md`, `artifacts` when reconstructed from files on disk, and `fresh` on a brand-new run.
-- `phase_history` records per-phase completion. For single-phase runs, keep one entry.
+- `stages_completed` may include `replan` once any phase transition completes.
+- `phase_history` records per-phase stage-boundary completion. For single-phase runs, keep one entry.
+- Recovery is stage-level only. If the run is interrupted mid-stage, restart that stage from the beginning instead of resuming a substep.
 
 ### Resume Mode
 
@@ -361,20 +376,19 @@ If the user provides a run ID, asks to resume, or points at an existing `.pipeli
 1. Resolve the run directory: `.pipeline/qrspi-<run-id>/`
 2. Read `.pipeline/qrspi-<run-id>/state.md`
 3. If `state.md` exists and is coherent, use it as the authoritative recovery record: recover `route`, `current_phase`, `total_phases`, and `next_stage`.
-4. If `state.md` is missing or inconsistent, infer progress from disk using this completion map:
-   - Goals complete if `goals.md` exists
-   - Questions complete if `questions.md` exists
-   - Research complete if `research/summary.md` exists
-   - Design complete if `design.md` exists, or the route is quick-fix
-   - Structure complete if `structure.md` exists, or the route is quick-fix
-   - Plan complete if `baseline-results.md` exists
-   - Implement complete for the current phase if `stage7-summary.md` exists
-   - Accept-Test complete for the current phase if `stage8-summary.md` exists
-   - Verify complete if `stage9-summary.md` exists
-   - Report complete if `stage10-summary.md` exists
-5. Read `config.md` to confirm the route and resume at the first incomplete stage.
-6. For quick-fix runs, force `current_phase: 1` during recovery.
-7. Reconstruct the visible todo checklist from the recovered route and phase.
+4. If `state.md` is missing or inconsistent, reconstruct progress from disk:
+   - read `config.md` to confirm the route
+   - use top-level markers for Goals, Questions, Research, Design, Structure, and Plan
+   - if pre-phase work is complete, read `phase-manifest.md` for `total_phases`
+   - scan active phase directories under `phases/phase-*/` and ignore `phases/archive/`
+   - treat `stage7-summary.md`, `stage8-summary.md`, and `replan/phase-NN-replan.md` inside each phase directory as the authoritative stage markers
+   - if a phase directory has partial artifacts but lacks its stage summary, restart that stage from the beginning
+   - if the highest completed phase has acceptance results but no replan note, resume at Replan unless that phase is now final, in which case resume at Verify
+   - if the highest completed phase has a replan note and more phases remain, resume Implement for the next phase
+   - let `stage9-summary.md` and `stage10-summary.md` override phase recovery when verification or reporting already completed
+5. Reconstruct `state.md` from recovered artifacts with `resume_source: artifacts` when disk recovery was needed.
+6. For quick-fix runs, force `current_phase: 1` and `total_phases: 1` during recovery.
+7. Rebuild the visible todo checklist from the refreshed `phase-manifest.md`, ignoring archived future phases.
 
 If both `state.md` and the artifact set imply the run is already complete, present the preserved report path and stop.
 
@@ -384,15 +398,15 @@ If both `state.md` and the artifact set imply the run is already complete, prese
 
 Every alignment and planning stage runs an internal automated review loop before human review or downstream consumption. Each loop guarantees a minimum number of review rounds and caps at a maximum to prevent infinite loops.
 
-| Stage           | Reviewer Agent             | Min Rounds | Max Rounds | Failure Action                                     |
-| --------------- | -------------------------- | ---------- | ---------- | -------------------------------------------------- |
-| 1 — Goals       | `qrspi-goals-reviewer`     | 3          | 5          | Re-dispatch synthesizer with review feedback       |
-| 2 — Questions   | Dual: `qrspi-question-leakage-reviewer` + `qrspi-question-quality-reviewer` | 1 | 5 | Re-dispatch generator; user choice after round 1 |
-| 3 — Research    | `qrspi-research-reviewer`  | 1          | 5          | Re-dispatch affected researchers + synthesizer; FAIL on cap |
-| 4 — Design      | `qrspi-design-reviewer`    | 3          | 5          | Re-dispatch design synthesizer with feedback       |
-| 5 — Structure   | `qrspi-structure-reviewer` | 3          | 5          | Re-dispatch structure mapper with feedback         |
-| 6 — Plan        | `qrspi-plan-reviewer`      | 5          | 10         | Re-dispatch plan writer with feedback              |
-| 8.5 — Replan    | `qrspi-replan-reviewer`    | 3          | 5          | Re-dispatch replan writer with feedback            |
+| Stage         | Reviewer Agent                                                              | Min Rounds | Max Rounds | Failure Action                                              |
+| ------------- | --------------------------------------------------------------------------- | ---------- | ---------- | ----------------------------------------------------------- |
+| 1 — Goals     | `qrspi-goals-reviewer`                                                      | 3          | 5          | Re-dispatch synthesizer with review feedback                |
+| 2 — Questions | Dual: `qrspi-question-leakage-reviewer` + `qrspi-question-quality-reviewer` | 1          | 5          | Re-dispatch generator; user choice after round 1            |
+| 3 — Research  | `qrspi-research-reviewer`                                                   | 1          | 5          | Re-dispatch affected researchers + synthesizer; FAIL on cap |
+| 4 — Design    | `qrspi-design-reviewer`                                                     | 3          | 5          | Re-dispatch design synthesizer with feedback                |
+| 5 — Structure | `qrspi-structure-reviewer`                                                  | 3          | 5          | Re-dispatch structure mapper with feedback                  |
+| 6 — Plan      | `qrspi-plan-reviewer`                                                       | 5          | 10         | Re-dispatch plan writer with feedback                       |
+| 8.5 — Replan  | `qrspi-replan-reviewer`                                                     | 3          | 5          | Re-dispatch replan writer with feedback                     |
 
 Review loop logic:
 
@@ -421,8 +435,11 @@ Stage 6 (Plan) additionally appends a final review status block to every `tasks/
 - Research isolation is structurally enforced: `goals.md` is never passed to any researcher, reviewer, or synthesizer in Stage 3. Researchers receive only the question text from `questions.md`.
 - Stage 2 includes independent question leakage and question quality reviews before any research begins.
 - Stage 6 records a pre-implementation baseline so later verification can distinguish known failures from new regressions.
-- Stage 7 includes a per-task code review gate (6 specialized reviewers) and a post-wave integration gate before acceptance testing begins.
-- Multi-phase pipeline state files (execution-manifest, stage summaries, integration results, acceptance results) are cumulative — prior phase sections are preserved when new phase data is appended.
+- Stage 6 writes the canonical initial `tasks/` directory, and deepwork creates `phases/phase-01/tasks/` as a symlink to that canonical task set after Plan completes.
+- Stage 7 includes a per-task code review gate (6 specialized reviewers), validates that every task listed for the current phase exists before implementation begins, and writes phase-local execution artifacts.
+- Stage 8 and Stage 8.5 write only to the active phase directory plus shared review history.
+- Stable task IDs are preserved across replans. Replan writes the complete next-phase task set into `phases/phase-NN/tasks/` and appends a review-status block before Stage 7 consumes it.
+- Verify and Report aggregate by enumerating `phases/phase-*/` rather than relying on top-level cumulative execution or acceptance files.
 
 ---
 
@@ -430,12 +447,12 @@ Stage 6 (Plan) additionally appends a final review status block to every `tasks/
 
 Four stages require human approval before proceeding:
 
-| Stage          | Artifact         | What the User Reviews                                  |
-| -------------- | ---------------- | ------------------------------------------------------ |
-| 1 — Goals      | `goals.md`       | Intent, constraints, non-goals, acceptance criteria    |
-| 2 — Questions  | `questions.md`   | Research question neutrality, coverage, and tagging    |
-| 4 — Design     | `design.md`      | Approach, vertical slices, phases, replan gates, tests |
-| 5 — Structure  | `structure.md`   | File mapping, interfaces, Mermaid diagram              |
+| Stage         | Artifact       | What the User Reviews                                  |
+| ------------- | -------------- | ------------------------------------------------------ |
+| 1 — Goals     | `goals.md`     | Intent, constraints, non-goals, acceptance criteria    |
+| 2 — Questions | `questions.md` | Research question neutrality, coverage, and tagging    |
+| 4 — Design    | `design.md`    | Approach, vertical slices, phases, replan gates, tests |
+| 5 — Structure | `structure.md` | File mapping, interfaces, Mermaid diagram              |
 
 All human gates present the automated review status to the user ("passed clean in round N" or "reached the N-round cap with remaining concerns documented in ...").
 
@@ -451,32 +468,34 @@ The deepwork agent presents the issue to the user with these options:
 
 **Full route options:**
 
-| Option | Action                                                     |
-| ------ | ---------------------------------------------------------- |
-| A      | Loop back to **Design** (re-architect the approach)        |
-| B      | Loop back to **Structure** (re-map files and interfaces)   |
-| C      | Loop back to **Plan** (revise task specifications)         |
-| D      | Defer to next **Replan** (record issue for phase boundary) |
-| E      | Attempt a **local fix** within the current stage           |
-| F      | **Continue as-is** (accept the limitation)                 |
-| G      | Full reset to **Goals** (restart with accumulated learnings)|
+| Option | Action                                                       |
+| ------ | ------------------------------------------------------------ |
+| A      | Loop back to **Design** (re-architect the approach)          |
+| B      | Loop back to **Structure** (re-map files and interfaces)     |
+| C      | Loop back to **Plan** (revise task specifications)           |
+| D      | Defer to next **Replan** (record issue for phase boundary)   |
+| E      | Attempt a **local fix** within the current stage             |
+| F      | **Continue as-is** (accept the limitation)                   |
+| G      | Full reset to **Goals** (restart with accumulated learnings) |
 
 **Quick-fix route options** (Design and Structure are skipped, so A and B are unavailable; Replan is skipped, so D is unavailable):
 
-| Option | Action                                                     |
-| ------ | ---------------------------------------------------------- |
-| C      | Loop back to **Plan** (revise task specifications)         |
-| E      | Attempt a **local fix** within the current stage           |
-| F      | **Continue as-is** (accept the limitation)                 |
-| G      | Full reset to **Goals** (restart with accumulated learnings)|
+| Option | Action                                                       |
+| ------ | ------------------------------------------------------------ |
+| C      | Loop back to **Plan** (revise task specifications)           |
+| E      | Attempt a **local fix** within the current stage             |
+| F      | **Continue as-is** (accept the limitation)                   |
+| G      | Full reset to **Goals** (restart with accumulated learnings) |
 
 Loop-back mechanics (options A, B, C):
 
 1. Write loop feedback to `feedback/{stage}-loop-{NN}.md`.
-2. Delete all artifacts from the target stage onward.
-3. Reset todo items for the target stage and all downstream stages.
-4. Overwrite `state.md` with the loop target, increment `backward_loops`, and reset `current_phase` if the target is before phased execution.
-5. Re-enter the pipeline at the target stage. The stage subagent's re-run picks up the feedback file as additional context.
+2. Preserve completed phase directories `phases/phase-01/` through `phases/phase-(N-1)/` unchanged.
+3. Delete the current incomplete phase directory and archive any unstarted future phase directories under `phases/archive/`.
+4. Delete the regenerated top-level artifacts owned by the loop target or later stages.
+5. Reset todo items for the target stage and all downstream stages, removing stale future-phase checklist entries.
+6. Overwrite `state.md` with the loop target, increment `backward_loops`, and reset `current_phase` only when the loop target is before phased execution.
+7. Re-enter the pipeline at the target stage. For Phase 2 and later loopbacks to Design, Structure, or Plan, deepwork passes full prior-phase artifacts plus the failed phase's backward-loop analysis and summaries as context.
 
 Defer to Replan (option D):
 
@@ -486,7 +505,7 @@ Defer to Replan (option D):
 Full reset to Goals (option G):
 
 1. Write accumulated learnings to `feedback/goals-reset-context.md`.
-2. Delete every pipeline artifact except `feedback/`.
+2. Delete every pipeline artifact except `feedback/`, including all active and archived phase directories.
 3. Recreate `state.md` with `route: unknown`, `next_stage: goals`, incremented `backward_loops`.
 4. Reset the visible checklist to the initial pre-plan state.
 5. Re-enter Stage 1 with `=== PRIOR RUN LEARNINGS ===` included in the Goals dispatch.
@@ -499,10 +518,11 @@ Before Stage 1 starts, the deepwork agent:
 
 1. Requires an actionable task description from the user. If no task is provided, asks for one. If too vague, asks clarifying questions.
 2. Generates a run ID with `date +%Y%m%d-%H%M%S`, prefixed with `qrspi-`.
-3. Creates `.pipeline/qrspi-<run-id>/` and checks out branch `qrspi/<run-id>` from `main`.
+3. Creates `.pipeline/qrspi-<run-id>/phases/` and checks out branch `qrspi/<run-id>` from `main`.
 4. Writes initial `state.md` with `route: unknown`, `next_stage: goals`, `resume_source: fresh`.
 5. Creates the visible progress checklist using `todowrite` (ten items: Stage 1–6, Phase 1 Implement, Phase 1 Acceptance test, Stage 9, Stage 10).
-6. Immediately enters Stage 1.
+6. After Plan completes, creates `phases/phase-01/tasks/` as a symlink to `../../tasks/` and creates any additional empty planned phase directories.
+7. Immediately enters Stage 1.
 
 ---
 
@@ -523,7 +543,7 @@ Before Stage 1 starts, the deepwork agent:
 
 #### deepwork
 
-The top-level QRSPI pipeline controller. Accepts a user's task and drives it through a 10-stage pipeline with two route variants (full and quick-fix) and optional multi-phase execution. Conducts no interactive dialogue itself — delegates alignment stages and all implementation to subagents. Manages inter-stage data through pipeline state files, tracks progress via a visible todo checklist, persists recovery state in `state.md`, and handles backward loops, resume flow, and cross-stage error routing.
+The top-level QRSPI pipeline controller. Accepts a user's task and drives it through a 10-stage pipeline with two route variants (full and quick-fix) and optional multi-phase execution. Conducts no interactive dialogue itself — delegates alignment stages and all implementation to subagents. Manages inter-stage data through pipeline state files, creates phase directories and archives obsolete unstarted future phases, tracks progress via a visible todo checklist, persists recovery state in `state.md`, and handles backward loops, resume flow, and cross-stage error routing.
 
 ---
 
@@ -627,7 +647,7 @@ Stage orchestrator. Reads route-appropriate inputs, dispatches the plan writer, 
 
 #### qrspi-plan-writer
 
-Writes ordered task specifications with file paths, descriptions, test expectations, dependencies, phase assignments, and LOC estimates. Produces `plan.md`, `phase-manifest.md`, and individual `task-NN.md` files. Supports full route (uses all prior artifacts) and quick-fix route (single task from goals + research). Read-only.
+Writes ordered task specifications with file paths, descriptions, test expectations, dependencies, phase assignments, LOC estimates, and stable task IDs. Produces `plan.md`, `phase-manifest.md`, and individual `task-NN.md` files. Supports full route (uses all prior artifacts) and quick-fix route (single task from goals + research). Read-only.
 
 #### qrspi-plan-reviewer
 
@@ -643,7 +663,7 @@ Records the pre-implementation build and test baseline before Stage 7 begins. Pr
 
 #### qrspi-implement
 
-Stage orchestrator. Analyzes current-phase task dependencies into waves, dispatches implementers in parallel per wave (forwarding goals, review context, and design context), records per-task review outcomes, runs integration checks, and reports cumulative execution results across phases. All state files are cumulative — prior phase sections are preserved when appending.
+Stage orchestrator. Analyzes current-phase task dependencies into waves, dispatches implementers in parallel per wave (forwarding goals, review context, and design context), validates that every task listed for the phase exists in `phases/phase-NN/tasks/`, records per-task review outcomes, runs integration checks, and writes phase-local execution artifacts.
 
 #### qrspi-implementer
 
@@ -653,14 +673,14 @@ Implements a single task using TDD: write failing tests → implement to pass �
 
 Per-task review orchestrator. Reads changed files, selects applicable specialist reviewers based on code signals, dispatches them in parallel, and collates findings. Blocks only on CRITICAL/HIGH severity. Always dispatches code-quality and test-coverage reviewers. Conditionally dispatches others based on code content:
 
-| Reviewer                       | Focus                                  | Trigger                            |
-| ------------------------------ | -------------------------------------- | ---------------------------------- |
-| `qrspi-review-code-quality`    | Clean code, maintainability            | Always                             |
-| `qrspi-review-test-coverage`   | Missing test cases                     | Always                             |
-| `qrspi-review-security`        | Vulnerabilities, secrets, injection    | Auth/crypto/HTTP/FS signals in code|
-| `qrspi-review-silent-failure`  | Swallowed errors, missing logging      | try/catch/error/async signals      |
-| `qrspi-review-goal-traceability` | Goal-to-code alignment              | Full route only                    |
-| `qrspi-review-code-simplifier` | Over-engineering, unnecessary abstractions | LOC > 200, > 3 files, or wrappers/factories detected |
+| Reviewer                         | Focus                                      | Trigger                                              |
+| -------------------------------- | ------------------------------------------ | ---------------------------------------------------- |
+| `qrspi-review-code-quality`      | Clean code, maintainability                | Always                                               |
+| `qrspi-review-test-coverage`     | Missing test cases                         | Always                                               |
+| `qrspi-review-security`          | Vulnerabilities, secrets, injection        | Auth/crypto/HTTP/FS signals in code                  |
+| `qrspi-review-silent-failure`    | Swallowed errors, missing logging          | try/catch/error/async signals                        |
+| `qrspi-review-goal-traceability` | Goal-to-code alignment                     | Full route only                                      |
+| `qrspi-review-code-simplifier`   | Over-engineering, unnecessary abstractions | LOC > 200, > 3 files, or wrappers/factories detected |
 
 The code simplifier is always non-blocking (advisory only).
 
@@ -674,7 +694,7 @@ Runs a lightweight integration gate after all implementation waves complete. Che
 
 #### qrspi-accept
 
-Stage orchestrator. Dispatches the acceptance tester to run an inner review/write/run loop (max 3 rounds) against the current phase's acceptance criteria. If persistent failures remain, dispatches the backward-loop detector to classify them and recommend next steps. Writes cumulative coverage plan, acceptance results, review artifacts, and backward-loop analysis.
+Stage orchestrator. Dispatches the acceptance tester to run an inner review/write/run loop (max 3 rounds) against the current phase's acceptance criteria. If persistent failures remain, dispatches the backward-loop detector to classify them and recommend next steps. Writes phase-local coverage, acceptance, summary, and backward-loop analysis artifacts plus phase-scoped review history.
 
 #### qrspi-acceptance-tester
 
@@ -690,11 +710,11 @@ Analyzes the full completed phase context (goals, execution manifest, integratio
 
 #### qrspi-replan
 
-Stage orchestrator. Reads all completed-phase artifacts and deferred replan feedback, dispatches the replan writer to revise remaining work, and runs the automated replan review loop (min 3 / max 5 rounds). Only fires on multi-phase full-route runs between phases.
+Stage orchestrator. Reads the completed phase directory, prior completed phase summaries, and deferred replan feedback, dispatches the replan writer to revise remaining work, and runs the automated replan review loop (min 3 / max 5 rounds). It writes the complete next-phase task set into `phases/phase-NN/tasks/` and a phase-local replan note. Only fires on multi-phase full-route runs between phases.
 
 #### qrspi-replan-writer
 
-Revises the remaining plan (tasks, phases, phase-manifest) after a completed phase. May modify, reorder, split, add, remove, or supersede remaining tasks. Must not change goals, the chosen design approach, or completed phases. Processes any deferred replan feedback from backward loops. Read-only.
+Revises the remaining plan (tasks, phases, phase-manifest) after a completed phase. May modify, reorder, split, add, remove, or supersede remaining tasks, but keeps stable task IDs for unfinished work and emits the complete task set for the next implementation phase only. Must not change goals, the chosen design approach, or completed phases. Processes any deferred replan feedback from backward loops. Read-only.
 
 #### qrspi-replan-reviewer
 
@@ -706,11 +726,11 @@ Reviews the replanned remaining work for continued alignment to existing goals, 
 
 #### qrspi-verify
 
-Stage orchestrator. Dispatches the verifier subagent.
+Stage orchestrator. Enumerates `phases/phase-*/` and dispatches the verifier with per-phase execution manifests and acceptance results.
 
 #### qrspi-verifier
 
-Runs the full build/lint/test suite, checks acceptance results, and compares current failures against `baseline-results.md`. Fixes issues via a verify→fix loop (max 3 iterations). Reports PASS / PARTIAL / FAIL while distinguishing unchanged baseline failures from new regressions.
+Runs the full build/lint/test suite, checks aggregated per-phase acceptance results, and compares current failures against `baseline-results.md`. Fixes issues via a verify→fix loop (max 3 iterations). Reports PASS / PARTIAL / FAIL while distinguishing unchanged baseline failures from new regressions.
 
 ---
 
@@ -718,8 +738,8 @@ Runs the full build/lint/test suite, checks acceptance results, and compares cur
 
 #### qrspi-report
 
-Stage orchestrator. Reads all stage summaries, phase metadata, and replan notes, then dispatches the reporter.
+Stage orchestrator. Enumerates `phases/phase-*/`, reads per-phase stage summaries and replan notes, and then dispatches the reporter.
 
 #### qrspi-reporter
 
-Formats the Final Report from pipeline config, goals summary, phase manifest, `baseline-results.md`, `acceptance-results.md`, replan notes, and the stage summaries. Produces a structured markdown report with pipeline route, phase structure, baseline status, integration status, per-stage results, build/test status, acceptance criteria results, overall status, unresolved items, and the preserved audit trail path. Never writes code or modifies files.
+Formats the Final Report from pipeline config, goals summary, phase manifest, `baseline-results.md`, per-phase acceptance results, per-phase replan notes, and the per-phase stage summaries. Produces a structured markdown report with pipeline route, phase structure, baseline status, per-phase implementation and acceptance status, build/test status, acceptance criteria results, overall status, unresolved items, and the preserved audit trail path. Never writes code or modifies files.

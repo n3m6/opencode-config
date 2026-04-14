@@ -1,5 +1,5 @@
 ---
-description: "Stage 6 orchestrator — reads route-appropriate inputs, dispatches the plan writer, runs automated review rounds, enriches task review metadata, and dispatches the baseline checker. Writes plan.md, phase-manifest.md, tasks/task-NN.md, review artifacts, and baseline-results.md."
+description: "Stage 6 orchestrator — reads route-appropriate inputs, dispatches the plan writer, runs automated review rounds, enriches task review metadata, and dispatches the baseline checker. Writes plan.md, phase-manifest.md, canonical tasks/task-NN.md, review artifacts, and baseline-results.md."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -60,6 +60,7 @@ Read `config.md` to confirm the route: `cat .pipeline/<run-id>/config.md`
 
 - `mkdir -p .pipeline/<run-id>/tasks`
 - `mkdir -p .pipeline/<run-id>/reviews`
+- `mkdir -p .pipeline/<run-id>/phases/phase-01`
 
 ### Step C — Dispatch Plan Writer
 
@@ -96,6 +97,7 @@ Each task spec must include:
 The phase manifest must include:
 - `total_phases`
 - one section per phase with a phase name, included tasks, covered acceptance criteria, and the replan gate
+Task numbers are globally stable IDs for the full run. Assign them in monotonic order and do not rely on future renumbering.
 No placeholders, no TBDs, no "similar to Task N," and no "see design.md" shortcuts.
 Return a plan.md, a phase-manifest.md, and individual task-NN.md content for each task.
 ```

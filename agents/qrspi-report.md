@@ -42,17 +42,19 @@ Read all stage summary files:
 - `cat .pipeline/<run-id>/goals.md`
 - `ls .pipeline/<run-id>/phase-manifest.md`
 - `cat .pipeline/<run-id>/baseline-results.md`
-- `cat .pipeline/<run-id>/acceptance-results.md`
-- `cat .pipeline/<run-id>/stage7-summary.md`
-- `cat .pipeline/<run-id>/stage7-integration-summary.md`
-- `cat .pipeline/<run-id>/stage8-summary.md`
 - `cat .pipeline/<run-id>/stage9-summary.md`
+- `ls .pipeline/<run-id>/phases/phase-*/`
+- For each phase directory:
+  - `cat .pipeline/<run-id>/phases/phase-NN/stage7-summary.md`
+  - `cat .pipeline/<run-id>/phases/phase-NN/stage7-integration-summary.md`
+  - `cat .pipeline/<run-id>/phases/phase-NN/stage8-summary.md`
+  - `cat .pipeline/<run-id>/phases/phase-NN/acceptance-results.md`
 
 If `phase-manifest.md` exists, read it with `cat`. Otherwise use `N/A`.
 
 Read any replan notes if they exist:
 
-- `ls .pipeline/<run-id>/replan/phase-*.md`
+- `ls .pipeline/<run-id>/phases/phase-*/replan/phase-*-replan.md`
 
 If replan notes exist, read them with `cat`. Otherwise use `None.`
 
@@ -73,25 +75,50 @@ Invoke `qrspi-reporter` via the `task` tool:
 === BASELINE RESULTS ===
 [paste contents of baseline-results.md verbatim]
 
-=== ACCEPTANCE RESULTS ===
-[paste contents of acceptance-results.md verbatim]
+=== ACCEPTANCE RESULTS (ALL PHASES) ===
+## Phase 1
+[paste phases/phase-01/acceptance-results.md verbatim]
+
+## Phase 2
+[paste phases/phase-02/acceptance-results.md verbatim]
+
+[repeat for later phases as needed]
 
 === STAGE SUMMARIES ===
 
+## Phase 1
 Stage 7 — Implementation:
-[paste contents of stage7-summary.md verbatim]
+[paste phases/phase-01/stage7-summary.md verbatim]
 
 Stage 7 — Integration Gate:
-[paste contents of stage7-integration-summary.md verbatim]
+[paste phases/phase-01/stage7-integration-summary.md verbatim]
 
 Stage 8 — Acceptance Testing:
-[paste contents of stage8-summary.md verbatim]
+[paste phases/phase-01/stage8-summary.md verbatim]
+
+Replan Note:
+[paste phases/phase-01/replan/phase-01-replan.md verbatim, or `N/A`]
+
+## Phase 2
+Stage 7 — Implementation:
+[paste phases/phase-02/stage7-summary.md verbatim]
+
+Stage 7 — Integration Gate:
+[paste phases/phase-02/stage7-integration-summary.md verbatim]
+
+Stage 8 — Acceptance Testing:
+[paste phases/phase-02/stage8-summary.md verbatim]
+
+Replan Note:
+[paste phases/phase-02/replan/phase-02-replan.md verbatim, or `N/A`]
+
+[repeat for later phases as needed]
 
 Stage 9 — Verification:
 [paste contents of stage9-summary.md verbatim]
 
 === REPLAN NOTES ===
-[paste any `replan/phase-*.md` contents verbatim, or `None.`]
+[paste any `phases/phase-*/replan/phase-*-replan.md` contents verbatim, or `None.`]
 
 === INSTRUCTIONS ===
 Format the Final Report from the above inputs.
