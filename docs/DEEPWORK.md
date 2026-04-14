@@ -364,6 +364,7 @@ Rules:
 
 - `current_phase` is `1` until `phase-manifest.md` exists.
 - `total_phases` is `1` for quick-fix, and `0` until Plan produces `phase-manifest.md` for full route.
+- Phase directory names are always zero-padded two-digit identifiers: `phases/phase-01`, `phases/phase-02`, ..., `phases/phase-NN`.
 - `resume_source` is `state` when recovered from `state.md`, `artifacts` when reconstructed from files on disk, and `fresh` on a brand-new run.
 - `stages_completed` may include `replan` once any phase transition completes.
 - `phase_history` records per-phase stage-boundary completion. For single-phase runs, keep one entry.
@@ -382,9 +383,12 @@ If the user provides a run ID, asks to resume, or points at an existing `.pipeli
    - if pre-phase work is complete, read `phase-manifest.md` for `total_phases`
    - scan active phase directories under `phases/phase-*/` and ignore `phases/archive/`
    - treat `stage7-summary.md`, `stage8-summary.md`, and `replan/phase-NN-replan.md` inside each phase directory as the authoritative stage markers
+   - if no active phase directory has any stage artifact yet, resume at Implement for Phase 1
+   - if the highest active phase with artifacts has no `stage7-summary.md`, restart Implement for that phase
+   - if it has `stage7-summary.md` but no `stage8-summary.md`, restart Accept-Test for that phase
+   - if it has `stage8-summary.md` but no replan note, resume at Replan unless the route is quick-fix or that phase is now final, in which case resume at Verify
+   - if it has a replan note and more phases remain, resume Implement for the next phase
    - if a phase directory has partial artifacts but lacks its stage summary, restart that stage from the beginning
-   - if the highest completed phase has acceptance results but no replan note, resume at Replan unless that phase is now final, in which case resume at Verify
-   - if the highest completed phase has a replan note and more phases remain, resume Implement for the next phase
    - let `stage9-summary.md` and `stage10-summary.md` override phase recovery when verification or reporting already completed
 5. Reconstruct `state.md` from recovered artifacts with `resume_source: artifacts` when disk recovery was needed.
 6. For quick-fix runs, force `current_phase: 1` and `total_phases: 1` during recovery.
@@ -438,7 +442,7 @@ Stage 6 (Plan) additionally appends a final review status block to every `tasks/
 - Stage 6 writes the canonical initial `tasks/` directory, and deepwork creates `phases/phase-01/tasks/` as a symlink to that canonical task set after Plan completes.
 - Stage 7 includes a per-task code review gate (6 specialized reviewers), validates that every task listed for the current phase exists before implementation begins, and writes phase-local execution artifacts.
 - Stage 8 and Stage 8.5 write only to the active phase directory plus shared review history.
-- Stable task IDs are preserved across replans. Replan writes the complete next-phase task set into `phases/phase-NN/tasks/` and appends a review-status block before Stage 7 consumes it.
+- Stable task IDs are preserved across replans. Replan uses the current remaining task specs as the authoritative carry-forward source, writes the complete next-phase task set into `phases/phase-NN/tasks/`, and appends a review-status block before Stage 7 consumes it.
 - Verify and Report aggregate by enumerating `phases/phase-*/` rather than relying on top-level cumulative execution or acceptance files.
 
 ---
@@ -462,7 +466,7 @@ Rejection captures feedback in `feedback/{step}-round-NN.md`. The re-generation 
 
 ## Backward Loops
 
-Stages 7 (Implement) and 8 (Accept-Test) can trigger backward loops when a fundamental issue is discovered. Stage 8 uses a dedicated `qrspi-backward-loop-detector` subagent to classify persistent failures and recommend whether a backward loop is needed.
+Stages 7 (Implement), 8 (Accept-Test), and 8.5 (Replan) can trigger backward loops when a fundamental issue is discovered. Stage 8 uses a dedicated `qrspi-backward-loop-detector` subagent to classify persistent failures and recommend whether a backward loop is needed. Stage 8.5 triggers a formal backward loop when the remaining work can no longer stay within the existing goals or design.
 
 The deepwork agent presents the issue to the user with these options:
 
@@ -494,8 +498,8 @@ Loop-back mechanics (options A, B, C):
 3. Delete the current incomplete phase directory and archive any unstarted future phase directories under `phases/archive/`.
 4. Delete the regenerated top-level artifacts owned by the loop target or later stages.
 5. Reset todo items for the target stage and all downstream stages, removing stale future-phase checklist entries.
-6. Overwrite `state.md` with the loop target, increment `backward_loops`, and reset `current_phase` only when the loop target is before phased execution.
-7. Re-enter the pipeline at the target stage. For Phase 2 and later loopbacks to Design, Structure, or Plan, deepwork passes full prior-phase artifacts plus the failed phase's backward-loop analysis and summaries as context.
+6. Overwrite `state.md` with the loop target, increment `backward_loops`, set `current_phase` to the earliest incomplete phase when completed phases are being preserved, and reset `current_phase` to `1` only when no completed phases remain or the loop target is before phased execution.
+7. Re-enter the pipeline at the target stage. For Phase 2 and later loopbacks to Design, Structure, or Plan, deepwork passes `NEXT REMAINING PHASE`, the prior `phase-manifest.md`, preserved completed-phase artifacts, and the failed phase's backward-loop analysis and summaries as context.
 
 Defer to Replan (option D):
 
@@ -710,11 +714,11 @@ Analyzes the full completed phase context (goals, execution manifest, integratio
 
 #### qrspi-replan
 
-Stage orchestrator. Reads the completed phase directory, prior completed phase summaries, and deferred replan feedback, dispatches the replan writer to revise remaining work, and runs the automated replan review loop (min 3 / max 5 rounds). It writes the complete next-phase task set into `phases/phase-NN/tasks/` and a phase-local replan note. Only fires on multi-phase full-route runs between phases.
+Stage orchestrator. Reads the completed phase directory, prior completed phase summaries, deferred replan feedback, and the authoritative current remaining task specs for the next implementation phase. It dispatches the replan writer to revise remaining work, runs the automated replan review loop (min 3 / max 5 rounds), writes the complete next-phase task set into `phases/phase-NN/tasks/`, and writes a phase-local replan note. If the writer determines that Goals or Design must change, the stage returns a formal backward-loop request instead of forcing a replan. It only fires on multi-phase full-route runs between phases.
 
 #### qrspi-replan-writer
 
-Revises the remaining plan (tasks, phases, phase-manifest) after a completed phase. May modify, reorder, split, add, remove, or supersede remaining tasks, but keeps stable task IDs for unfinished work and emits the complete task set for the next implementation phase only. Must not change goals, the chosen design approach, or completed phases. Processes any deferred replan feedback from backward loops. Read-only.
+Revises the remaining plan (tasks, phases, phase-manifest) after a completed phase. It uses the current remaining task specs as the authoritative source for carrying forward unfinished work, may modify, reorder, split, add, remove, or supersede remaining tasks, and emits the complete task set for the next implementation phase only. It must not change goals, the chosen design approach, or completed phases. When Goals or Design must change, it returns a `### Backward Loop Request` instead of replanned artifacts. It also processes any deferred replan feedback from backward loops. Read-only.
 
 #### qrspi-replan-reviewer
 
