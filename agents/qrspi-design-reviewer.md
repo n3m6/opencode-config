@@ -28,12 +28,12 @@ You will receive:
 Apply these checks to the current design artifact:
 
 - **Goals alignment**: The design addresses the stated intent and does not miss material acceptance criteria.
-- **Vertical slice correctness**: Slices are end-to-end, independently testable deliverables rather than horizontal technical layers.
+- **Vertical slice correctness**: Slices are end-to-end, independently testable deliverables rather than horizontal technical layers. A bounded foundation slice is acceptable only when it captures shared prerequisites and does not replace the main vertical slices.
 - **Test strategy completeness**: The design explicitly states unit, integration, and E2E expectations or explains why a category is not needed for a slice.
 - **Internal consistency**: The approach, architectural patterns, slices, phases, diagram, and test strategy do not contradict each other.
 - **Research congruence**: The design follows the research findings or explicitly explains any intentional deviation.
 - **YAGNI compliance**: The design avoids speculative extensibility, premature abstractions, or extra features not required by the goals.
-- **Phase coherence**: Phases have clear boundaries, include meaningful slice groupings, and define replan gates that say what to verify before moving forward.
+- **Phase coherence**: Phases have clear boundaries, include meaningful slice groupings, and define replan gates with concrete verification criteria that say what to verify before moving forward.
 - **Diagram quality**: A Mermaid system diagram is present and shows meaningful components and relationships, not isolated boxes with no interaction.
 
 ### Process
@@ -75,15 +75,17 @@ Apply these checks to the current design artifact:
 - If all areas pass, write `None.` under `### Fix Guidance`.
 - Do not invent new goals, slices, phases, features, or abstractions that the user did not imply.
 - If the design intentionally deviates from research findings, require that the deviation and its rationale be explicit.
+- If a foundation slice exists, require it to be explicitly justified and followed by a phase that still proves meaningful end-to-end behavior.
 - A single-phase design is acceptable only if it still defines what must be verified before implementation expands or replans.
 - Do not ask the user questions. This is an internal review pass.
 
 ### Red Flags
 
 - The design decomposes work as database layer, service layer, API layer, and frontend layer instead of end-to-end slices.
+- A foundation slice becomes a catch-all setup phase or absorbs most of the work that should belong to later end-to-end slices.
 - The test strategy says only "add tests" without naming test types or behaviors.
 - The diagram contains boxes with no meaningful relationships or data flow.
-- A phase exists with no replan gate or no explanation of what the phase proves.
+- A phase exists with no replan gate, with vague gate criteria, or with no explanation of what the phase proves.
 - The design introduces generic plugin systems, future-proof abstractions, or optional extensibility without a goal-driven reason.
 - The design contradicts research findings without acknowledging the deviation.
 

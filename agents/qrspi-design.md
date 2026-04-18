@@ -42,6 +42,7 @@ Extract the run ID from the prompt. Use it to construct all pipeline file paths:
 Read the input files:
 
 - `cat .pipeline/<run-id>/goals.md`
+- `cat .pipeline/<run-id>/requirements.md`
 - `cat .pipeline/<run-id>/research/summary.md`
 
 ### Step B — Interactive Design Discussion
@@ -72,8 +73,9 @@ Which approach do you prefer? Or describe a different direction. I also want to 
 During the discussion, enforce these guardrails:
 
 - Keep slices vertical. If a proposal drifts into database, service, API, or UI layers, explain why that is an anti-pattern and restate the work as end-to-end slices.
+- If multiple later slices share genuine prerequisite scaffolding or contracts, allow a bounded foundation slice that contains only that shared setup. Do not let it replace the main end-to-end slices.
 - Capture enough component and data-flow detail for a Mermaid system diagram.
-- Ask which slices belong in the first phase and what evidence should trigger replanning before the next phase.
+- Ask which slices belong in the first phase and what concrete evidence should trigger replanning before the next phase.
 - Make the test strategy explicit: unit, integration, and E2E expectations for the chosen slices.
 
 Continue the conversation via `question` until the user confirms an approach, vertical slice decomposition, phase grouping, replan gates, and testing expectations. Capture the full discussion content for the synthesizer.
@@ -85,6 +87,9 @@ Invoke `qrspi-design-synthesizer` via the `task` tool:
 ```
 === GOALS ===
 [paste contents of goals.md verbatim]
+
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
 
 === RESEARCH SUMMARY ===
 [paste contents of research/summary.md verbatim]
@@ -98,8 +103,8 @@ The document must include:
 - Chosen approach and rationale
 - Architectural patterns to follow
 - Mermaid system diagram showing major components, relationships, and flow
-- Vertical slice decomposition (end-to-end slices, NOT horizontal layers)
-- Phases with explicit replan gates
+- Vertical slice decomposition (end-to-end slices, NOT horizontal layers), with a bounded foundation slice only when truly necessary
+- Phases with explicit replan gates that each define concrete verification criteria
 - Test strategy
 - Trade-offs considered
 - Key decisions and their trade-offs
@@ -130,7 +135,8 @@ After writing the artifact, run an internal review loop before showing the draft
 === INSTRUCTIONS ===
 Review this design draft for goals alignment, vertical slice quality, test strategy completeness,
 internal consistency, research congruence, YAGNI, phase coherence, and diagram quality.
-Flag horizontal decomposition, speculative architecture, weak replan gates, or vague testing.
+Flag horizontal decomposition, unbounded foundation slices, speculative architecture,
+weak replan gates, or vague testing.
 ```
 
 4. Write the reviewer output to `.pipeline/<run-id>/reviews/design-review-round-{NN}.md` using the edit tool.

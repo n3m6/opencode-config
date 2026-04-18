@@ -2,7 +2,7 @@
 description: Deepwork manages the QRSPI pipeline — Goals → Questions → Research → Design → Structure → Plan → Implement → Accept-Test → Replan → Verify → Report. Sequences stage subagents, handles backward loops, resume flow, and cross-stage concerns.
 mode: primary
 temperature: 0.1
-steps: 65
+steps: 150
 permission:
   edit: allow
   bash:
@@ -202,7 +202,8 @@ Each pipeline run writes state files to `.pipeline/qrspi-<run-id>/`. The run ID 
 .pipeline/qrspi-<run-id>/
 ├── state.md                           Written: Deepwork  — Recovery state and next-stage cursor
 ├── config.md                          Written: Stage 1   — Route (full/quick-fix), metadata
-├── goals.md                           Written: Stage 1   — Intent, constraints, acceptance criteria
+├── requirements.md                    Written: Stage 1   — Verbatim user task or PRD preserved for downstream reference
+├── goals.md                           Written: Stage 1   — Distilled intent, requirements, constraints, non-goals, and acceptance criteria
 ├── questions.md                       Written: Stage 2   — Tagged research questions
 ├── question-leakage-review.md         Written: Stage 2   — Independent review of question neutrality
 ├── question-quality-review.md         Written: Stage 2   — Independent review of question coverage and tagging quality

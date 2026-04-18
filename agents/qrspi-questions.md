@@ -1,5 +1,5 @@
 ---
-description: "Stage 2 orchestrator — generates neutral research questions from goals, runs dual reviews, and holds a mandatory human gate. Writes questions.md and review artifacts."
+description: "Stage 2 orchestrator — generates neutral research questions from goals and preserved requirements, runs dual reviews, and holds a mandatory human gate. Writes questions.md and review artifacts."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -37,9 +37,10 @@ You will receive from deepwork:
 
 Extract the run ID from the prompt. Use it to construct all pipeline file paths: `.pipeline/<run-id>/`.
 
-### Step A — Read Goals
+### Step A — Read Goals And Preserved Requirements
 
 Read the goals file: `cat .pipeline/<run-id>/goals.md`
+Read the preserved requirements file: `cat .pipeline/<run-id>/requirements.md`
 
 ### Step B — Generate Questions
 
@@ -48,6 +49,9 @@ Invoke `qrspi-question-generator` via the `task` tool:
 ```
 === GOALS ===
 [paste contents of goals.md verbatim]
+
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
 
 === INSTRUCTIONS ===
 Generate 5–15 neutral research questions from these goals.
@@ -72,6 +76,9 @@ When `qrspi-question-generator` completes:
 ```
 === GOALS ===
 [paste contents of goals.md verbatim]
+
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
 
 === QUESTIONS ===
 [paste contents of questions.md verbatim]
@@ -118,6 +125,9 @@ Return:
 === GOALS ===
 [paste contents of goals.md verbatim]
 
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
+
 === REVIEW FEEDBACK ===
 ### Leakage Review
 [paste question-leakage-review.md verbatim]
@@ -163,7 +173,7 @@ Reply with `1` or `2`.
 - Dispatch `qrspi-question-leakage-reviewer` on the current questions and overwrite `.pipeline/<run-id>/question-leakage-review.md`.
 - Dispatch `qrspi-question-quality-reviewer` on the current questions and overwrite `.pipeline/<run-id>/question-quality-review.md`.
 - If both reviewers return `### Status — PASS`, set `terminal_review_state = clean` and proceed to Step F.
-- If either reviewer returns `### Status — FAIL` and `review_round` is less than `5`, re-dispatch `qrspi-question-generator` with the original goals plus both latest review outputs under `=== REVIEW FEEDBACK ===`, overwrite `.pipeline/<run-id>/questions.md`, and continue the loop.
+- If either reviewer returns `### Status — FAIL` and `review_round` is less than `5`, re-dispatch `qrspi-question-generator` with the original goals, preserved requirements, and both latest review outputs under `=== REVIEW FEEDBACK ===`, overwrite `.pipeline/<run-id>/questions.md`, and continue the loop.
 - If either reviewer returns `### Status — FAIL` and `review_round` is exactly `5`, set `terminal_review_state = unclean-cap` and proceed to Step F without another regeneration.
 
 2. Use these terminal review states at the human gate:

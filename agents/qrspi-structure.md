@@ -42,6 +42,7 @@ Extract the run ID from the prompt. Use it to construct all pipeline file paths:
 Read the input files:
 
 - `cat .pipeline/<run-id>/goals.md`
+- `cat .pipeline/<run-id>/requirements.md`
 - `cat .pipeline/<run-id>/research/summary.md`
 - `cat .pipeline/<run-id>/design.md`
 
@@ -53,6 +54,9 @@ Invoke `qrspi-structure-mapper` via the `task` tool:
 === GOALS ===
 [paste contents of goals.md verbatim]
 
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
+
 === RESEARCH SUMMARY ===
 [paste contents of research/summary.md verbatim]
 
@@ -63,6 +67,7 @@ Invoke `qrspi-structure-mapper` via the `task` tool:
 Map each vertical slice from the design to specific files and components.
 For each file: specify whether it is CREATE (new) or MODIFY (existing).
 Define interfaces between components (function signatures, class signatures, type definitions).
+Honor explicit technical specifications, named dependencies, and file-organization hints from the preserved requirements when they do not conflict with the actual codebase.
 Include a Mermaid architectural diagram showing file/module layout, interface boundaries, and data flow.
 The output should make the gap between design and plan concrete — downstream agents
 need to know exactly which files to touch and what interfaces to honor.

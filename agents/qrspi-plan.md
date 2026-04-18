@@ -47,6 +47,7 @@ Extract the run ID and route from the prompt. Also parse any optional loopback c
 ### Step A — Read Inputs
 
 Read `config.md` to confirm the route: `cat .pipeline/<run-id>/config.md`
+Read the preserved requirements file: `cat .pipeline/<run-id>/requirements.md`
 
 **Full route** — read all prior artifacts:
 
@@ -80,6 +81,9 @@ For **full** route, invoke `qrspi-plan-writer` via the `task` tool:
 === GOALS ===
 [paste contents of goals.md verbatim]
 
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
+
 === RESEARCH SUMMARY ===
 [paste contents of research/summary.md verbatim]
 
@@ -108,7 +112,9 @@ The plan overview must include:
 - Phase Summary
 - Task Order table with Dependencies, Phase, Slice, and LOC Estimate
 - Wave Analysis
-- Coverage Notes that map acceptance criteria and file-map coverage to tasks
+- Coverage Notes that map acceptance criteria, NFRs, replan gate criteria, and file-map coverage to tasks
+Optimize phase grouping around related work and minimize unnecessary cross-phase dependencies.
+If the design includes a foundation slice, keep it narrow and ensure Phase 1 still proves a meaningful end-to-end behavior.
 Each task spec must include:
 - Metadata (Task, Phase, Route, Slice)
 - Dependencies
@@ -131,6 +137,9 @@ For **quick-fix** route, invoke `qrspi-plan-writer` via the `task` tool:
 === GOALS ===
 [paste contents of goals.md verbatim]
 
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
+
 === RESEARCH SUMMARY ===
 [paste contents of research/summary.md verbatim]
 
@@ -142,7 +151,7 @@ The plan overview must include:
 - Phase Summary
 - Task Order table with Dependencies, Phase, Slice, and LOC Estimate
 - Wave Analysis
-- Coverage Notes
+- Coverage Notes that map acceptance criteria and relevant NFRs to Task 01
 The task spec must include:
 - Metadata (Task 01, Phase Quick-fix, Route quick-fix, Slice)
 - Dependencies
@@ -171,6 +180,9 @@ After writing the draft artifacts, run an internal review loop before baseline c
 ```
 === GOALS ===
 [paste contents of goals.md verbatim]
+
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
 
 === RESEARCH SUMMARY ===
 [paste contents of research/summary.md verbatim]
@@ -204,7 +216,8 @@ After writing the draft artifacts, run an internal review loop before baseline c
 
 === INSTRUCTIONS ===
 Review this plan draft for goals coverage, dependency correctness, phase and wave coherence,
-task self-containment, file specificity, test expectation specificity, LOC realism,
+NFR coverage, phase cohesion, cross-phase coupling, task self-containment, file specificity,
+test expectation specificity, test strategy depth, replan gate traceability, LOC realism,
 and placeholder-free quality. When later-phase loopback context is present, also verify that completed phases remain preserved unchanged and that replanned phases start at `NEXT REMAINING PHASE`. Flag forward dependencies, vague files, vague tests,
 missing coverage, overview/task mismatches, or conflicts with preserved completed-phase history.
 ```
@@ -214,6 +227,9 @@ On review rounds 2 and later, dispatch `qrspi-plan-reviewer` via the `task` tool
 ```
 === GOALS ===
 [paste contents of goals.md verbatim]
+
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
 
 === PLAN ===
 [paste contents of plan.md verbatim]
@@ -229,9 +245,10 @@ On review rounds 2 and later, dispatch `qrspi-plan-reviewer` via the `task` tool
 
 === INSTRUCTIONS ===
 Review the current plan draft for goals coverage, dependency correctness, phase and wave coherence,
-task self-containment, file specificity, test expectation specificity, LOC realism,
+NFR coverage, phase cohesion, cross-phase coupling, task self-containment, file specificity,
+test expectation specificity, test strategy depth, replan gate traceability, LOC realism,
 and placeholder-free quality.
-Use `GOALS` and `REVIEW BASELINE` to confirm that previously flagged issues were fixed and that
+Use `GOALS`, `REQUIREMENTS`, and `REVIEW BASELINE` to confirm that previously flagged issues were fixed and that
 previously-passing areas remain stable without requiring the full upstream artifact set again.
 ```
 

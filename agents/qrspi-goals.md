@@ -1,5 +1,5 @@
 ---
-description: "Stage 1 orchestrator — captures user intent via interactive dialogue, dispatches goals synthesizer, runs human gate for approval. Writes goals.md and config.md."
+description: "Stage 1 orchestrator — captures user intent via interactive dialogue, preserves the raw user task, dispatches goals synthesizer, and runs human gate for approval. Writes requirements.md, goals.md, and config.md."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -36,6 +36,14 @@ You will receive from deepwork:
 2. **User Task** — the user's original task description (natural language or markdown)
 
 Extract the run ID and user task from the prompt. Use the run ID to construct all pipeline file paths: `.pipeline/<run-id>/`.
+
+### Step A0 — Preserve Raw Requirements
+
+Before asking follow-up questions, write the original `User Task` input verbatim to `.pipeline/<run-id>/requirements.md` using the edit tool.
+
+- Preserve the user's original wording exactly, whether it is a brief prompt or a full PRD.
+- Do not summarize, normalize, or restructure this artifact.
+- This artifact is a downstream reference source and must remain stable across review rounds unless the user explicitly changes the task itself.
 
 ### Step A — Gather Intent via Sequential Dialogue
 
@@ -101,7 +109,10 @@ Invoke `qrspi-goals-synthesizer` via the `task` tool:
 
 === INSTRUCTIONS ===
 Synthesize goals.md and config.md from the user's task and responses.
-goals.md must contain: Intent, Constraints, Non-Goals, and Acceptance Criteria sections.
+goals.md must contain: Intent, Functional Requirements, Non-Functional Requirements,
+Technical Specification, Constraints, Non-Goals, and Acceptance Criteria sections.
+Preserve explicit requirements, NFRs, and technical decisions from the user's task when they are provided.
+If any of those sections were not provided, say "None specified." rather than inventing content.
 config.md must contain YAML frontmatter with: created date, route (full or quick-fix), run_id.
 Use the provided run ID verbatim in config.md.
 Classify as quick-fix if the user estimates 1–3 files and no design alignment needed; otherwise full.
@@ -124,12 +135,17 @@ After writing the artifacts, run an internal review loop before showing the draf
 3. For each review round, dispatch `qrspi-goals-reviewer` via the `task` tool:
 
 ```
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
+
 === GOALS ===
 [paste contents of goals.md verbatim]
 
 === INSTRUCTIONS ===
-Review this goals draft for clarity, scope control, and testability.
-Flag vague constraints, subjective acceptance criteria, missing boundaries, or oversized scope.
+Review this goals draft against the preserved requirements for clarity, requirements fidelity,
+scope control, and testability.
+Flag dropped functional requirements, vague NFRs, vague constraints, subjective acceptance criteria,
+missing boundaries, or oversized scope.
 ```
 
 4. Write the reviewer output to `.pipeline/<run-id>/reviews/goals-review-round-{NN}.md` using the edit tool.
@@ -199,7 +215,7 @@ After the user approves the goals, read `config.md` to extract the route. Return
 
 ```
 ### Status — PASS
-### Files Written — goals.md, config.md
+### Files Written — requirements.md, goals.md, config.md
 ### Route — [full or quick-fix, from config.md]
 ### Summary — Goals captured and approved. Route: [route].
 ```

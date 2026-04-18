@@ -35,7 +35,8 @@
                           │  └────────────────────────┘  │
                           └─────────────┬────────────────┘
                                         │
-                          Outputs: goals.md, config.md,
+                          Outputs: requirements.md,
+                                   goals.md, config.md,
                                    reviews/goals-review-round-NN.md
                                         │
                                         ▼
@@ -78,7 +79,7 @@
                           │  │qrspi-research-synthesizer││  (combine findings)
                           │  └────────────────────────┘  │
                           │  ┌────────────────────────┐  │
-                          │  │ qrspi-research-reviewer│  │  (up to 5 rounds)
+                          │  │ qrspi-research-reviewer│  │  (up to 10 rounds)
                           │  └────────────────────────┘  │
                           └─────────────┬────────────────┘
                                         │
@@ -295,28 +296,29 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 
 ### Top-Level Artifacts
 
-| File                              | Written By                   | Purpose                                                            |
-| --------------------------------- | ---------------------------- | ------------------------------------------------------------------ |
-| `state.md`                        | Deepwork                     | Recovery state and next-stage cursor (YAML frontmatter)            |
-| `config.md`                       | Stage 1                      | Route, run_id, and metadata                                        |
-| `goals.md`                        | Stage 1                      | Intent, constraints, non-goals, acceptance criteria                |
-| `questions.md`                    | Stage 2                      | Tagged research questions                                          |
-| `question-leakage-review.md`      | Stage 2                      | Independent review of question neutrality                          |
-| `question-quality-review.md`      | Stage 2                      | Independent review of question coverage and tagging quality        |
-| `research/q-NN.md`                | Stage 3                      | Per-question research findings                                     |
-| `research/summary.md`             | Stage 3                      | Unified research summary                                           |
-| `design.md`                       | Stage 4                      | Architecture, vertical slices, phases, replan gates, test strategy |
-| `structure.md`                    | Stage 5                      | File mapping, interfaces, create/modify, Mermaid diagram           |
-| `plan.md`                         | Stage 6, 8.5                 | Current remaining-work implementation plan                         |
-| `phase-manifest.md`               | Stage 6, 8.5                 | Current phase ordering, task-to-phase mapping, and replan gates    |
-| `baseline-results.md`             | Stage 6                      | Pre-implementation build/test baseline                             |
-| `tasks/task-NN.md`                | Stage 6                      | Canonical initial task specs with appended review status           |
-| `reviews/*.md`                    | Stages 1, 3, 4, 5, 6, 8, 8.5 | Automated review history                                           |
-| `feedback/{step}-round-NN.md`     | Any gate                     | Rejection feedback + rejected artifact                             |
-| `feedback/deferred-replan-NN.md`  | Deepwork                     | Deferred phase-boundary issues from backward loops                 |
-| `feedback/goals-reset-context.md` | Deepwork                     | Accumulated learnings before a full reset to Goals                 |
-| `stage9-summary.md`               | Stage 9                      | Verification summary (PASS/PARTIAL/FAIL)                           |
-| `stage10-summary.md`              | Stage 10                     | Final report                                                       |
+| File                              | Written By                   | Purpose                                                                     |
+| --------------------------------- | ---------------------------- | --------------------------------------------------------------------------- |
+| `state.md`                        | Deepwork                     | Recovery state and next-stage cursor (YAML frontmatter)                     |
+| `config.md`                       | Stage 1                      | Route, run_id, and metadata                                                 |
+| `requirements.md`                 | Stage 1                      | Verbatim user task or PRD preserved for downstream reference                |
+| `goals.md`                        | Stage 1                      | Distilled intent, requirements, constraints, non-goals, acceptance criteria |
+| `questions.md`                    | Stage 2                      | Tagged research questions                                                   |
+| `question-leakage-review.md`      | Stage 2                      | Independent review of question neutrality                                   |
+| `question-quality-review.md`      | Stage 2                      | Independent review of question coverage and tagging quality                 |
+| `research/q-NN.md`                | Stage 3                      | Per-question research findings                                              |
+| `research/summary.md`             | Stage 3                      | Unified research summary                                                    |
+| `design.md`                       | Stage 4                      | Architecture, vertical slices, phases, replan gates, test strategy          |
+| `structure.md`                    | Stage 5                      | File mapping, interfaces, create/modify, Mermaid diagram                    |
+| `plan.md`                         | Stage 6, 8.5                 | Current remaining-work implementation plan                                  |
+| `phase-manifest.md`               | Stage 6, 8.5                 | Current phase ordering, task-to-phase mapping, and replan gates             |
+| `baseline-results.md`             | Stage 6                      | Pre-implementation build/test baseline                                      |
+| `tasks/task-NN.md`                | Stage 6                      | Canonical initial task specs with appended review status                    |
+| `reviews/*.md`                    | Stages 1, 3, 4, 5, 6, 8, 8.5 | Automated review history                                                    |
+| `feedback/{step}-round-NN.md`     | Any gate                     | Rejection feedback + rejected artifact                                      |
+| `feedback/deferred-replan-NN.md`  | Deepwork                     | Deferred phase-boundary issues from backward loops                          |
+| `feedback/goals-reset-context.md` | Deepwork                     | Accumulated learnings before a full reset to Goals                          |
+| `stage9-summary.md`               | Stage 9                      | Verification summary (PASS/PARTIAL/FAIL)                                    |
+| `stage10-summary.md`              | Stage 10                     | Final report                                                                |
 
 ### Phase-Scoped Artifacts
 
@@ -414,7 +416,7 @@ Every alignment and planning stage runs an internal automated review loop before
 | ------------- | --------------------------------------------------------------------------- | ---------- | ---------- | ----------------------------------------------------------- |
 | 1 — Goals     | `qrspi-goals-reviewer`                                                      | 3          | 5          | Re-dispatch synthesizer with review feedback                |
 | 2 — Questions | Dual: `qrspi-question-leakage-reviewer` + `qrspi-question-quality-reviewer` | 1          | 5          | Re-dispatch generator; user choice after round 1            |
-| 3 — Research  | `qrspi-research-reviewer`                                                   | 1          | 5          | Re-dispatch affected researchers + synthesizer; FAIL on cap |
+| 3 — Research  | `qrspi-research-reviewer`                                                   | 1          | 10         | Re-dispatch affected researchers + synthesizer; FAIL on cap |
 | 4 — Design    | `qrspi-design-reviewer`                                                     | 3          | 5          | Re-dispatch design synthesizer with feedback                |
 | 5 — Structure | `qrspi-structure-reviewer`                                                  | 3          | 5          | Re-dispatch structure mapper with feedback                  |
 | 6 — Plan      | `qrspi-plan-reviewer`                                                       | 5          | 10         | Re-dispatch plan writer with feedback                       |
@@ -432,7 +434,7 @@ Terminal review states:
 - `fixed-unverified` — (Stage 2 only) round 1 failed, fixes applied, user chose immediate presentation.
 - `unclean-cap` — reached the maximum with outstanding concerns.
 
-Stage 3 (Research) differs: if the review loop reaches the 5-round cap with unresolved material issues, the stage returns `FAIL` rather than proceeding with weak research.
+Stage 3 (Research) differs: if the review loop reaches the 10-round cap with unresolved material issues, the stage returns `FAIL` rather than proceeding with weak research.
 
 Stage 6 (Plan) additionally appends a final review status block to every `tasks/task-NN.md` after the loop ends, so Stage 7 implementers can treat outstanding review concerns as an execution risk signal.
 
@@ -599,7 +601,7 @@ Independently reviews `questions.md` against `goals.md` for comprehensiveness, o
 
 #### qrspi-research
 
-Stage orchestrator. Dispatches codebase and web researchers per question tag in parallel, collects findings into per-question artifacts, dispatches the research synthesizer, and runs up to 5 automated review rounds. Enforces strict goal isolation. Returns FAIL (not PASS with weak results) if the review loop reaches the 5-round cap with unresolved material issues.
+Stage orchestrator. Dispatches codebase and web researchers per question tag in parallel, collects findings into per-question artifacts, dispatches the research synthesizer, and runs up to 10 automated review rounds. Enforces strict goal isolation. Returns FAIL (not PASS with weak results) if the review loop reaches the 10-round cap with unresolved material issues.
 
 #### qrspi-codebase-researcher
 
