@@ -45,6 +45,8 @@ You will receive:
 2. Treat `unclean-cap` as unresolved planning risk. If the task is ambiguous or structurally unsafe, request a backward loop instead of guessing.
 3. Use up to 3 build iterations to implement the minimum production changes needed to make the RED tests pass.
 4. If a local blocker is safer to clarify than guess, ask one focused question.
+5. Stop early as soon as the targeted RED test slice passes.
+6. If the targeted tests still fail after iteration 3, return FAIL unless the failure reveals a fundamental upstream problem that warrants a backward loop request.
 
 Use this dispatch pattern for each iteration:
 
@@ -89,6 +91,18 @@ Return:
 ```
 
 ### Return
+
+If the targeted tests still fail after iteration 3 and the problem is local rather than structural, return:
+
+```
+### Status — FAIL
+### Files Modified — list
+### Files Created — list
+### Tests Written — carry forward the RED test files
+### Iterations — 3/3
+### Verification Evidence — [one-line summary of the final failing targeted test run]
+### Summary — GREEN failed: the task still does not pass after 3 implementation iterations.
+```
 
 If you discover a fundamental issue that makes the task spec unworkable, include:
 

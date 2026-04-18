@@ -103,7 +103,7 @@ Invoke `qrspi-acceptance-tester` via the `task` tool:
 Run the acceptance-test inner loop with a maximum of 3 rounds.
 Test only the acceptance criteria assigned to the current phase in `phase-manifest.md`.
 Each round must:
-1. Draft or revise a coverage plan for every acceptance criterion
+1. Dispatch `qrspi-coverage-planner` to draft or revise a coverage plan for every acceptance criterion
 2. Dispatch the 3 acceptance reviewers in parallel to detect plan issues
 3. Revise the plan from reviewer findings
 4. Dispatch the writer subagent to write the planned acceptance tests

@@ -44,13 +44,120 @@ You will receive:
 ### Process
 
 1. Run the task's final verification with `build`.
-2. Dispatch `qrspi-code-review` with the current task context and the verification result.
+2. Build an implementer report from the current task state and dispatch `qrspi-code-review` with that report.
 3. If the code review reports blocking findings, allow up to 2 review rounds total:
-   - use `build` to apply the smallest safe fix
-   - rerun verification as needed
-   - rerun `qrspi-code-review`
+
+- use `build` to apply the smallest safe fix
+- rerun final verification
+- rebuild the implementer report
+- rerun `qrspi-code-review`
+
 4. If blocking findings remain after round 2, set `Review Status` to `UNRESOLVED`, include the unresolved findings, and continue to commit.
 5. Commit the task changes with a descriptive message using `build`.
+
+Use this verification dispatch first:
+
+```
+=== TASK ===
+[paste task spec verbatim]
+
+=== GOALS ===
+[paste goals excerpt verbatim]
+
+=== ROUTE ===
+[paste route verbatim]
+
+=== CURRENT PHASE ===
+[paste current phase verbatim]
+
+=== PLAN REVIEW STATUS ===
+[paste plan review status verbatim]
+
+=== DESIGN CONTEXT ===
+[paste design context verbatim]
+
+=== COMPLETED DEPENDENCIES ===
+[paste completed dependencies verbatim]
+
+=== RED RESULT ===
+[paste the full RED response verbatim]
+
+=== GREEN RESULT ===
+[paste the full GREEN response verbatim]
+
+=== INSTRUCTIONS ===
+Run the final targeted verification for this task.
+Do not commit in this step.
+
+Return:
+### Verification Status — PASS or FAIL
+### Files Modified — list of files changed
+### Files Created — list of new files
+### Tests Written — list of test files with what they test
+### Verification Evidence — one-line summary of the verification result
+### Summary — one paragraph
+```
+
+Then dispatch `qrspi-code-review` with this exact shape:
+
+```
+=== TASK SPEC ===
+[paste task spec verbatim]
+
+=== GOALS ===
+[paste goals excerpt verbatim]
+
+=== ROUTE ===
+[paste route verbatim]
+
+=== PLAN REVIEW STATUS ===
+[paste plan review status verbatim]
+
+=== DESIGN CONTEXT ===
+[paste design context verbatim]
+
+=== IMPLEMENTER REPORT ===
+### Files Modified — [from the latest verification/build result]
+### Files Created — [from the latest verification/build result]
+### Tests Written — [from RED/GREEN carried-forward test list]
+### Iterations — [from GREEN result]
+### Verification Result — [latest verification status and evidence]
+### Summary — [one-line current task status summary]
+
+=== REVIEW ROUND ===
+[1 or 2]
+
+=== INSTRUCTIONS ===
+Run the per-task code-review gate for this task.
+```
+
+If blocking findings are returned and a safe local fix is appropriate, use this fix dispatch:
+
+```
+=== TASK ===
+[paste task spec verbatim]
+
+=== REVIEW FINDINGS ===
+[paste the blocking findings verbatim]
+
+=== CURRENT TASK STATE ===
+[paste the latest verification/build result verbatim]
+
+=== INSTRUCTIONS ===
+Apply the smallest safe fix for the blocking review findings.
+Do not make plan, structure, or design changes.
+Rerun the task's targeted verification after the fix.
+
+Return:
+### Files Modified — list of files changed
+### Files Created — list of new files
+### Tests Written — list of test files with what they test
+### Verification Status — PASS or FAIL
+### Verification Evidence — one-line summary of the verification result
+### Summary — one paragraph
+```
+
+Finally, commit with `build` using the latest verified task state.
 
 ### Return
 
@@ -75,4 +182,16 @@ If a fundamental issue makes the task unworkable, include:
 Issue: [concise description]
 Affected Artifact: [plan | structure | design]
 Recommendation: [what must change upstream]
+```
+
+If the task verification itself fails before the code-review gate can run and the issue is local rather than structural, return:
+
+```
+### Status — FAIL
+### Files Modified — list of files changed
+### Files Created — list of new files
+### Tests Written — list of test files with what they test
+### Review Status — NOT RUN
+### Review Rounds — 0/2
+### Summary — VERIFY failed: the task could not clear final verification before code review.
 ```

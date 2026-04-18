@@ -212,6 +212,9 @@ missing coverage, overview/task mismatches, or conflicts with preserved complete
 On review rounds 2 and later, dispatch `qrspi-plan-reviewer` via the `task` tool with the current artifacts plus the latest review baseline instead of re-pasting the full upstream artifacts again:
 
 ```
+=== GOALS ===
+[paste contents of goals.md verbatim]
+
 === PLAN ===
 [paste contents of plan.md verbatim]
 
@@ -225,10 +228,10 @@ On review rounds 2 and later, dispatch `qrspi-plan-reviewer` via the `task` tool
 [paste the most recent reviewer output verbatim]
 
 === INSTRUCTIONS ===
-Review the current plan draft for dependency correctness, phase and wave coherence,
+Review the current plan draft for goals coverage, dependency correctness, phase and wave coherence,
 task self-containment, file specificity, test expectation specificity, LOC realism,
 and placeholder-free quality.
-Use `REVIEW BASELINE` to confirm that previously flagged issues were fixed and that
+Use `GOALS` and `REVIEW BASELINE` to confirm that previously flagged issues were fixed and that
 previously-passing areas remain stable without requiring the full upstream artifact set again.
 ```
 

@@ -82,8 +82,10 @@ Rejection captures feedback in `feedback/goals-round-NN.md` (rejected artifact +
 
 - Input: `plan.md`, `tasks/*.md`, `design.md`, `structure.md`
 - deepwork analyzes task dependencies → wave grouping
-- Per wave: dispatch `qrspi-implementer` for each task in parallel
-  - TDD per task: write failing tests → implement to pass → inline self-review → commit
+- Per wave: run three task batches in sequence
+  - `qrspi-impl-red`: write failing tests
+  - `qrspi-impl-green`: implement to pass
+  - `qrspi-impl-verify`: verify → code review → commit
 - **Backward loop trigger**: if implementation reveals a fundamental design/plan flaw → ask user via `question` → optionally loop back to Design/Structure/Plan
 - Produces: `execution-manifest.md` + `stage7-summary.md`
 
@@ -91,7 +93,7 @@ Rejection captures feedback in `feedback/goals-round-NN.md` (rejected artifact +
 
 - Input: `goals.md` + implemented code
 - Dispatches `qrspi-acceptance-tester`
-  - Maps each acceptance criterion from `goals.md` to tests
+  - Dispatches `qrspi-coverage-planner` to map each acceptance criterion from `goals.md` to tests
   - Writes + runs tests, reports per-criterion pass/fail
 - **Backward loop trigger**: if failures indicate a design-level issue → ask user
 - Produces: `acceptance-results.md` + `stage8-summary.md`
@@ -113,7 +115,7 @@ Rejection captures feedback in `feedback/goals-round-NN.md` (rejected artifact +
 
 ---
 
-## Agents to Create (13 Files)
+## Agents to Create (16 Files)
 
 | #   | File                            | Mode     | Purpose                                                           | Key Permissions                                             |
 | --- | ------------------------------- | -------- | ----------------------------------------------------------------- | ----------------------------------------------------------- |
@@ -126,10 +128,13 @@ Rejection captures feedback in `feedback/goals-round-NN.md` (rejected artifact +
 | 7   | `qrspi-design-synthesizer.md`   | subagent | Synthesize design document from conversation context              | read-only bash                                              |
 | 8   | `qrspi-structure-mapper.md`     | subagent | Map vertical slices to files, define interfaces                   | read-only bash                                              |
 | 9   | `qrspi-plan-writer.md`          | subagent | Write ordered task specs with full detail                         | read-only bash                                              |
-| 10  | `qrspi-implementer.md`          | subagent | Per-task TDD + inline review (delegates to `@build`)              | full code access (bash, edit, task to @build)               |
-| 11  | `qrspi-acceptance-tester.md`    | subagent | Acceptance testing against goals criteria                         | code write for tests (bash, edit, task to @build)           |
-| 12  | `qrspi-verifier.md`             | subagent | Build/lint/test verification + fix loop                           | full access (bash, edit, task to @build)                    |
-| 13  | `qrspi-reporter.md`             | subagent | Final report formatting                                           | none (read-only data assembly)                              |
+| 10  | `qrspi-impl-red.md`             | subagent | Per-task RED phase: failing tests                                 | task to `@build`                                            |
+| 11  | `qrspi-impl-green.md`           | subagent | Per-task GREEN phase: implement to pass                           | task to `@build`, `question`                                |
+| 12  | `qrspi-impl-verify.md`          | subagent | Per-task VERIFY phase: verify, code review, commit                | task to `@build`, task to `qrspi-code-review`               |
+| 13  | `qrspi-coverage-planner.md`     | subagent | Acceptance coverage-plan drafting/revision                        | read-only                                                   |
+| 14  | `qrspi-acceptance-tester.md`    | subagent | Acceptance testing against goals criteria                         | task to `@build`, task to reviewers                         |
+| 15  | `qrspi-verifier.md`             | subagent | Build/lint/test verification + fix loop                           | full access (bash, edit, task to @build)                    |
+| 16  | `qrspi-reporter.md`             | subagent | Final report formatting                                           | none (read-only data assembly)                              |
 
 ---
 
@@ -194,12 +199,12 @@ Route change is allowed before Plan executes (Stage 6). After Plan approval, the
 
 ## Implementation Order
 
-| Wave | Steps                                                                                                                                    | Depends On |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| 1    | `deepwork.md` + `docs/DEEPWORK.md`                                                                                                       | —          |
-| 2    | `qrspi-goals-synthesizer`, `qrspi-question-generator`, `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer` | Wave 1     |
-| 3    | `qrspi-design-synthesizer`, `qrspi-structure-mapper`, `qrspi-plan-writer`                                                                | Wave 2     |
-| 4    | `qrspi-implementer`, `qrspi-acceptance-tester`, `qrspi-verifier`, `qrspi-reporter`                                                       | Wave 3     |
+| Wave | Steps                                                                                                                                              | Depends On |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| 1    | `deepwork.md` + `docs/DEEPWORK.md`                                                                                                                 | —          |
+| 2    | `qrspi-goals-synthesizer`, `qrspi-question-generator`, `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer`           | Wave 1     |
+| 3    | `qrspi-design-synthesizer`, `qrspi-structure-mapper`, `qrspi-plan-writer`                                                                          | Wave 2     |
+| 4    | `qrspi-impl-red`, `qrspi-impl-green`, `qrspi-impl-verify`, `qrspi-coverage-planner`, `qrspi-acceptance-tester`, `qrspi-verifier`, `qrspi-reporter` | Wave 3     |
 
 ---
 
