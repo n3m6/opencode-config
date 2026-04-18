@@ -40,6 +40,7 @@ Apply these checks to the current planning artifacts:
 - **Phase cohesion**: Tasks grouped within the same phase primarily belong to the same or closely related slices and serve a coherent proof goal.
 - **Cross-phase coupling**: Later phases do not unnecessarily revisit files or interfaces that earlier phases established unless the coupling is explicit and justified.
 - **Task self-containment**: Each task spec contains enough detail to implement without saying "see Task N" or relying on unstated assumptions.
+- **Acceptance traceability**: Each task spec explicitly names the acceptance criteria it advances, and those references are consistent with the plan overview and phase manifest.
 - **File specificity**: Files are concrete, exact paths with CREATE or MODIFY actions, not vague directories or buckets.
 - **Test expectation specificity**: Test expectations define concrete triggers and expected outcomes, including edge cases or error handling where applicable.
 - **Test strategy depth**: Each phase has at least one integration-level or cross-component verification path, not only isolated unit checks.
@@ -72,6 +73,7 @@ Apply these checks to the current planning artifacts:
 | Phase cohesion | FAIL | [which phase groups unrelated work or why the proof target is unclear] |
 | Cross-phase coupling | FAIL | [where a later phase unnecessarily revisits earlier-phase contracts] |
 | Task self-containment | FAIL | [which task requires guessing or cross-referencing] |
+| Acceptance traceability | FAIL | [which task is missing or misstates acceptance-criteria coverage] |
 | File specificity | PASS | [brief reason] |
 | Test expectation specificity | FAIL | [which expectations are vague or incomplete] |
 | Test strategy depth | FAIL | [which phase lacks integration-level verification] |
@@ -104,6 +106,7 @@ Apply these checks to the current planning artifacts:
 - Require each phase to have a coherent proof goal; unrelated slices in the same phase fail unless their coupling is explicitly justified.
 - Require any cross-phase revisiting of earlier phase contracts to be explicit and justified by dependency or risk.
 - Require every task to stand on its own. References such as "similar to Task 02" or "reuse the previous pattern" fail review unless the full behavior is restated.
+- Require every task spec to include explicit acceptance-criteria traceability. Plan-level coverage alone is insufficient.
 - Require concrete test expectations. "Write tests" or "ensure it works" fail review.
 - Require at least one integration-level or cross-component verification path per phase.
 - Require every concrete replan gate criterion to trace to one or more task-level test expectations.
@@ -117,6 +120,7 @@ Apply these checks to the current planning artifacts:
 - A task depends on a later task or on a dependency that is never defined.
 - A phase groups unrelated slices without a clear proof target.
 - A later phase modifies files or interfaces that an earlier phase established, but the coupling is not justified.
+- A task spec omits the acceptance criteria it advances, or cites criteria that do not match its described scope.
 - A task lists directories or vague areas like `src/routes/` or `various tests` instead of exact files.
 - A task uses placeholder language such as TBD, TODO, or "see design.md for details".
 - Test expectations say only "add tests" or "verify behavior" without specific triggers and outcomes.

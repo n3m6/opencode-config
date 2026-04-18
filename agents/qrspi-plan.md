@@ -116,6 +116,7 @@ If the design includes a foundation slice, keep it narrow and ensure Phase 1 sti
 Each task spec must include:
 - Metadata (Task, Phase, Route, Slice)
 - Dependencies
+- Traceability (Acceptance Criteria, NFRs, Replan Gate Criteria)
 - Description
 - Files (exact paths, CREATE or MODIFY)
 - Test Expectations (specific behaviors to verify, edge cases, error conditions)
@@ -153,6 +154,7 @@ The plan overview must include:
 The task spec must include:
 - Metadata (Task 01, Phase Quick-fix, Route quick-fix, Slice)
 - Dependencies
+- Traceability (Acceptance Criteria, NFRs, Replan Gate Criteria)
 - Description
 - Files (exact paths, CREATE or MODIFY)
 - Test Expectations (specific behaviors to verify)
@@ -215,7 +217,7 @@ After writing the draft artifacts, run an internal review loop before baseline c
 === INSTRUCTIONS ===
 Review this plan draft for goals coverage, dependency correctness, phase and wave coherence,
 NFR coverage, phase cohesion, cross-phase coupling, task self-containment, file specificity,
-test expectation specificity, test strategy depth, replan gate traceability, LOC realism,
+acceptance traceability, test expectation specificity, test strategy depth, replan gate traceability, LOC realism,
 and placeholder-free quality. When later-phase loopback context is present, also verify that completed phases remain preserved unchanged and that replanned phases start at `NEXT REMAINING PHASE`. Flag forward dependencies, vague files, vague tests,
 missing coverage, overview/task mismatches, or conflicts with preserved completed-phase history.
 ```
@@ -244,7 +246,7 @@ On review rounds 2 and later, dispatch `qrspi-plan-reviewer` via the `task` tool
 === INSTRUCTIONS ===
 Review the current plan draft for goals coverage, dependency correctness, phase and wave coherence,
 NFR coverage, phase cohesion, cross-phase coupling, task self-containment, file specificity,
-test expectation specificity, test strategy depth, replan gate traceability, LOC realism,
+acceptance traceability, test expectation specificity, test strategy depth, replan gate traceability, LOC realism,
 and placeholder-free quality.
 Use `GOALS`, `REQUIREMENTS`, and `REVIEW BASELINE` to confirm that previously flagged issues were fixed and that
 previously-passing areas remain stable without requiring the full upstream artifact set again.

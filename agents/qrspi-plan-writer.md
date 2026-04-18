@@ -67,7 +67,7 @@ If `Current Plan`, `Current Phase Manifest`, and `Current Task Specs` are presen
 1. **Preserve completed phases when loopback context is present.** If `Prior Phase Manifest`, `Completed Phases Context`, or `Failure Context` is provided, treat all phases before `Next Remaining Phase` as locked historical fact. Do not reuse or renumber those completed phases.
 2. **Order remaining tasks by dependency.** Using the vertical slices, phases, file map, preserved requirements, and any failure context, define the remaining tasks that can be implemented sequentially or in parallel waves. Keep closely related work grouped within phases and minimize unnecessary cross-phase coupling. Each task should map to a coherent portion of a vertical slice, except for a bounded foundation slice explicitly allowed by the design.
 3. **Assign task metadata.** For each remaining task, decide the task number, title, phase, slice, dependencies, approximate LOC, and concrete file set. Task numbers are globally stable IDs for the full run, so assign them in monotonic order and avoid any scheme that assumes later renumbering.
-4. **Validate completeness.** Every file in the structure file map that is still relevant to unfinished work must appear in at least one remaining task. Every functional requirement, acceptance criterion, and NFR from goals.md that is still in scope must be materially addressed by the remaining task set. Every concrete replan gate criterion from the design must map to at least one task-level test expectation.
+4. **Validate completeness.** Every file in the structure file map that is still relevant to unfinished work must appear in at least one remaining task. Every functional requirement, acceptance criterion, and NFR from goals.md that is still in scope must be materially addressed by the remaining task set. Every concrete replan gate criterion from the design must map to at least one task-level test expectation. Each task must also carry the specific acceptance criteria it advances so downstream execution keeps goal traceability at the task level.
 5. **Write the plan overview and phase manifest.** Draft the overview, phase summary, task order table, wave analysis, and a phase manifest that names each phase, lists its tasks, maps the covered acceptance criteria, and records its replan gate before dispatching task writers. Keep the first phase proving at least one meaningful end-to-end behavior even when a bounded foundation slice is present. If loopback context is present, preserve completed phases from `Prior Phase Manifest` unchanged and number replanned phases starting at `Next Remaining Phase`.
 6. **Dispatch every task.** Invoke `qrspi-task-spec-writer` once per task using the plan overview plus that task's specific outline and relevant context.
 
@@ -116,6 +116,7 @@ Route: [full or quick-fix]
 Slice: [slice name]
 Dependencies: [task numbers or None]
 Scope: [what this task covers]
+Acceptance Criteria: [specific acceptance criteria IDs, labels, or `None.`]
 NFRs: [in-scope NFR labels or `None.`]
 Gate Criteria: [replan gate criteria this task helps satisfy, or `None.`]
 Files: [exact file paths with CREATE or MODIFY]
@@ -217,6 +218,7 @@ For quick-fix, always emit exactly:
 - **Quick-fix means one task.** For quick-fix, produce exactly one task (`task-01.md`).
 - **Keep related work together.** Prefer grouping tightly related slice work within the same phase unless a clear dependency boundary requires a later phase.
 - **Minimize cross-phase coupling.** Avoid plans where later phases must revise files or interfaces that an earlier phase just established unless the dependency is explicit and justified.
+- **Trace acceptance criteria into tasks.** Every task spec must name the acceptance criteria it directly advances; plan-level coverage alone is insufficient.
 - **Trace replan gates and NFRs.** Coverage Notes must map every concrete replan gate criterion and every in-scope NFR to at least one task.
 - **Foundation slices stay bounded.** If the design includes a foundation slice, keep it narrow and ensure Phase 1 still includes at least one end-to-end slice that proves the architecture.
 - **Overview and task specs must agree.** The task order table, phase summary, wave analysis, and returned task specs must describe the same ordering and scope.
@@ -227,6 +229,7 @@ For quick-fix, always emit exactly:
 
 - A file from the structure map is not assigned to any task.
 - An acceptance criterion has no corresponding task coverage.
+- A task does not name the acceptance criteria it is meant to advance.
 - A task depends on a later task.
 - The overview says a task is in one phase or wave, but the task outline implies another.
 - The phase manifest disagrees with the phase summary or task metadata.

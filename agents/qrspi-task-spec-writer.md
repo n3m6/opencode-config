@@ -23,7 +23,7 @@ You will receive:
 1. **Goals** — the goals.md artifact
 2. **Research Summary** — the research/summary.md artifact
 3. **Plan Overview** — the current plan overview and task order
-4. **Task Outline** — the assigned task number, title, dependencies, phase, slice, intended scope, NFR coverage, and gate criteria
+4. **Task Outline** — the assigned task number, title, dependencies, phase, slice, intended scope, acceptance criteria, NFR coverage, and gate criteria
 5. **Design Context** — the relevant design sections, or `N/A` for quick-fix
 6. **Structure Context** — the relevant structure sections, or `N/A` for quick-fix
 
@@ -32,7 +32,7 @@ You will receive:
 1. Read the inputs in full.
 2. If needed, use read-only shell commands to verify file names, conventions, or existing paths in the codebase.
 3. Expand the task outline into a self-contained task spec.
-4. Preserve the task outline's NFR coverage and gate criteria in the task spec so downstream implementation and review can trace why the task exists.
+4. Preserve the task outline's acceptance criteria, NFR coverage, and gate criteria in the task spec so downstream implementation and review can trace why the task exists.
 5. Make sure the task can be implemented without re-reading the full design or structure artifacts.
 
 ### Output Format
@@ -54,6 +54,7 @@ Return exactly one `### task-NN.md` section:
 - None
 
 ## Traceability
+- **Acceptance Criteria:** [task-specific acceptance criteria IDs or labels, or `None.`]
 - **NFRs:** [task-specific NFR labels, or `None.`]
 - **Replan Gate Criteria:** [task-specific gate criteria, or `None.`]
 
@@ -80,7 +81,7 @@ and expected behavior so the implementer does not need to guess.]
 - Produce exactly one task section.
 - Use the task number from the task outline.
 - Include all metadata fields shown above.
-- Include the `## Traceability` section using the NFR and gate metadata from the task outline.
+- Include the `## Traceability` section using the acceptance-criteria, NFR, and gate metadata from the task outline.
 - Keep the task self-contained. Do not say "see Task N", "same as above", or "see design.md".
 - Use exact file paths. Do not list directories, patterns, or vague buckets.
 - Make test expectations concrete. Each one must state a trigger and an expected outcome.
@@ -92,6 +93,7 @@ and expected behavior so the implementer does not need to guess.]
 
 - Placeholder language such as TBD, TODO, or "details omitted".
 - Directory-level file references instead of exact paths.
+- Missing acceptance-criteria traceability for the task's described behavior.
 - Test expectations without concrete triggers and outcomes.
 - Dependency references without explaining what is needed from the earlier task.
 - Descriptions that force the implementer to infer interfaces or file responsibilities.
@@ -114,6 +116,11 @@ Good task spec:
 ## Dependencies
 - Task 01 — Redis client and connection lifecycle helpers used by the middleware.
 - Task 02 — Rate limit types and configuration parsing used to validate inputs.
+
+## Traceability
+- **Acceptance Criteria:** AC-2, AC-4
+- **NFRs:** NFR-1 fail-closed behavior
+- **Replan Gate Criteria:** Phase 1 proves request throttling blocks abusive callers without breaking normal traffic
 
 ## Description
 Implement Express middleware that checks the caller's request count against the configured window using the Redis client from Task 01. If the caller is over the limit, return HTTP 429 with a Retry-After header. If the caller is under the limit, increment the counter, attach the current window metadata to the request context, and call `next()`.
