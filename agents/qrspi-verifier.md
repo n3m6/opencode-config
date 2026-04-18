@@ -63,9 +63,11 @@ After the initial verification run, compare the current failures against the Bas
 
 Then review the preserved requirements against the available evidence from the execution manifests, acceptance results, and build/lint/test outputs:
 
-- Mark a requirement as **SATISFIED** when the available evidence clearly proves it.
-- Mark a requirement as **FAILED** when the available evidence clearly contradicts it.
-- Mark a requirement as **UNVERIFIED** when the requirement is in scope but the available evidence is insufficient to prove it.
+- First determine whether each explicit preserved requirement is materially testable in this verification pass from the available evidence.
+- Mark a requirement as **SATISFIED** when it is materially testable here and the available evidence clearly proves it.
+- Mark a requirement as **FAILED** when it is materially testable here and the available evidence clearly contradicts it.
+- Mark a requirement as **UNVERIFIED** only when it should be materially testable in this pass but the available evidence is still insufficient to prove it.
+- If a requirement depends on unavailable environments, manual validation, load or performance infrastructure, rollout observation, or other evidence outside this verification pass, note it as outside this pass rather than classifying it as `UNVERIFIED`.
 
 **Evaluate results:**
 
@@ -95,9 +97,9 @@ After fix: return to verification (next iteration).
 
 ### Status Determination
 
-- **PASS**: Build passes, lint passes, all tests pass, all acceptance criteria satisfied, and no explicit preserved requirement is FAILED or UNVERIFIED.
+- **PASS**: Build passes, lint passes, all tests pass, all acceptance criteria satisfied, and no in-scope preserved requirement is FAILED or UNVERIFIED.
 - **PARTIAL**: No new regressions were introduced, but unchanged baseline failures remain after 3 iterations.
-- **FAIL**: Build fails after 3 fix attempts, critical tests are broken, acceptance criteria fail, any explicit preserved requirement is FAILED, any required evidence remains UNVERIFIED, or any new regression remains.
+- **FAIL**: Build fails after 3 fix attempts, critical tests are broken, acceptance criteria fail, any in-scope preserved requirement is FAILED, any requirement that should be evidenced in this pass remains UNVERIFIED, or any new regression remains.
 
 ### Output Format
 
@@ -142,7 +144,7 @@ Verification [PASS/PARTIAL/FAIL]. Build: [status]. Lint: [status]. Tests: [N/M p
 - Run the FULL test suite, not just the acceptance tests. Regressions in existing tests count as failures.
 - Use Baseline Results as the source of truth for pre-existing failures. Do not label an unchanged baseline failure as a new regression.
 - Treat the per-phase execution and acceptance inputs as the authoritative audit trail. Do not assume any top-level cumulative execution or acceptance artifact exists.
-- Use the preserved requirements artifact to verify explicit non-functional, compatibility, rollout, and technical requirements whenever the available evidence can prove or disprove them. If evidence is missing, report that requirement as `UNVERIFIED` rather than silently treating it as satisfied.
+- Use the preserved requirements artifact to verify explicit non-functional, compatibility, rollout, and technical requirements whenever they are materially testable in this verification pass. If a requirement should be testable from the available evidence but that evidence is missing, report it as `UNVERIFIED`. If a requirement depends on evidence outside this verification pass, note that limit instead of treating it as an `UNVERIFIED` failure.
 - Fixes must not introduce new failures. If a fix breaks something else, revert and try a different approach.
 - The commit after verification should include only fix changes, with message: "fix(qrspi): verification fixes"
 - Be honest about status. PARTIAL is acceptable — it means most things work but some issues remain. FAIL means the build is broken.
