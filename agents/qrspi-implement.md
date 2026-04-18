@@ -12,7 +12,9 @@ permission:
     "ls *": allow
   task:
     "*": deny
-    "qrspi-implementer": allow
+    "qrspi-impl-red": allow
+    "qrspi-impl-green": allow
+    "qrspi-impl-verify": allow
     "qrspi-integration-checker": allow
   webfetch: deny
   todowrite: allow
@@ -78,7 +80,11 @@ Parse dependencies and final review status from each task file. First filter to 
 
 ### Step C — Execute Waves
 
-For each wave in order, dispatch `qrspi-implementer` for every task in the wave. Issue ALL task calls for the wave in a single turn:
+For each wave in order, execute three task batches in sequence: `qrspi-impl-red`, then `qrspi-impl-green`, then `qrspi-impl-verify`.
+
+#### Step C.1 — RED Batch
+
+For every task in the wave, dispatch `qrspi-impl-red` in a single turn:
 
 ```
 === TASK ===
@@ -103,12 +109,59 @@ For each wave in order, dispatch `qrspi-implementer` for every task in the wave.
 [for each dependency task: paste a one-line summary of what it did and its status]
 
 === INSTRUCTIONS ===
-Implement this task using TDD:
-1. Write failing tests from the test expectations
-2. Implement minimal code to pass all tests
-3. Self-review: check for obvious issues
-4. Run specialized code review and address blocking findings
-5. Commit changes with a descriptive message
+Write the failing tests for this task only.
+Use the plan review status as a risk signal:
+- If the review state is `clean`, proceed normally.
+- If the review state is `unclean-cap` and the test expectations are too ambiguous to encode safely, request a backward loop instead of guessing.
+
+Return:
+### Status — PASS or FAIL
+### Tests Written — list of test files with what they test
+### Test Files Created — list of new test files
+### Test Files Modified — list of updated test files
+### Failure Evidence — first failing test name plus why the failure is expected
+### Summary — one paragraph
+### Backward Loop Request — only if a fundamental issue was found (otherwise omit)
+```
+
+After the RED batch completes:
+
+- If any red agent returns `### Status — FAIL` without a backward loop request, record the completed tasks plus the failed task in the execution manifest, write `stage7-summary.md`, and then return FAIL with the task failure details.
+- Check each red-agent response for `### Backward Loop Request`. If any found, stop executing further batches and further waves and include the backward loop request(s) in the return.
+- If no blocking failures or backward loops: proceed to the GREEN batch for the same wave.
+
+#### Step C.2 — GREEN Batch
+
+For every task whose RED batch passed, dispatch `qrspi-impl-green` in a single turn:
+
+```
+=== TASK ===
+[paste contents of <phase-dir>/tasks/task-NN.md verbatim]
+
+=== GOALS ===
+[paste the acceptance criteria this task directly supports; if relevance is ambiguous, paste the full acceptance-criteria section from goals.md]
+
+=== ROUTE ===
+[paste `full` or `quick-fix`]
+
+=== CURRENT PHASE ===
+[paste the current phase number]
+
+=== PLAN REVIEW STATUS ===
+[paste the task's final review state and outstanding concerns verbatim]
+
+=== DESIGN CONTEXT ===
+[paste relevant sections of design.md and structure.md, or "N/A" for quick-fix]
+
+=== COMPLETED DEPENDENCIES ===
+[for each dependency task: paste a one-line summary of what it did and its status]
+
+=== RED RESULT ===
+[paste the full `qrspi-impl-red` response for this task verbatim]
+
+=== INSTRUCTIONS ===
+Implement the minimum production changes needed to make the RED tests pass.
+Use a maximum of 3 implementation iterations.
 
 Use the plan review status as an execution risk signal:
 - If the review state is `clean`, proceed normally.
@@ -117,9 +170,63 @@ Use the plan review status as an execution risk signal:
 
 If you encounter a local blocker that is safer to clarify than guess, ask a focused question before continuing.
 
-If you discover a fundamental issue that makes the task's design or spec unworkable,
-include a ### Backward Loop Request section describing the issue and which upstream
-artifact (design, structure, or plan) is affected.
+Return:
+### Status — PASS or FAIL
+### Files Modified — list of files changed
+### Files Created — list of new files
+### Tests Written — carry forward the test files from the RED result
+### Iterations — N/3
+### Verification Evidence — one-line summary of the passing targeted test run
+### Summary — one paragraph
+### Backward Loop Request — only if a fundamental issue was found (otherwise omit)
+```
+
+After the GREEN batch completes:
+
+- If any green agent returns `### Status — FAIL` without a backward loop request, record the completed tasks plus the failed task in the execution manifest, write `stage7-summary.md`, and then return FAIL with the task failure details.
+- Check each green-agent response for `### Backward Loop Request`. If any found, stop executing further batches and further waves and include the backward loop request(s) in the return.
+- If no blocking failures or backward loops: proceed to the VERIFY batch for the same wave.
+
+#### Step C.3 — VERIFY Batch
+
+For every task whose GREEN batch passed, dispatch `qrspi-impl-verify` in a single turn:
+
+```
+=== TASK ===
+[paste contents of <phase-dir>/tasks/task-NN.md verbatim]
+
+=== GOALS ===
+[paste the acceptance criteria this task directly supports; if relevance is ambiguous, paste the full acceptance-criteria section from goals.md]
+
+=== ROUTE ===
+[paste `full` or `quick-fix`]
+
+=== CURRENT PHASE ===
+[paste the current phase number]
+
+=== PLAN REVIEW STATUS ===
+[paste the task's final review state and outstanding concerns verbatim]
+
+=== DESIGN CONTEXT ===
+[paste relevant sections of design.md and structure.md, or "N/A" for quick-fix]
+
+=== COMPLETED DEPENDENCIES ===
+[for each dependency task: paste a one-line summary of what it did and its status]
+
+=== RED RESULT ===
+[paste the full `qrspi-impl-red` response for this task verbatim]
+
+=== GREEN RESULT ===
+[paste the full `qrspi-impl-green` response for this task verbatim]
+
+=== INSTRUCTIONS ===
+Run final verification for this task, dispatch specialized code review, address blocking review findings when safe, and commit the task changes with a descriptive message.
+Use a maximum of 2 review rounds.
+
+Use the plan review status as an execution risk signal:
+- If the review state is `clean`, proceed normally.
+- If the review state is `unclean-cap`, treat the outstanding concerns as unresolved planning risk.
+- If those concerns show the task is ambiguous, structurally unsafe, or dependent on missing upstream clarification, request a backward loop instead of guessing.
 
 Return:
 ### Status — PASS or FAIL
@@ -133,11 +240,11 @@ Return:
 ### Backward Loop Request — only if a fundamental issue was found (otherwise omit)
 ```
 
-After each wave completes:
+After the VERIFY batch completes:
 
-- If any implementer returns `### Status — FAIL` without a backward loop request, record the completed tasks plus the failed task in the execution manifest, write `stage7-summary.md`, and then return FAIL with the task failure details.
-- Check each implementer response for `### Backward Loop Request`. If any found, stop executing further waves and include the backward loop request(s) in the return.
-- If no blocking task failures or backward loops: record implementation and review results, then proceed to the next wave.
+- If any verify agent returns `### Status — FAIL` without a backward loop request, record the completed tasks plus the failed task in the execution manifest, write `stage7-summary.md`, and then return FAIL with the task failure details.
+- Check each verify-agent response for `### Backward Loop Request`. If any found, stop executing further waves and include the backward loop request(s) in the return.
+- If no blocking task failures or backward loops: record implementation and review results from the VERIFY responses, then proceed to the next wave.
 
 ### Step D — Write Execution Manifest
 

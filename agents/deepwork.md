@@ -92,19 +92,19 @@ Each stage is handled by a dedicated subagent that:
 - Writes its outputs to the pipeline directory
 - Returns a structured status to deepwork
 
-| Stage           | Agent             | Human Gate | Leaf Subagents Called                                                                                                                                                                                                                                                  |
-| --------------- | ----------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 — Goals       | `qrspi-goals`     | Yes        | `qrspi-goals-synthesizer`                                                                                                                                                                                                                                              |
-| 2 — Questions   | `qrspi-questions` | Yes        | `qrspi-question-generator`, `qrspi-question-leakage-reviewer`, `qrspi-question-quality-reviewer`                                                                                                                                                                       |
-| 3 — Research    | `qrspi-research`  | No         | `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer`, `qrspi-research-reviewer`                                                                                                                                                           |
-| 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`, `qrspi-design-reviewer`                                                                                                                                                                                                                    |
-| 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`                                                                                                                                                                                                                                               |
-| 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-plan-reviewer`, `qrspi-baseline-checker`                                                                                                                                                                                                   |
-| 7 — Implement   | `qrspi-implement` | No         | `qrspi-implementer`, `qrspi-code-review` (dispatches `qrspi-review-code-quality`, `qrspi-review-test-coverage`, `qrspi-review-security`, `qrspi-review-silent-failure`, `qrspi-review-goal-traceability`, `qrspi-review-code-simplifier`), `qrspi-integration-checker` |
-| 8 — Accept-Test | `qrspi-accept`    | No         | `qrspi-acceptance-tester`, `qrspi-backward-loop-detector`                                                                                                                                                                                                              |
-| 8.5 — Replan    | `qrspi-replan`    | No         | `qrspi-replan-writer`, `qrspi-replan-reviewer`                                                                                                                                                                                                                         |
-| 9 — Verify      | `qrspi-verify`    | No         | `qrspi-verifier`                                                                                                                                                                                                                                                       |
-| 10 — Report     | `qrspi-report`    | No         | `qrspi-reporter`                                                                                                                                                                                                                                                       |
+| Stage           | Agent             | Human Gate | Leaf Subagents Called                                                                                                                                                                                                                                                                                                         |
+| --------------- | ----------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 — Goals       | `qrspi-goals`     | Yes        | `qrspi-goals-synthesizer`                                                                                                                                                                                                                                                                                                     |
+| 2 — Questions   | `qrspi-questions` | Yes        | `qrspi-question-generator`, `qrspi-question-leakage-reviewer`, `qrspi-question-quality-reviewer`                                                                                                                                                                                                                              |
+| 3 — Research    | `qrspi-research`  | No         | `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer`, `qrspi-research-reviewer`                                                                                                                                                                                                                  |
+| 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`, `qrspi-design-reviewer`                                                                                                                                                                                                                                                                           |
+| 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`                                                                                                                                                                                                                                                                                                      |
+| 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-plan-reviewer`, `qrspi-baseline-checker`                                                                                                                                                                                                                                                          |
+| 7 — Implement   | `qrspi-implement` | No         | `qrspi-impl-red`, `qrspi-impl-green`, `qrspi-impl-verify` (dispatches `qrspi-code-review`, which dispatches `qrspi-review-code-quality`, `qrspi-review-test-coverage`, `qrspi-review-security`, `qrspi-review-silent-failure`, `qrspi-review-goal-traceability`, `qrspi-review-code-simplifier`), `qrspi-integration-checker` |
+| 8 — Accept-Test | `qrspi-accept`    | No         | `qrspi-acceptance-tester` (dispatches `qrspi-coverage-planner`, `qrspi-review-accept-goal-traceability`, `qrspi-review-accept-spec`, `qrspi-review-accept-code-quality`, and `build`), `qrspi-backward-loop-detector`                                                                                                         |
+| 8.5 — Replan    | `qrspi-replan`    | No         | `qrspi-replan-writer`, `qrspi-replan-reviewer`                                                                                                                                                                                                                                                                                |
+| 9 — Verify      | `qrspi-verify`    | No         | `qrspi-verifier`                                                                                                                                                                                                                                                                                                              |
+| 10 — Report     | `qrspi-report`    | No         | `qrspi-reporter`                                                                                                                                                                                                                                                                                                              |
 
 ### Return Contract (Stage → Deepwork)
 
@@ -123,48 +123,9 @@ Every stage subagent returns:
 
 If the user provides a run ID, asks to resume, or points at an existing `.pipeline/qrspi-<run-id>/` directory, do not start a new run immediately.
 
-1. Resolve the run directory: `.pipeline/qrspi-<run-id>/`
-2. Read `.pipeline/qrspi-<run-id>/state.md`
-3. If `state.md` exists and is coherent, use it as the authoritative recovery record:
-   - recover `route`
-   - recover `current_phase`
-   - recover `total_phases`
-   - recover `next_stage`
-4. If `state.md` is missing or inconsistent, reconstruct progress from artifacts on disk using this phase-aware algorithm:
-   - Read `config.md` to confirm the route.
-   - Check pre-phase completion markers:
-     - Goals complete if `goals.md` exists
-     - Questions complete if `questions.md` exists
-     - Research complete if `research/summary.md` exists
-     - Design complete if `design.md` exists, or the route is quick-fix
-     - Structure complete if `structure.md` exists, or the route is quick-fix
-     - Plan complete if `baseline-results.md` exists
-   - If any pre-phase stage is incomplete, resume at the first incomplete stage and force `current_phase: 1`.
-   - Otherwise read `phase-manifest.md` to determine `total_phases`.
-   - Scan only active phase directories with `ls .pipeline/qrspi-<run-id>/phases/phase-*/`. Ignore anything under `phases/archive/`.
-   - For each active phase directory in numeric order:
-     - `phases/phase-NN/stage7-summary.md` means Implement is complete for phase `NN`
-     - `phases/phase-NN/stage8-summary.md` means Accept-Test is complete for phase `NN`
-     - `phases/phase-NN/replan/phase-NN-replan.md` means Replan is complete for phase `NN`
-   - Determine the recovery cursor as follows:
-     - If no active phase directory has any stage artifact yet, set `current_phase: 1` and `next_stage: implement`
-     - If the highest active phase with artifacts has no `stage7-summary.md`, restart `implement` for that phase
-     - If it has `stage7-summary.md` but no `stage8-summary.md`, restart `accept` for that phase
-     - If it has `stage8-summary.md` but no replan note:
-       - if the route is quick-fix, or that phase equals `total_phases`, set `next_stage: verify`
-       - otherwise set `next_stage: replan`
-     - If it has a replan note:
-       - if that completed phase now equals `total_phases`, set `next_stage: verify`
-       - otherwise set `current_phase` to the next phase number and set `next_stage: implement`
-   - Stage-level recovery only: if a phase directory contains partial in-stage artifacts without the stage summary file, restart that entire stage from its beginning.
-   - Override phase recovery with post-phase markers when present:
-     - `stage9-summary.md` means `next_stage: report`
-     - `stage10-summary.md` means the run is complete
-5. Immediately overwrite `state.md` from the recovered route, phase, and next-stage cursor with `resume_source: artifacts` when artifact recovery was used.
-6. For quick-fix runs, always force `current_phase: 1` and `total_phases: 1` during recovery.
-7. Reconstruct the visible todo checklist from the recovered route and the refreshed `phase-manifest.md`, ignoring archived future phases.
-
-If both `state.md` and the artifact set imply the run is already complete, present the preserved report path and stop.
+1. Read `agents/deepwork-resume-protocol.md` with `cat`.
+2. Follow that protocol exactly to recover the route, phase cursor, next stage, refreshed `state.md`, and rebuilt visible checklist.
+3. If the protocol concludes the run is already complete, present the preserved report path and stop.
 
 ### `state.md` Contract
 
@@ -630,88 +591,8 @@ When `qrspi-report` completes:
 
 When a stage subagent (`qrspi-implement`, `qrspi-accept`, or `qrspi-replan`) includes a `### Backward Loop Request` section in its return:
 
-1. Read the backward loop request details.
-2. Present the issue to the user via `question`:
-
-   ```
-   ### Backward Loop Detected
-
-   **Stage:** [which stage reported it]
-   **Issue:** [description from the subagent]
-   ```
-
-[If the route is `quick-fix`, present only these options:
-C) Loop back to **Plan** (revise task specifications)
-E) Attempt a **local fix** within the current stage
-F) **Continue as-is** (accept the limitation)
-G) Full reset to **Goals** (restart the pipeline with accumulated learnings)]
-
-Options:
-A) Loop back to **Design** (re-architect the approach)
-B) Loop back to **Structure** (re-map files and interfaces)
-C) Loop back to **Plan** (revise task specifications)
-D) Defer to the next **Replan** (record the issue for the next phase boundary)
-E) Attempt a **local fix** within the current stage
-F) **Continue as-is** (accept the limitation)
-G) Full reset to **Goals** (restart the pipeline with accumulated learnings)
-
-Which option?
-
-```
-
-Do not present Design or Structure as loop targets on the quick-fix route.
-
-3. **If the user chooses A, B, or C** (loop-back):
-a. Determine the loop target stage number (Design=4, Structure=5, Plan=6).
-b. Write loop feedback to `.pipeline/qrspi-<run-id>/feedback/{stage}-loop-{NN}.md` with the backward loop request details using the edit tool.
-c. Create the feedback directory if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback`
-d. Preserve completed phase directories `phases/phase-01/` through `phases/phase-(N-1)/` unchanged.
-e. Delete the current incomplete phase directory with `rm -rf .pipeline/qrspi-<run-id>/phases/phase-NN/`.
-f. Archive any unstarted future phase directories by moving them under `.pipeline/qrspi-<run-id>/phases/archive/phase-NN/` before regenerating the remaining plan.
-g. Delete regenerated top-level artifacts based on the loop target:
-  - Plan: `plan.md`, `phase-manifest.md`, `baseline-results.md`, and `tasks/`
-  - Structure: all Plan artifacts plus `structure.md`
-  - Design: all Structure artifacts plus `design.md`
-h. Reset the todo items for the target stage and all downstream stages to not-started, and remove stale unstarted phase entries that no longer match the active manifest.
-i. Overwrite `state.md` with the loop target as `next_stage`, increment `backward_loops`, set `current_phase` to the earliest incomplete phase number when completed phases are preserved, reset it to `1` only when no completed phases remain or the target is before phased execution, and preserve `phase_history` for already-completed phases.
-j. Re-enter the pipeline at the target stage. The re-run must receive the feedback file as additional context.
-k. When re-entering Design, Structure, or Plan from Phase 2 or later, also include:
-
-```
-
-=== NEXT REMAINING PHASE ===
-Include the earliest incomplete phase number that must be replanned.
-
-=== PRIOR PHASE MANIFEST ===
-Include the last known phase-manifest.md so the rerun can preserve completed
-phase numbering and only regenerate the remaining phases.
-
-=== COMPLETED PHASES CONTEXT ===
-For each completed prior phase, include the full execution-manifest.md,
-integration-results.md, acceptance-results.md, stage7-summary.md, and
-stage8-summary.md from that phase directory.
-
-=== FAILURE CONTEXT ===
-Include the failed phase's backward-loop-analysis.md, the loop feedback file,
-and any relevant stage7/stage8 summaries from the failed phase.
-
-```
-
-Stage 6 will recreate active phase directories and task locations after the loop target completes.
-4. **If the user chooses D** (defer to Replan):
-a. Create the feedback directory if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback`
-b. Write `.pipeline/qrspi-<run-id>/feedback/deferred-replan-{NN}.md` with the current stage, current phase, and backward-loop request details.
-c. Overwrite `state.md` with the same current phase, increment `backward_loops`, and keep the normal next stage.
-d. Continue the current stage as non-blocking. The next Replan stage must read all deferred replan feedback files.
-5. **If the user chooses E** (local fix): Continue the current stage, treating the issue as a non-blocking problem.
-6. **If the user chooses F** (continue): Proceed to the next stage without changes.
-7. **If the user chooses G** (full reset to Goals):
-a. Create the feedback directory if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback`
-b. Write `.pipeline/qrspi-<run-id>/feedback/goals-reset-context.md` containing the backward-loop request, current phase, and a concise summary of what was learned before the reset.
-c. Delete every pipeline artifact except `feedback/`, including all active and archived `phases/` directories.
-d. Recreate `state.md` with `route: unknown`, `current_phase: 1`, `total_phases: 0`, `last_completed_stage: none`, `next_stage: goals`, incremented `backward_loops`, and `resume_source: state`.
-e. Reset the visible checklist to the initial pre-plan state.
-f. Re-enter the pipeline at **Stage 1** and include the contents of `feedback/goals-reset-context.md` as `=== PRIOR RUN LEARNINGS ===` in the Goals dispatch.
+1. Read `agents/deepwork-backward-loop-protocol.md` with `cat`.
+2. Follow that protocol exactly using the current route, current phase, and returned backward-loop request details.
 
 ### Error Handling
 
@@ -719,9 +600,11 @@ If any stage returns `### Status — FAIL`:
 
 1. Do NOT proceed to the next stage.
 2. Surface the error to the user via `question`, including:
+
 - Which stage failed
 - The `### Summary` from the stage's return (the specific error or issue)
 - Ask whether to retry the stage or abort the pipeline
+
 3. If the user says retry, re-invoke the same stage subagent with the same inputs.
 4. If the user says abort, keep the `.pipeline/qrspi-<run-id>/` directory intact. Summarize what was completed and log: "Pipeline aborted — partial audit trail at `.pipeline/qrspi-<run-id>/`"
 
@@ -732,7 +615,10 @@ When retrying, do not overwrite or remove prior artifacts unless the retry path 
 After Stage 10 is marked complete, check the verifier's overall status from `stage9-summary.md`:
 
 - **If PASS**: Keep the full run directory intact.
-Log: "Pipeline PASS — audit trail preserved at `.pipeline/qrspi-<run-id>/`"
+  Log: "Pipeline PASS — audit trail preserved at `.pipeline/qrspi-<run-id>/`"
 - **If PARTIAL or FAIL**: Keep the run directory intact for debugging.
-Log: "Pipeline <status> — audit trail preserved at `.pipeline/qrspi-<run-id>/`"
+  Log: "Pipeline <status> — audit trail preserved at `.pipeline/qrspi-<run-id>/`"
+
+```
+
 ```

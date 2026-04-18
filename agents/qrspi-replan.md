@@ -243,11 +243,17 @@ Review the replanned remaining work for:
 
 - If the reviewer returns `### Status — PASS` and `review_round` is 3 or greater, stop the review loop.
 - If the reviewer returns `### Status — PASS` and `review_round` is less than 3, increment `review_round` and run the reviewer again on the unchanged current artifacts.
-- If the reviewer returns `### Status — FAIL` and `review_round` is less than 5, re-dispatch `qrspi-replan-writer` with the original inputs plus:
+- If the reviewer returns `### Status — FAIL` and `review_round` is less than 5, extract the single most important defect from the reviewer output as `ROOT CAUSE OF FAILURE`, write one sentence describing how the next draft must change as `MUTATION INSTRUCTION`, and re-dispatch `qrspi-replan-writer` with the original inputs plus:
 
   ```
+  === ROOT CAUSE OF FAILURE ===
+  [one sentence naming the primary defect that caused the FAIL]
+
+  === MUTATION INSTRUCTION ===
+  [one sentence stating what must change differently in the next draft]
+
   === REVIEW FEEDBACK ===
-  [paste the reviewer output verbatim]
+  [paste only the `### Fix Guidance` section from the reviewer output verbatim]
   ```
 
   Then overwrite the updated artifacts, increment `review_round`, and continue the loop.

@@ -155,10 +155,15 @@
   │  │  STAGE 7 — Implement        │                           │
   │  │  (wave-based parallel)       │                           │
   │  │                              │                           │
-  │  │  ┌────────────────────────┐  │                           │
-  │  │  │  qrspi-implementer     │  │  (per-task TDD)           │
-  │  │  │  (× N tasks per wave)  │  │                           │
-  │  │  └────────────────────────┘  │                           │
+   │  │  ┌────────────────────────┐  │                           │
+   │  │  │    qrspi-impl-red      │  │  (failing tests)          │
+   │  │  └────────────────────────┘  │                           │
+   │  │  ┌────────────────────────┐  │                           │
+   │  │  │   qrspi-impl-green     │  │  (implementation)         │
+   │  │  └────────────────────────┘  │                           │
+   │  │  ┌────────────────────────┐  │                           │
+   │  │  │   qrspi-impl-verify    │  │  (review + commit)        │
+   │  │  └────────────────────────┘  │                           │
   │  │  ┌────────────────────────┐  │                           │
   │  │  │   qrspi-code-review    │  │  (6 specialist reviewers) │
   │  │  └────────────────────────┘  │                           │
@@ -179,9 +184,12 @@
   │  ┌──────────────────────────────┐                           │
   │  │  STAGE 8 — Acceptance Test  │                           │
   │  │                              │                           │
-  │  │  ┌────────────────────────┐  │                           │
-  │  │  │qrspi-acceptance-tester │  │  (inner loop, max 3 rds)  │
-  │  │  └────────────────────────┘  │                           │
+   │  │  ┌────────────────────────┐  │                           │
+   │  │  │ qrspi-coverage-planner │  │  (coverage draft/revise)  │
+   │  │  └────────────────────────┘  │                           │
+   │  │  ┌────────────────────────┐  │                           │
+   │  │  │qrspi-acceptance-tester │  │  (review/write/run loop)  │
+   │  │  └────────────────────────┘  │                           │
   │  │  ┌────────────────────────┐  │                           │
   │  │  │qrspi-backward-loop-    │  │  (on persistent failures) │
   │  │  │detector                │  │                           │
@@ -667,15 +675,23 @@ Records the pre-implementation build and test baseline before Stage 7 begins. Pr
 
 #### qrspi-implement
 
-Stage orchestrator. Analyzes current-phase task dependencies into waves, dispatches implementers in parallel per wave (forwarding goals, review context, and design context), validates that every task listed for the phase exists in `phases/phase-NN/tasks/`, records per-task review outcomes, runs integration checks, and writes phase-local execution artifacts.
+Stage orchestrator. Analyzes current-phase task dependencies into waves, then runs three per-wave task batches in sequence: RED, GREEN, and VERIFY. It validates that every task listed for the phase exists in `phases/phase-NN/tasks/`, records per-task review outcomes, runs integration checks, and writes phase-local execution artifacts.
 
-#### qrspi-implementer
+#### qrspi-impl-red
 
-Implements a single task using TDD: write failing tests → implement to pass → self-review → specialized code review → commit. Uses the plan review status as an execution risk signal — if `unclean-cap`, treats outstanding concerns as unresolved planning risk and may request a backward loop instead of guessing. Reports backward loop requests if the task spec is fundamentally unworkable.
+Writes the RED phase for a single task: create the failing test slice and confirm it fails for the expected reason. Uses the plan review status as an execution risk signal and may request a backward loop instead of guessing through ambiguous test expectations.
+
+#### qrspi-impl-green
+
+Implements the GREEN phase for a single task: make the RED tests pass within a bounded 3-iteration loop. Uses the plan review status as an execution risk signal, may ask a focused clarification question when locally blocked, and may request a backward loop when the task remains structurally unsafe.
+
+#### qrspi-impl-verify
+
+Runs final verification for a single task, dispatches the specialized code-review gate, applies safe review fixes within a bounded 2-round loop, and commits the task changes. Returns the final task report consumed by Stage 7.
 
 #### qrspi-code-review
 
-Per-task review orchestrator. Reads changed files, selects applicable specialist reviewers based on code signals, dispatches them in parallel, and collates findings. Blocks only on CRITICAL/HIGH severity. Always dispatches code-quality and test-coverage reviewers. Conditionally dispatches others based on code content:
+Per-task review orchestrator. Reads changed files, selects applicable specialist reviewers using deterministic grep and wc signals, dispatches them in parallel, and collates findings. Blocks only on CRITICAL/HIGH severity. Always dispatches code-quality and test-coverage reviewers. Conditionally dispatches others based on code content:
 
 | Reviewer                         | Focus                                      | Trigger                                              |
 | -------------------------------- | ------------------------------------------ | ---------------------------------------------------- |
@@ -700,13 +716,17 @@ Runs a lightweight integration gate after all implementation waves complete. Che
 
 Stage orchestrator. Dispatches the acceptance tester to run an inner review/write/run loop (max 3 rounds) against the current phase's acceptance criteria. If persistent failures remain, dispatches the backward-loop detector to classify them and recommend next steps. Writes phase-local coverage, acceptance, summary, and backward-loop analysis artifacts plus phase-scoped review history.
 
+#### qrspi-coverage-planner
+
+Drafts or revises the acceptance coverage plan for a single round. Maps every acceptance criterion to a concrete test type, trigger, expected outcome, and relevant files or components from the execution manifest before any acceptance reviewers or test-writing work runs.
+
 #### qrspi-acceptance-tester
 
-Runs the acceptance test inner loop: drafts a coverage plan, dispatches 3 acceptance reviewers in parallel to detect plan issues, revises the plan, writes and runs the acceptance tests, and allows up to 2 fix attempts per round for simple local bugs. Tests only the acceptance criteria assigned to the current phase in `phase-manifest.md`. Reports per-criterion PASS or FAIL.
+Runs the acceptance test inner loop: dispatches the coverage planner, dispatches 3 acceptance reviewers in parallel to detect plan issues, writes and runs the acceptance tests, and allows up to 2 fix attempts per round for simple local bugs with an explicit root-cause statement before any fix. Tests only the acceptance criteria assigned to the current phase in `phase-manifest.md`. Reports per-criterion PASS or FAIL.
 
 #### qrspi-backward-loop-detector
 
-Analyzes the full completed phase context (goals, execution manifest, integration results, acceptance results, persistent failures) and classifies failures using a severity table. Returns one of: `NO_LOOP`, `DEFER_REPLAN`, `LOOP_PLAN`, `LOOP_STRUCTURE`, `LOOP_DESIGN`, or `LOOP_GOALS`. The classification is then routed through deepwork's backward loop protocol for user decision.
+Analyzes the full completed phase context (goals, execution manifest, integration results, acceptance results, persistent failures) with a binary checklist per failure group and derives one of: `NO_LOOP`, `DEFER_REPLAN`, `LOOP_PLAN`, `LOOP_STRUCTURE`, `LOOP_DESIGN`, or `LOOP_GOALS`. The classification is then routed through deepwork's backward loop protocol for user decision.
 
 ---
 

@@ -42,11 +42,28 @@ You will receive:
 
 ### Process
 
-1. Group persistent failures by likely root cause.
-2. Use the severity table below to classify each root cause.
-3. Choose the earliest affected artifact as the loop-back target, unless the issue is better handled at the next already-defined phase boundary.
+1. Group persistent failures into the smallest set of shared root causes that explains the remaining acceptance failures.
+2. For each grouped failure, answer this binary checklist in order:
+
+- **Local Code Only** — Can this failure be fixed by changing only implementation code within the current task scope?
+- **File Boundary Change** — Does fixing this require adding, removing, renaming, or relocating files or components?
+- **Interface Change** — Does fixing this require changing an API contract, event shape, schema, or interface boundary?
+- **Architecture Change** — Does fixing this require a different architecture, technology choice, vertical slice, or phase boundary?
+- **Scope Change** — Does fixing this require changing what success means in the goals or acceptance criteria?
+- **Safe To Defer** — Can the current phase still be accepted honestly, and is the unfinished work already compatible with the next planned phase boundary?
+
+3. Derive the per-failure classification mechanically using this priority order:
+
+- `LOOP_GOALS` when **Scope Change** is YES
+- `LOOP_DESIGN` when **Architecture Change** is YES
+- `LOOP_STRUCTURE` when **File Boundary Change** or **Interface Change** is YES
+- `DEFER_REPLAN` when **Safe To Defer** is YES and the current phase contract still holds
+- `NO_LOOP` when **Local Code Only** is YES
+- otherwise `LOOP_PLAN` for remaining task-decomposition, dependency, or omitted-behavior defects
+
 4. Use any completed-phase summaries to distinguish a new current-phase defect from a problem inherited from an earlier architectural or planning choice.
-5. Check your reasoning against the Red Flags and Common Rationalizations sections before finalizing the result.
+5. Choose the overall recommendation as the earliest required upstream change across all grouped failures.
+6. Check your reasoning against the Red Flags and Common Rationalizations sections before finalizing the result.
 
 ### Severity Classification Table
 
@@ -88,7 +105,7 @@ You will receive:
 
 ```
 ### Severity Analysis
-| # | Criterion | Failure | Classification | Loop-back Target | Rationale |
+| # | Criterion | Failure | Local Code Only | File Boundary Change | Interface Change | Architecture Change | Scope Change | Safe To Defer | Classification | Loop-back Target | Rationale |
 
 ### Overall Recommendation
 [NO_LOOP | DEFER_REPLAN | LOOP_PLAN | LOOP_STRUCTURE | LOOP_DESIGN | LOOP_GOALS]

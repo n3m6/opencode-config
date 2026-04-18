@@ -166,7 +166,7 @@ After writing the draft artifacts, run an internal review loop before baseline c
 
 1. Set an internal counter: `review_round = 1`
 2. For each review round, read the current plan and all task files.
-3. Dispatch `qrspi-plan-reviewer` via the `task` tool:
+3. On review round 1, dispatch `qrspi-plan-reviewer` via the `task` tool with the full upstream artifact set:
 
 ```
 === GOALS ===
@@ -209,19 +209,60 @@ and placeholder-free quality. When later-phase loopback context is present, also
 missing coverage, overview/task mismatches, or conflicts with preserved completed-phase history.
 ```
 
+On review rounds 2 and later, dispatch `qrspi-plan-reviewer` via the `task` tool with the current artifacts plus the latest review baseline instead of re-pasting the full upstream artifacts again:
+
+```
+=== PLAN ===
+[paste contents of plan.md verbatim]
+
+=== PHASE MANIFEST ===
+[paste contents of phase-manifest.md verbatim]
+
+=== TASK SPECS ===
+[paste contents of all tasks/task-NN.md files verbatim]
+
+=== REVIEW BASELINE ===
+[paste the most recent reviewer output verbatim]
+
+=== INSTRUCTIONS ===
+Review the current plan draft for dependency correctness, phase and wave coherence,
+task self-containment, file specificity, test expectation specificity, LOC realism,
+and placeholder-free quality.
+Use `REVIEW BASELINE` to confirm that previously flagged issues were fixed and that
+previously-passing areas remain stable without requiring the full upstream artifact set again.
+```
+
 4. Write the reviewer output to `.pipeline/<run-id>/reviews/plan-review-round-{NN}.md` using the edit tool.
 5. Apply this decision logic in order:
 
 - If the reviewer returns `### Status — PASS` and `review_round` is 5 or greater, stop the review loop.
 - If the reviewer returns `### Status — PASS` and `review_round` is less than 5, increment `review_round` and run the reviewer again on the unchanged current artifacts. This satisfies the minimum 5-round requirement.
-- If the reviewer returns `### Status — FAIL` and `review_round` is less than 10, re-dispatch `qrspi-plan-writer` with the original inputs plus:
+- If the reviewer returns `### Status — FAIL` and `review_round` is less than 10, extract the single most important defect from the reviewer output as `ROOT CAUSE OF FAILURE`, write one sentence describing how the next draft must change as `MUTATION INSTRUCTION`, and re-dispatch `qrspi-plan-writer` with the current draft plus:
 
   ```
+  === RUN ID ===
+  [paste the current run ID]
+
+  === CURRENT PLAN ===
+  [paste contents of plan.md verbatim]
+
+  === CURRENT PHASE MANIFEST ===
+  [paste contents of phase-manifest.md verbatim]
+
+  === CURRENT TASK SPECS ===
+  [paste contents of all tasks/task-NN.md files verbatim]
+
+  === ROOT CAUSE OF FAILURE ===
+  [one sentence naming the primary defect that caused the FAIL]
+
+  === MUTATION INSTRUCTION ===
+  [one sentence stating what must change differently in the next draft]
+
   === REVIEW FEEDBACK ===
-  [paste the reviewer output verbatim]
+  [paste only the `### Fix Guidance` section from the reviewer output verbatim]
   ```
 
-  Then overwrite `plan.md` and all `tasks/task-NN.md` files, increment `review_round`, and continue the loop.
+  Then overwrite `plan.md`, `phase-manifest.md`, and all returned `tasks/task-NN.md` files, increment `review_round`, and continue the loop.
 
 - If the reviewer returns `### Status — FAIL` and `review_round` is 10, stop the review loop. Do not run an eleventh round.
 
