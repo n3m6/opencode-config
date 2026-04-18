@@ -243,9 +243,21 @@ Review the replanned remaining work for:
 
 - If the reviewer returns `### Status — PASS` and `review_round` is 3 or greater, stop the review loop.
 - If the reviewer returns `### Status — PASS` and `review_round` is less than 3, increment `review_round` and run the reviewer again on the unchanged current artifacts.
-- If the reviewer returns `### Status — FAIL` and `review_round` is less than 5, extract the single most important defect from the reviewer output as `ROOT CAUSE OF FAILURE`, write one sentence describing how the next draft must change as `MUTATION INSTRUCTION`, and re-dispatch `qrspi-replan-writer` with the original inputs plus:
+- If the reviewer returns `### Status — FAIL` and `review_round` is less than 5, extract the single most important defect from the reviewer output as `ROOT CAUSE OF FAILURE`, write one sentence describing how the next draft must change as `MUTATION INSTRUCTION`, and re-dispatch `qrspi-replan-writer` with the current rejected draft plus:
 
   ```
+  === CURRENT REPLAN DRAFT PLAN ===
+  [paste contents of plan.md verbatim]
+
+  === CURRENT REPLAN DRAFT PHASE MANIFEST ===
+  [paste contents of phase-manifest.md verbatim]
+
+  === CURRENT NEXT PHASE TASK SPECS ===
+  [paste contents of the task-NN.md files in <next-phase-dir>/tasks/ verbatim, or `None.` if no next-phase tasks were written]
+
+  === CURRENT REPLAN NOTE ===
+  [paste contents of <completed-phase-dir>/replan/phase-[PP]-replan.md verbatim]
+
   === ROOT CAUSE OF FAILURE ===
   [one sentence naming the primary defect that caused the FAIL]
 

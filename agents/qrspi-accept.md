@@ -70,6 +70,8 @@ If the current phase number is greater than 1, read completed prior phase summar
 
 - `cat .pipeline/<run-id>/phases/phase-*/execution-manifest.md`
 - `cat .pipeline/<run-id>/phases/phase-*/acceptance-results.md`
+- `cat .pipeline/<run-id>/phases/phase-*/stage7-summary.md`
+- `cat .pipeline/<run-id>/phases/phase-*/stage8-summary.md`
 
 Ignore the current phase directory when building this prior-phase context.
 
@@ -162,7 +164,7 @@ If persistent failures remain, invoke `qrspi-backward-loop-detector` via the `ta
 [paste <phase-dir>/acceptance-results.md verbatim]
 
 === COMPLETED PHASE SUMMARIES ===
-[for each completed prior phase, paste execution-manifest.md and acceptance-results.md from that phase directory, or `None.` if this is Phase 1]
+[for each completed prior phase, paste execution-manifest.md, acceptance-results.md, stage7-summary.md, and stage8-summary.md from that phase directory, or `None.` if this is Phase 1]
 
 === PERSISTENT FAILURES ===
 [paste the persistent failures verbatim]

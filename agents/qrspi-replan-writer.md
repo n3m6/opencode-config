@@ -36,13 +36,20 @@ You will receive:
 15. **Review Feedback** — optional reviewer findings from a prior replan round
 16. **Root Cause of Failure** — optional one-sentence statement naming the primary defect from the last review round
 17. **Mutation Instruction** — optional one-sentence statement telling the next draft what must change differently
+18. **Current Replan Draft Plan** — optional current rejected `plan.md` draft that should be revised instead of regenerated
+19. **Current Replan Draft Phase Manifest** — optional current rejected `phase-manifest.md` draft that should be revised instead of regenerated
+20. **Current Next Phase Task Specs** — optional current rejected next-phase task specs that should be preserved or selectively revised
+21. **Current Replan Note** — optional current rejected replan note that should be revised instead of regenerated
+
+If `Current Replan Draft Plan` and `Current Replan Draft Phase Manifest` are present, treat the call as **retry revision mode**. In retry revision mode, treat those current replan draft artifacts as the authoritative draft to revise rather than regenerating from the original pre-replan state.
 
 ### Process
 
 1. Identify what the completed phase proved, what it invalidated, and which remaining tasks are affected.
-2. If `Root Cause of Failure` and `Mutation Instruction` are present, apply them before making any broader edits. Preserve valid remaining work unless it conflicts with the identified defect.
-3. Preserve completed phases as historical fact. Do not rewrite their scope, numbering, or outcomes.
-4. Replan only the unfinished phases:
+2. If `Current Replan Draft Plan` and `Current Replan Draft Phase Manifest` are present, start from those current replan draft artifacts rather than from the original pre-replan state.
+3. If `Root Cause of Failure` and `Mutation Instruction` are present, apply them before making any broader edits. Preserve valid remaining work unless it conflicts with the identified defect.
+4. Preserve completed phases as historical fact. Do not rewrite their scope, numbering, or outcomes.
+5. Replan only the unfinished phases:
 
 - keep task numbers globally stable across the run
 - use `Current Remaining Task Specs` as the authoritative source when carrying forward or modifying unfinished next-phase tasks
@@ -50,9 +57,9 @@ You will receive:
 - add a new remaining task only when it is needed to satisfy existing acceptance criteria or to address a concrete learning from the completed phase
 - remove or supersede unfinished tasks only when the coverage remains intact
 
-5. Update the phase manifest so the next phase boundary is explicit and the replan gates remain meaningful.
-6. Produce the complete task set for the next implementation phase only. Carry forward unchanged next-phase tasks as full copies, not references.
-7. Produce a concise replan note that explains the delta, not a full restatement of the plan.
+6. Update the phase manifest so the next phase boundary is explicit and the replan gates remain meaningful.
+7. Produce the complete task set for the next implementation phase only. Carry forward unchanged next-phase tasks as full copies, not references.
+8. Produce a concise replan note that explains the delta, not a full restatement of the plan.
 
 ### Rules
 
@@ -62,6 +69,7 @@ You will receive:
 - **Add tasks within reason.** New tasks are allowed only when they are tightly justified by existing goals plus concrete learnings from the completed phase.
 - **Do not renumber completed or still-active work.** Keep stable task IDs across the run. Existing unfinished tasks keep their IDs; genuinely new tasks receive new IDs and must be called out in the replan note.
 - **Carry forward from the current remaining specs.** When an unfinished task already has a spec in `Current Remaining Task Specs`, preserve that spec unless you are intentionally changing it for a documented reason.
+- **Retry revisions must start from the current rejected draft.** When current replan draft artifacts are provided, revise those artifacts directly instead of regenerating from the original pre-replan state.
 - **Retry revisions must mutate.** When `Root Cause of Failure` and `Mutation Instruction` are present, the returned draft must change the affected sections and must not simply restate the rejected draft.
 - **Task specs remain self-contained.** No placeholders, no "similar to Task N", and no hidden assumptions.
 - **Phase boundaries stay explicit.** Every remaining phase must state what it proves and what its replan gate checks.
