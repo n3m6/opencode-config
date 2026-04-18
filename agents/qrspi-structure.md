@@ -7,10 +7,8 @@ steps: 35
 permission:
   edit: allow
   bash:
-    "*": deny
-    "cat *": allow
-    "ls *": allow
-    "mkdir *": allow
+    "*": allow
+    "rm *": deny
   task:
     "*": deny
     "qrspi-structure-mapper": allow

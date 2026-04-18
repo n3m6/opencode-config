@@ -7,10 +7,8 @@ steps: 45
 permission:
   edit: allow
   bash:
-    "*": deny
-    "cat *": allow
-    "ls *": allow
-    "mkdir *": allow
+    "*": allow
+    "rm *": deny
   task:
     "*": deny
     "qrspi-plan-writer": allow

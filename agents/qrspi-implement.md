@@ -7,9 +7,8 @@ steps: 40
 permission:
   edit: allow
   bash:
-    "*": deny
-    "cat *": allow
-    "ls *": allow
+    "*": allow
+    "rm *": deny
   task:
     "*": deny
     "qrspi-impl-red": allow

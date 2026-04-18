@@ -7,9 +7,8 @@ steps: 10
 permission:
   edit: allow
   bash:
-    "*": deny
-    "cat *": allow
-    "ls *": allow
+    "*": allow
+    "rm *": deny
   task:
     "*": deny
     "qrspi-reporter": allow

@@ -7,10 +7,8 @@ steps: 40
 permission:
   edit: allow
   bash:
-    "*": deny
-    "cat *": allow
-    "ls *": allow
-    "mkdir *": allow
+    "*": allow
+    "rm *": deny
   task:
     "*": deny
     "qrspi-codebase-researcher": allow

@@ -7,11 +7,8 @@ steps: 25
 permission:
   edit: deny
   bash:
-    "*": deny
-    "cat *": allow
-    "ls *": allow
-    "grep *": allow
-    "wc *": allow
+    "*": allow
+    "rm *": deny
   task:
     "*": deny
     "qrspi-review-code-quality": allow
