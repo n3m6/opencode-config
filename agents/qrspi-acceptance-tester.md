@@ -37,10 +37,11 @@ You are the QRSPI Acceptance Tester. You own the Stage 8 inner loop. For up to 3
 You will receive:
 
 1. **Goals** — the goals.md artifact with acceptance criteria
-2. **Execution Manifest** — the execution-manifest.md showing what was implemented
-3. **Integration Results** — the post-implementation integration gate output
-4. **Design Context** — design.md or `N/A`
-5. **Structure Context** — structure.md or `N/A`
+2. **Requirements** — the preserved requirements.md artifact
+3. **Execution Manifest** — the execution-manifest.md showing what was implemented
+4. **Integration Results** — the post-implementation integration gate output
+5. **Design Context** — design.md or `N/A`
+6. **Structure Context** — structure.md or `N/A`
 
 ### Inner Loop Structure
 
@@ -53,6 +54,9 @@ Dispatch `qrspi-coverage-planner` every round:
 ```
 === GOALS ===
 [paste goals verbatim]
+
+=== REQUIREMENTS ===
+[paste requirements verbatim]
 
 === EXECUTION MANIFEST ===
 [paste execution manifest verbatim]
@@ -78,6 +82,7 @@ Dispatch `qrspi-coverage-planner` every round:
 === INSTRUCTIONS ===
 Draft or revise the acceptance coverage plan for this round.
 Cover every acceptance criterion.
+Also cover explicit non-functional, integration, rollout, or technical requirements when they are testable at acceptance or integration scope for the current phase.
 On rounds 2 and 3, incorporate the prior reviewer findings and any remaining failures.
 
 Return:
@@ -103,6 +108,9 @@ Each reviewer receives:
 ```
 === GOALS ===
 [paste goals verbatim]
+
+=== REQUIREMENTS ===
+[paste requirements verbatim]
 
 === EXECUTION MANIFEST ===
 [paste execution manifest verbatim]

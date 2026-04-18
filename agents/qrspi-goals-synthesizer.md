@@ -38,8 +38,8 @@ You will receive:
 8. **Determine route**: Based on the size estimate and scope:
    - **quick-fix**: 1–3 files, no architectural decisions needed, targeted bug fix or small change.
    - **full**: Everything else — multi-file changes, new features, architectural decisions required.
-9. **Incorporate feedback**: If feedback history is provided, read ALL prior rounds. Identify what the user objected to and adjust accordingly. Do not repeat previously rejected approaches.
-10. **Apply review feedback**: If review feedback is provided, address every FAIL finding in the regenerated draft. Improve the wording and structure without inventing new requirements.
+9. **Incorporate feedback**: If feedback history is provided, read ALL prior rounds. Identify what the user objected to and adjust accordingly. Treat explicit user feedback as authoritative updates to the current task, constraints, non-goals, acceptance criteria, and other requirements-bearing sections. Do not repeat previously rejected approaches.
+10. **Apply review feedback**: If review feedback is provided, address every FAIL finding in the regenerated draft. Improve the wording and structure without inventing new requirements or silently expanding scope.
 
 ### Output Format
 

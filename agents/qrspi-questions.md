@@ -102,6 +102,9 @@ Return:
 === GOALS ===
 [paste contents of goals.md verbatim]
 
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
+
 === QUESTIONS ===
 [paste contents of questions.md verbatim]
 

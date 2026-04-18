@@ -116,6 +116,8 @@ Route: [full or quick-fix]
 Slice: [slice name]
 Dependencies: [task numbers or None]
 Scope: [what this task covers]
+NFRs: [in-scope NFR labels or `None.`]
+Gate Criteria: [replan gate criteria this task helps satisfy, or `None.`]
 Files: [exact file paths with CREATE or MODIFY]
 LOC Estimate: ~[N]
 

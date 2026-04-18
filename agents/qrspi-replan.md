@@ -222,6 +222,12 @@ After writing the updated artifacts, run an internal review loop.
 === NEXT PHASE TASK SPECS ===
 [paste contents of the task-NN.md files in <next-phase-dir>/tasks/ verbatim]
 
+=== EXECUTION MANIFEST ===
+[paste contents of <completed-phase-dir>/execution-manifest.md verbatim]
+
+=== ACCEPTANCE RESULTS ===
+[paste contents of <completed-phase-dir>/acceptance-results.md verbatim]
+
 === COMPLETED PHASE ===
 [paste the completed phase number]
 
@@ -231,6 +237,7 @@ After writing the updated artifacts, run an internal review loop.
 === INSTRUCTIONS ===
 Review the replanned remaining work for:
 - continued alignment to the existing goals
+- evidence-based justification from the completed phase's execution and acceptance results
 - correct classification of any minor design amendments versus real design drift
 - no silent design drift
 - phase coherence after the completed phase

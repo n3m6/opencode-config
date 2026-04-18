@@ -23,7 +23,7 @@ You will receive:
 1. **Goals** — the goals.md artifact
 2. **Research Summary** — the research/summary.md artifact
 3. **Plan Overview** — the current plan overview and task order
-4. **Task Outline** — the assigned task number, title, dependencies, phase, slice, and intended scope
+4. **Task Outline** — the assigned task number, title, dependencies, phase, slice, intended scope, NFR coverage, and gate criteria
 5. **Design Context** — the relevant design sections, or `N/A` for quick-fix
 6. **Structure Context** — the relevant structure sections, or `N/A` for quick-fix
 
@@ -32,7 +32,8 @@ You will receive:
 1. Read the inputs in full.
 2. If needed, use read-only shell commands to verify file names, conventions, or existing paths in the codebase.
 3. Expand the task outline into a self-contained task spec.
-4. Make sure the task can be implemented without re-reading the full design or structure artifacts.
+4. Preserve the task outline's NFR coverage and gate criteria in the task spec so downstream implementation and review can trace why the task exists.
+5. Make sure the task can be implemented without re-reading the full design or structure artifacts.
 
 ### Output Format
 
@@ -51,6 +52,10 @@ Return exactly one `### task-NN.md` section:
 
 ## Dependencies
 - None
+
+## Traceability
+- **NFRs:** [task-specific NFR labels, or `None.`]
+- **Replan Gate Criteria:** [task-specific gate criteria, or `None.`]
 
 ## Description
 [Detailed description of what to implement. Include relevant interfaces, responsibilities,
@@ -75,6 +80,7 @@ and expected behavior so the implementer does not need to guess.]
 - Produce exactly one task section.
 - Use the task number from the task outline.
 - Include all metadata fields shown above.
+- Include the `## Traceability` section using the NFR and gate metadata from the task outline.
 - Keep the task self-contained. Do not say "see Task N", "same as above", or "see design.md".
 - Use exact file paths. Do not list directories, patterns, or vague buckets.
 - Make test expectations concrete. Each one must state a trigger and an expected outcome.

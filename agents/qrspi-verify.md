@@ -39,6 +39,7 @@ Extract the run ID from the prompt. Use it to construct all pipeline file paths:
 Read the input files:
 
 - `cat .pipeline/<run-id>/goals.md`
+- `cat .pipeline/<run-id>/requirements.md`
 - `cat .pipeline/<run-id>/baseline-results.md`
 - `ls .pipeline/<run-id>/phases/phase-*/`
 - For each phase directory: `cat .pipeline/<run-id>/phases/phase-NN/execution-manifest.md`
@@ -51,6 +52,9 @@ Invoke `qrspi-verifier` via the `task` tool:
 ```
 === GOALS ===
 [paste contents of goals.md verbatim]
+
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
 
 === EXECUTION MANIFEST (ALL PHASES) ===
 [for each phase directory, prepend `## Phase N` and paste that phase's execution-manifest.md verbatim]
@@ -65,13 +69,15 @@ Invoke `qrspi-verifier` via the `task` tool:
 Verify that the implementation is complete and correct:
 1. Run the full build, lint, and test suite
 2. Verify all acceptance criteria passed
-3. Compare current failures against the recorded baseline and distinguish unchanged pre-existing failures from new regressions
+3. Verify explicit non-functional, compatibility, rollout, and technical requirements when the available evidence can prove or disprove them
+4. Compare current failures against the recorded baseline and distinguish unchanged pre-existing failures from new regressions
 
 If build/lint/test fails, fix and retry (max 3 iterations).
 
 Return:
 ### Build/Lint/Test Results — table with Check, Status, Details columns
 ### Baseline Comparison — table with Check, Baseline Status, Current Status, Regression Status columns
+### Requirement Checks — table with Requirement, Evidence, Status, Notes columns
 ### Verification Iterations — how many fix cycles were needed
 ### Overall Status — PASS (all green) / PARTIAL (only recorded baseline failures remain unchanged) / FAIL (build broken, critical failures, or new regressions)
 ### Stage Summary — one-line summary including overall status

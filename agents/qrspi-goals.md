@@ -1,5 +1,5 @@
 ---
-description: "Stage 1 orchestrator — captures user intent via interactive dialogue, preserves the raw user task, dispatches goals synthesizer, and runs human gate for approval. Writes requirements.md, goals.md, and config.md."
+description: "Stage 1 orchestrator — captures user intent via interactive dialogue, preserves the user task and explicit requirement updates, dispatches goals synthesizer, and runs human gate for approval. Writes requirements.md, goals.md, and config.md."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -37,13 +37,13 @@ You will receive from deepwork:
 
 Extract the run ID and user task from the prompt. Use the run ID to construct all pipeline file paths: `.pipeline/<run-id>/`.
 
-### Step A0 — Preserve Raw Requirements
+### Step A0 — Preserve Initial Requirements
 
 Before asking follow-up questions, write the original `User Task` input verbatim to `.pipeline/<run-id>/requirements.md` using the edit tool.
 
 - Preserve the user's original wording exactly, whether it is a brief prompt or a full PRD.
 - Do not summarize, normalize, or restructure this artifact.
-- This artifact is a downstream reference source and must remain stable across review rounds unless the user explicitly changes the task itself.
+- This artifact is a downstream reference source and must remain stable across automated review rounds unless the user explicitly changes the task itself during the human gate.
 
 ### Step A — Gather Intent via Sequential Dialogue
 
@@ -60,9 +60,9 @@ Describe the feature, fix, or change, plus the problem it solves or the value it
 
 2. Perform a scope decomposition check on the user's answer before continuing:
 
-- If the request appears to bundle multiple independent subsystems or loosely related tracks of work, stop and ask the user to narrow the scope or confirm the primary slice to capture in this run.
-- Explain that each independent slice should usually get its own QRSPI run so downstream stages do not mix unrelated work.
-- Do not proceed until the scope is narrowed or the user explicitly confirms one coherent slice.
+- If the request appears to bundle multiple independent subsystems or loosely related tracks of work, warn the user that each independent slice should usually get its own QRSPI run so downstream stages do not mix unrelated work.
+- Ask whether they want to narrow the scope or intentionally keep the combined scope for this run.
+- If the user explicitly confirms the combined scope, proceed and record that decision in the synthesizer input rather than blocking the run.
 
 3. Ask for constraints:
 
@@ -155,6 +155,8 @@ missing boundaries, or oversized scope.
 - If the reviewer returns `### Status — PASS` and `review_round` is less than 3, increment `review_round` and run the reviewer again on the unchanged current artifact. This satisfies the minimum 3-round requirement.
 - If the reviewer returns `### Status — FAIL` and `review_round` is less than 5, re-dispatch `qrspi-goals-synthesizer` with the original inputs plus:
 
+  Preserve the existing `requirements.md` artifact unchanged for this path because reviewer feedback does not change the user's task.
+
   ```
   === REVIEW FEEDBACK ===
   [paste the reviewer output verbatim]
@@ -206,8 +208,19 @@ Reply **approve** to proceed, or provide your feedback for revision.
 ```
 
 d. Read all prior feedback files for this step: `cat .pipeline/<run-id>/feedback/goals-round-*.md`
-e. Re-dispatch `qrspi-goals-synthesizer` with original inputs plus a `=== FEEDBACK HISTORY ===` section containing all feedback files.
-f. When the synthesizer returns, overwrite `goals.md` and `config.md`, reset `review_round = 1`, and return to Step D so the automated review loop restarts before the next human review.
+e. Rebuild `.pipeline/<run-id>/requirements.md` using the edit tool so it contains:
+
+```
+## Original User Task
+[original User Task verbatim]
+
+## User Feedback Updates
+[paste the `### User Feedback` content from every feedback file verbatim, in order]
+```
+
+Do not copy the `### Rejected Artifact` blocks into `requirements.md`.
+f. Re-dispatch `qrspi-goals-synthesizer` with original inputs plus a `=== FEEDBACK HISTORY ===` section containing all feedback files.
+g. When the synthesizer returns, overwrite `goals.md` and `config.md`, reset `review_round = 1`, and return to Step D so the automated review loop restarts before the next human review.
 
 ### Return
 

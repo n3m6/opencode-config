@@ -89,6 +89,9 @@ After writing the artifact, run an internal review loop before showing the draft
 === GOALS ===
 [paste contents of goals.md verbatim]
 
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
+
 === RESEARCH SUMMARY ===
 [paste contents of research/summary.md verbatim]
 
@@ -100,7 +103,7 @@ After writing the artifact, run an internal review loop before showing the draft
 
 === INSTRUCTIONS ===
 Review this structure draft for design alignment, file action correctness, interface completeness,
-interface compatibility, convention adherence, cross-slice dependency clarity, diagram quality,
+requirements alignment, interface compatibility, convention adherence, cross-slice dependency clarity, diagram quality,
 and granularity. Verify MODIFY and CREATE paths against the codebase.
 ```
 

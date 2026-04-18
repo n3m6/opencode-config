@@ -45,6 +45,7 @@ Read the input files:
 
 - `cat .pipeline/<run-id>/config.md`
 - `cat .pipeline/<run-id>/goals.md`
+- `cat .pipeline/<run-id>/requirements.md`
 - `cat .pipeline/<run-id>/<phase-dir>/execution-manifest.md`
 - `cat .pipeline/<run-id>/<phase-dir>/integration-results.md`
 - `cat .pipeline/<run-id>/phase-manifest.md`
@@ -82,6 +83,9 @@ Invoke `qrspi-acceptance-tester` via the `task` tool:
 ```
 === GOALS ===
 [paste contents of goals.md verbatim]
+
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
 
 === EXECUTION MANIFEST ===
 [paste contents of <phase-dir>/execution-manifest.md verbatim]
