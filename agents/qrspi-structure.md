@@ -142,7 +142,7 @@ and granularity. Verify MODIFY and CREATE paths against the codebase.
 
 Review status: [if terminal review state is `clean`, say "Automated reviews passed clean in round {NN}." If terminal review state is `unclean-cap`, say "Automated reviews reached the 5-round cap; remaining concerns are documented in reviews/structure-review-round-{NN}.md."]
 
-[paste the structure.md content]
+Review the full artifact at `.pipeline/<run-id>/structure.md`.
 
 Reply **approve** to proceed, or provide your feedback for revision.
 

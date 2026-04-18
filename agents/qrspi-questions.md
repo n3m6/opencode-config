@@ -186,14 +186,14 @@ Reply with `1` or `2`.
 ### Step F — Human Gate
 
 1. Read the artifact: `cat .pipeline/<run-id>/questions.md`
-2. Present the artifact to the user via `question`:
+2. Present the review request to the user via `question`:
 
 ```
 ### Questions — Review
 
 Review status: [if `terminal_review_state` is `clean`, say "Automated leakage and quality reviews passed clean in round {NN}." If `terminal_review_state` is `fixed-unverified`, say "Round 1 review issues were fixed, but the revised draft has not been re-verified in a clean review round." If `terminal_review_state` is `unclean-cap`, say "Automated reviews reached the 5-round cap; remaining concerns are documented in question-leakage-review.md and/or question-quality-review.md."]
 
-[paste the questions.md content]
+Review the full artifact at `.pipeline/<run-id>/questions.md`.
 
 Reply **approve** to proceed, or provide your feedback for revision.
 ```

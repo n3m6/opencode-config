@@ -123,7 +123,7 @@ Every stage subagent returns:
 
 If the user provides a run ID, asks to resume, or points at an existing `.pipeline/qrspi-<run-id>/` directory, do not start a new run immediately.
 
-1. Read `agents/deepwork-resume-protocol.md` with `cat`.
+1. Read `protocol/deepwork-resume-protocol.md` with `cat`.
 2. Follow that protocol exactly to recover the route, phase cursor, next stage, refreshed `state.md`, and rebuilt visible checklist.
 3. If the protocol concludes the run is already complete, present the preserved report path and stop.
 
@@ -592,7 +592,7 @@ When `qrspi-report` completes:
 
 When a stage subagent (`qrspi-implement`, `qrspi-accept`, or `qrspi-replan`) includes a `### Backward Loop Request` section in its return:
 
-1. Read `agents/deepwork-backward-loop-protocol.md` with `cat`.
+1. Read `protocol/deepwork-backward-loop-protocol.md` with `cat`.
 2. Follow that protocol exactly using the current route, current phase, and returned backward-loop request details.
 
 ### Error Handling

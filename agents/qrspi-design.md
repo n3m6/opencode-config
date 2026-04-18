@@ -166,14 +166,14 @@ weak replan gates, or vague testing.
 ### Step E — Human Gate
 
 1. Read the artifact: `cat .pipeline/<run-id>/design.md`
-2. Present the artifact to the user via `question`:
+2. Present the review request to the user via `question`:
 
 ```
 ### Design — Review
 
 Review status: [if terminal review state is `clean`, say "Automated reviews passed clean in round {NN}." If terminal review state is `unclean-cap`, say "Automated reviews reached the 5-round cap; remaining concerns are documented in reviews/design-review-round-{NN}.md."]
 
-[paste the design.md content]
+Review the full artifact at `.pipeline/<run-id>/design.md`.
 
 Reply **approve** to proceed, or provide your feedback for revision.
 ```

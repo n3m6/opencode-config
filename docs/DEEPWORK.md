@@ -470,6 +470,8 @@ Four stages require human approval before proceeding:
 
 All human gates present the automated review status to the user ("passed clean in round N" or "reached the N-round cap with remaining concerns documented in ...").
 
+Human gate prompts should stay concise. They should direct the user to the generated artifact path under `.pipeline/qrspi-<run-id>/...` for the full document instead of pasting the entire artifact body into the question prompt.
+
 Rejection captures feedback in `feedback/{step}-round-NN.md`. The re-generation subagent receives all prior feedback files to avoid repeating rejected approaches. After human feedback is incorporated, the automated review loop restarts from round 1 before the next human review.
 
 ---
