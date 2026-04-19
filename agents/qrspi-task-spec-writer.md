@@ -85,6 +85,7 @@ and expected behavior so the implementer does not need to guess.]
 - Keep the task self-contained. Do not say "see Task N", "same as above", or "see design.md".
 - Use exact file paths. Do not list directories, patterns, or vague buckets.
 - Make test expectations concrete. Each one must state a trigger and an expected outcome.
+- Test expectations describe observable behavior from the caller's perspective. Do not name internal functions, helpers, or intermediate states the implementation must use. If a mechanism is required, rephrase it as the observable outcome it produces.
 - If the task has dependencies, list each dependency with what this task needs from it.
 - Keep LOC estimates realistic and include test code.
 - Do not invent new goals, features, files, or abstractions outside the provided scope.
@@ -95,6 +96,8 @@ and expected behavior so the implementer does not need to guess.]
 - Directory-level file references instead of exact paths.
 - Missing acceptance-criteria traceability for the task's described behavior.
 - Test expectations without concrete triggers and outcomes.
+- Test expectations phrased as implementation steps ("calls X", "uses helper Y", "has method Z") instead of observable outcomes.
+- Test expectations that assert on mock call arguments or internal bookkeeping rather than caller-visible results.
 - Dependency references without explaining what is needed from the earlier task.
 - Descriptions that force the implementer to infer interfaces or file responsibilities.
 

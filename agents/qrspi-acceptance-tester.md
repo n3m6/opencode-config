@@ -167,6 +167,13 @@ Write or revise only the acceptance tests described in the coverage plan.
 Use dedicated acceptance-test files.
 Do not run tests in this step.
 
+Test style:
+- Exercise the system through its public surface (HTTP, CLI, public API, user-facing entry points). Do not reach into internal modules or private helpers.
+- Fake only at process boundaries that would make the test slow, flaky, or unsafe (external services, third-party APIs, non-deterministic clocks). Prefer real in-process collaborators and real or in-memory stores.
+- Each test maps to exactly one row of the coverage plan.
+- Assertions check outcomes visible to a real caller — response bodies and status codes, CLI output, emitted messages, state observable via the public API. Do not assert on internal bookkeeping, private method invocations, or mock call shapes unless the mock represents a true external boundary.
+- Do not add tests that only raise line or branch coverage without mapping to a plan row.
+
 Return:
 ### Test Files Created — list
 ### Test Files Modified — list

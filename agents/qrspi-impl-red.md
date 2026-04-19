@@ -72,6 +72,14 @@ Write the failing tests for this task only.
 Run the targeted test slice and confirm at least one test fails for the expected reason.
 Do not implement production code in this step.
 
+Test style:
+- Each test exercises one concrete behavior from the task's test expectations (trigger → observable outcome).
+- Prefer real in-process collaborators. Fake only at process boundaries: network, filesystem, external services, slow or unsafe databases.
+- Do not mock functions or modules owned by the unit under test.
+- Assertions must check observable outcomes — return values, emitted events, persisted state visible through the public interface, or calls made to boundary fakes. Do not assert on internal mock invocation unless the mock represents a true external boundary.
+- Do not test private helpers. If a helper needs direct coverage, exercise it through the public interface that uses it.
+- Do not add tests to raise line or branch coverage. Every test must map to a behavior in the task's expectations.
+
 Return:
 ### Status — PASS or FAIL
 ### Tests Written — list of test files with what they test

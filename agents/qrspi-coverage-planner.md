@@ -58,6 +58,7 @@ You will receive:
 
 - Every acceptance criterion must appear exactly once in the coverage plan.
 - Every entry must include a trigger and expected outcome.
+- Expected outcomes must be observable through the system's public surface (HTTP response, CLI output, emitted event, externally visible persisted state). Do not phrase outcomes as internal state checks or implementation steps.
 - Use the preserved requirements artifact only to strengthen or refine acceptance-scope coverage. Do not invent standalone checks that are unrelated to any acceptance criterion in the current phase.
 - Keep the plan grounded in the execution manifest and user-facing behavior.
 - If design or structure context is `N/A`, do not invent it.
