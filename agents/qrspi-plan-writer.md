@@ -1,5 +1,5 @@
 ---
-description: Writes a plan overview, then dispatches per-task spec writers to produce ordered task specs with dependencies, file paths, test expectations, and LOC estimates. Supports full and quick-fix routes and preserves traceability to requirements, NFRs, and replan gates. Read-only.
+description: Writes a plan overview, then dispatches per-task spec writers to produce ordered task specs with dependencies, file paths, and test expectations. Supports full and quick-fix routes and preserves traceability to requirements, NFRs, and replan gates. Read-only.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -66,7 +66,7 @@ If `Current Plan`, `Current Phase Manifest`, and `Current Task Specs` are presen
 
 1. **Preserve completed phases when loopback context is present.** If `Prior Phase Manifest`, `Completed Phases Context`, or `Failure Context` is provided, treat all phases before `Next Remaining Phase` as locked historical fact. Do not reuse or renumber those completed phases.
 2. **Order remaining tasks by dependency.** Using the vertical slices, phases, file map, preserved requirements, and any failure context, define the remaining tasks that can be implemented sequentially or in parallel waves. Keep closely related work grouped within phases and minimize unnecessary cross-phase coupling. Each task should map to a coherent portion of a vertical slice, except for a bounded foundation slice explicitly allowed by the design.
-3. **Assign task metadata.** For each remaining task, decide the task number, title, phase, slice, dependencies, approximate LOC, and concrete file set. Task numbers are globally stable IDs for the full run, so assign them in monotonic order and avoid any scheme that assumes later renumbering.
+3. **Assign task metadata.** For each remaining task, decide the task number, title, phase, slice, dependencies, and concrete file set. Task numbers are globally stable IDs for the full run, so assign them in monotonic order and avoid any scheme that assumes later renumbering.
 4. **Validate completeness.** Every file in the structure file map that is still relevant to unfinished work must appear in at least one remaining task. Every functional requirement, acceptance criterion, and NFR from goals.md that is still in scope must be materially addressed by the remaining task set. Every concrete replan gate criterion from the design must map to at least one task-level test expectation. Each task must also carry the specific acceptance criteria it advances so downstream execution keeps goal traceability at the task level.
 5. **Write the plan overview and phase manifest.** Draft the overview, phase summary, task order table, wave analysis, and a phase manifest that names each phase, lists its tasks, maps the covered acceptance criteria, and records its replan gate before dispatching task writers. Keep the first phase proving at least one meaningful end-to-end behavior even when a bounded foundation slice is present. If loopback context is present, preserve completed phases from `Prior Phase Manifest` unchanged and number replanned phases starting at `Next Remaining Phase`.
 6. **Dispatch every task.** Invoke `qrspi-task-spec-writer` once per task using the plan overview plus that task's specific outline and relevant context.
@@ -120,7 +120,6 @@ Acceptance Criteria: [specific acceptance criteria IDs, labels, or `None.`]
 NFRs: [in-scope NFR labels or `None.`]
 Gate Criteria: [replan gate criteria this task helps satisfy, or `None.`]
 Files: [exact file paths with CREATE or MODIFY]
-LOC Estimate: ~[N]
 
 === DESIGN CONTEXT ===
 [paste the relevant design sections, or N/A]
@@ -153,12 +152,12 @@ Return a `### plan.md` section, a `### phase-manifest.md` section, and then the 
 - **Phase 2:** [what it proves and which tasks it contains]
 
 ## Task Order
-| # | Task | Dependencies | Phase | Slice | LOC Estimate |
-|---|------|-------------|-------|-------|-------------|
-| 01 | [title] | — | 1 | [slice name or "Quick-fix"] | ~[N] |
-| 02 | [title] | 01 | 1 | [slice name] | ~[N] |
-| 03 | [title] | 01 | 2 | [slice name] | ~[N] |
-| 04 | [title] | 02, 03 | 2 | [slice name] | ~[N] |
+| # | Task | Dependencies | Phase | Slice |
+|---|------|-------------|-------|-------|
+| 01 | [title] | — | 1 | [slice name or "Quick-fix"] |
+| 02 | [title] | 01 | 1 | [slice name] |
+| 03 | [title] | 01 | 2 | [slice name] |
+| 04 | [title] | 02, 03 | 2 | [slice name] |
 ...
 
 ## Wave Analysis
@@ -213,7 +212,6 @@ For quick-fix, always emit exactly:
 - **Dependencies are explicit.** List the specific task numbers and what each task needs from them.
 - **Task IDs stay stable.** Treat task numbers as permanent identifiers for the run. Future replans may add new task numbers, but they should not need to renumber these original tasks.
 - **Preserve completed phase numbering.** When `Next Remaining Phase` is greater than `1`, keep earlier completed phases unchanged and number replanned phases from that phase onward rather than restarting at Phase 1.
-- **LOC estimates are honest.** Include test code in the estimate. If unsure, estimate high.
 - **File paths are exact.** Use the paths from structure.md (full route) or from research findings (quick-fix).
 - **Quick-fix means one task.** For quick-fix, produce exactly one task (`task-01.md`).
 - **Keep related work together.** Prefer grouping tightly related slice work within the same phase unless a clear dependency boundary requires a later phase.
@@ -241,7 +239,7 @@ Good overview row:
 
 ```
 
-| 02 | Profile write path | 01 | 2 | Profile editing | ~85 |
+| 02 | Profile write path | 01 | 2 | Profile editing |
 
 ```
 
@@ -249,7 +247,7 @@ Bad overview row:
 
 ```
 
-| 02 | More backend changes | TBD | ? | Misc | ~20 |
+| 02 | More backend changes | TBD | ? | Misc |
 
 ```
 

@@ -669,11 +669,11 @@ Stage orchestrator. Reads route-appropriate inputs, dispatches the plan writer, 
 
 #### qrspi-plan-writer
 
-Writes ordered task specifications with file paths, descriptions, test expectations, dependencies, phase assignments, LOC estimates, and stable task IDs. Produces `plan.md`, `phase-manifest.md`, and individual `task-NN.md` files. Supports full route (uses all prior artifacts) and quick-fix route (single task from goals + research). Read-only.
+Writes ordered task specifications with file paths, descriptions, test expectations, dependencies, phase assignments, and stable task IDs. Produces `plan.md`, `phase-manifest.md`, and individual `task-NN.md` files. Supports full route (uses all prior artifacts) and quick-fix route (single task from goals + research). Read-only.
 
 #### qrspi-plan-reviewer
 
-Reviews the plan for goals coverage, dependency correctness, phase and wave coherence, task self-containment, file specificity, test expectation specificity, LOC realism, and placeholder-free quality. Flags forward dependencies, vague files, vague tests, missing coverage, or overview/task mismatches. Read-only.
+Reviews the plan for goals coverage, dependency correctness, phase and wave coherence, task self-containment, file specificity, test expectation specificity, and placeholder-free quality. Flags forward dependencies, vague files, vague tests, missing coverage, or overview/task mismatches. Read-only.
 
 #### qrspi-baseline-checker
 
@@ -707,14 +707,14 @@ Runs final verification for a single task, dispatches the specialized code-revie
 
 Per-task review orchestrator. Reads changed files, selects applicable specialist reviewers using deterministic grep and wc signals, dispatches them in parallel, and collates findings. Blocks only on CRITICAL/HIGH severity. Always dispatches code-quality and test-coverage reviewers. Conditionally dispatches others based on code content:
 
-| Reviewer                         | Focus                                      | Trigger                                              |
-| -------------------------------- | ------------------------------------------ | ---------------------------------------------------- |
-| `qrspi-review-code-quality`      | Clean code, maintainability                | Always                                               |
-| `qrspi-review-test-coverage`     | Missing test cases                         | Always                                               |
-| `qrspi-review-security`          | Vulnerabilities, secrets, injection        | Auth/crypto/HTTP/FS signals in code                  |
-| `qrspi-review-silent-failure`    | Swallowed errors, missing logging          | try/catch/error/async signals                        |
-| `qrspi-review-goal-traceability` | Goal-to-code alignment                     | Full route only                                      |
-| `qrspi-review-code-simplifier`   | Over-engineering, unnecessary abstractions | LOC > 200, > 3 files, or wrappers/factories detected |
+| Reviewer                         | Focus                                      | Trigger                                                             |
+| -------------------------------- | ------------------------------------------ | ------------------------------------------------------------------- |
+| `qrspi-review-code-quality`      | Clean code, maintainability                | Always                                                              |
+| `qrspi-review-test-coverage`     | Missing test cases                         | Always                                                              |
+| `qrspi-review-security`          | Vulnerabilities, secrets, injection        | Auth/crypto/HTTP/FS signals in code                                 |
+| `qrspi-review-silent-failure`    | Swallowed errors, missing logging          | try/catch/error/async signals                                       |
+| `qrspi-review-goal-traceability` | Goal-to-code alignment                     | Full route only                                                     |
+| `qrspi-review-code-simplifier`   | Over-engineering, unnecessary abstractions | > 3 files, > 200 changed-file lines, or wrappers/factories detected |
 
 The code simplifier is always non-blocking (advisory only).
 

@@ -90,7 +90,6 @@ Dispatch `qrspi-review-goal-traceability` when the route is `full`.
 
 Dispatch `qrspi-review-code-simplifier` when any of these are true:
 
-- task LOC estimate exceeds 200
 - more than 3 files are modified or created
 - a deterministic grep over the changed files matches `wrapper|factory|helper|adapter|abstraction`
 - a deterministic `wc -l` check shows more than 200 total changed-file lines

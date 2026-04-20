@@ -1,5 +1,5 @@
 ---
-description: Reviews generated plan.md and task specs independently for requirements coverage, dependency correctness, phase quality, and test expectation quality. Flags placeholders, forward dependencies, vague file maps, missing NFR coverage, and unrealistic LOC estimates. Read-only.
+description: Reviews generated plan.md and task specs independently for requirements coverage, dependency correctness, phase quality, and test expectation quality. Flags placeholders, forward dependencies, vague file maps, and missing NFR coverage. Read-only.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -45,7 +45,6 @@ Apply these checks to the current planning artifacts:
 - **Test expectation specificity**: Test expectations define concrete triggers and expected outcomes, including edge cases or error handling where applicable.
 - **Test strategy depth**: Each phase has at least one integration-level or cross-component verification path, not only isolated unit checks.
 - **Replan gate traceability**: Every concrete replan gate criterion from the phase structure is traced to one or more task-level test expectations.
-- **LOC realism**: LOC estimates are plausible for the described scope, including test code.
 - **Placeholder-free quality**: No TBD, TODO, "similar to Task N", "see design.md", or other placeholder language appears in the plan or task specs.
 
 ### Process
@@ -78,7 +77,6 @@ Apply these checks to the current planning artifacts:
 | Test expectation specificity | FAIL | [which expectations are vague or incomplete] |
 | Test strategy depth | FAIL | [which phase lacks integration-level verification] |
 | Replan gate traceability | FAIL | [which replan gate criterion is not mapped to tests] |
-| LOC realism | PASS | [brief reason] |
 | Placeholder-free quality | FAIL | [what placeholder language remains] |
 
 ### Fix Guidance
@@ -144,16 +142,15 @@ Good review:
 | Task self-containment | PASS | Every task explains the target behavior, files, and expected tests without external references. |
 | File specificity | PASS | All files are exact paths with CREATE or MODIFY actions. |
 | Test expectation specificity | PASS | Expectations name concrete triggers, outcomes, edge cases, and failure behavior. |
-| LOC realism | PASS | Estimates match the described implementation and test surface. |
 | Placeholder-free quality | PASS | No placeholder or shortcut language remains. |
 
 ### Fix Guidance
 None.
 
 ### Weakest Areas
-1. LOC realism — The largest task is still under 100 LOC including tests, so the estimate remains acceptable.
-2. Phase and wave coherence — Wave 2 depends on two outputs, but those dependencies are explicit and already encoded consistently.
-3. File specificity — The shared config file appears in two tasks, but each task's change scope is clearly separated.
+1. Phase and wave coherence — Wave 2 depends on two outputs, but those dependencies are explicit and already encoded consistently.
+2. File specificity — The shared config file appears in two tasks, but each task's change scope is clearly separated.
+3. Test strategy depth — The phase-level integration path is narrow, but it still verifies the critical end-to-end behavior.
 
 ### Summary
 PASS — the plan is concrete, internally consistent, and ready for baseline capture.
@@ -173,7 +170,6 @@ Bad review:
 | Task self-containment | FAIL | Task 02 says "similar to Task 01" instead of specifying its own behavior. |
 | File specificity | FAIL | Task 01 lists `src/routes/` instead of concrete files. |
 | Test expectation specificity | FAIL | Task 03 says only "write tests for error cases". |
-| LOC realism | PASS | Estimates are plausible. |
 | Placeholder-free quality | FAIL | Task 02 still includes TBD notes. |
 
 ### Fix Guidance

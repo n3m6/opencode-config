@@ -71,9 +71,6 @@ and expected behavior so the implementer does not need to guess.]
 - [Behavior 2]: When [trigger], expect [outcome]
 - [Edge case]: When [trigger], expect [outcome]
 - [Error case]: When [trigger], expect [error handling]
-
-## LOC Estimate
-~[N] lines
 ```
 
 ### Rules
@@ -87,7 +84,6 @@ and expected behavior so the implementer does not need to guess.]
 - Make test expectations concrete. Each one must state a trigger and an expected outcome.
 - Test expectations describe observable behavior from the caller's perspective. Do not name internal functions, helpers, or intermediate states the implementation must use. If a mechanism is required, rephrase it as the observable outcome it produces.
 - If the task has dependencies, list each dependency with what this task needs from it.
-- Keep LOC estimates realistic and include test code.
 - Do not invent new goals, features, files, or abstractions outside the provided scope.
 
 ### Red Flags
@@ -139,9 +135,6 @@ Implement Express middleware that checks the caller's request count against the 
 - Calls `next()` and increments the Redis counter when the client is under the limit.
 - Uses the `X-Forwarded-For` value when present and falls back to the socket IP when it is not.
 - Returns 429 instead of 500 when Redis is unavailable, matching the fail-closed policy.
-
-## LOC Estimate
-~70 lines
 ```
 
 Bad task spec:
@@ -169,7 +162,4 @@ Add rate limiting. Similar to Task 02 but in middleware.
 ## Test Expectations
 - Verify rate limiting works.
 - Handle edge cases.
-
-## LOC Estimate
-~20 lines
 ```

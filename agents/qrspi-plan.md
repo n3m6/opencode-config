@@ -108,7 +108,7 @@ Write an ordered implementation plan overview and delegate every task spec.
 The plan overview must include:
 - Overview
 - Phase Summary
-- Task Order table with Dependencies, Phase, Slice, and LOC Estimate
+- Task Order table with Dependencies, Phase, and Slice
 - Wave Analysis
 - Coverage Notes that map acceptance criteria, NFRs, replan gate criteria, and file-map coverage to tasks
 Optimize phase grouping around related work and minimize unnecessary cross-phase dependencies.
@@ -120,7 +120,6 @@ Each task spec must include:
 - Description
 - Files (exact paths, CREATE or MODIFY)
 - Test Expectations (specific behaviors to verify, edge cases, error conditions)
-- LOC Estimate
 The phase manifest must include:
 - `total_phases`
 - one section per phase with a phase name, included tasks, covered acceptance criteria, and the replan gate
@@ -148,7 +147,7 @@ This is a quick-fix: produce exactly one task.
 The plan overview must include:
 - Overview
 - Phase Summary
-- Task Order table with Dependencies, Phase, Slice, and LOC Estimate
+- Task Order table with Dependencies, Phase, and Slice
 - Wave Analysis
 - Coverage Notes that map acceptance criteria and relevant NFRs to Task 01
 The task spec must include:
@@ -158,7 +157,6 @@ The task spec must include:
 - Description
 - Files (exact paths, CREATE or MODIFY)
 - Test Expectations (specific behaviors to verify)
-- LOC Estimate
 Also produce a phase-manifest.md with exactly one phase that contains Task 01 and the relevant acceptance criteria.
 Return a plan.md, a phase-manifest.md, and a single task-01.md.
 ```
@@ -217,7 +215,7 @@ After writing the draft artifacts, run an internal review loop before baseline c
 === INSTRUCTIONS ===
 Review this plan draft for goals coverage, dependency correctness, phase and wave coherence,
 NFR coverage, phase cohesion, cross-phase coupling, task self-containment, file specificity,
-acceptance traceability, test expectation specificity, test strategy depth, replan gate traceability, LOC realism,
+acceptance traceability, test expectation specificity, test strategy depth, replan gate traceability,
 and placeholder-free quality. When later-phase loopback context is present, also verify that completed phases remain preserved unchanged and that replanned phases start at `NEXT REMAINING PHASE`. Flag forward dependencies, vague files, vague tests,
 missing coverage, overview/task mismatches, or conflicts with preserved completed-phase history.
 ```
@@ -246,7 +244,7 @@ On review rounds 2 and later, dispatch `qrspi-plan-reviewer` via the `task` tool
 === INSTRUCTIONS ===
 Review the current plan draft for goals coverage, dependency correctness, phase and wave coherence,
 NFR coverage, phase cohesion, cross-phase coupling, task self-containment, file specificity,
-acceptance traceability, test expectation specificity, test strategy depth, replan gate traceability, LOC realism,
+acceptance traceability, test expectation specificity, test strategy depth, replan gate traceability,
 and placeholder-free quality.
 Use `GOALS`, `REQUIREMENTS`, and `REVIEW BASELINE` to confirm that previously flagged issues were fixed and that
 previously-passing areas remain stable without requiring the full upstream artifact set again.
@@ -306,7 +304,7 @@ After the review loop ends, append a final review status block to every `tasks/t
 - **Outstanding Concerns:** ["None." if clean, otherwise paste the final review summary verbatim]
 ```
 
-Do not change the existing Metadata, Dependencies, Description, Files, Test Expectations, or LOC Estimate sections.
+Do not change the existing Metadata, Dependencies, Description, Files, or Test Expectations sections.
 
 ### Step F — Dispatch Baseline Checker
 
