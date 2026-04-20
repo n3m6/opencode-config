@@ -169,6 +169,10 @@
   │  │  │   qrspi-code-review    │  │  (6 specialist reviewers) │
   │  │  └────────────────────────┘  │                           │
   │  │  ┌────────────────────────┐  │                           │
+   │  │  │qrspi-e2e-regression-  │  │                           │
+   │  │  │checker                │  │  (wave-level E2E gate)    │
+   │  │  └────────────────────────┘  │                           │
+   │  │  ┌────────────────────────┐  │                           │
   │  │  │qrspi-integration-      │  │                           │
   │  │  │checker                 │  │                           │
   │  │  └────────────────────────┘  │                           │
@@ -177,6 +181,7 @@
   │  └─────────────┬────────────────┘                           │
   │                │                                            │
      │  Outputs: phases/phase-NN/execution-manifest.md,            │
+   │           phases/phase-NN/e2e-regression-results.md,        │
      │           phases/phase-NN/stage7-summary.md,                │
      │           phases/phase-NN/integration-results.md,           │
      │           phases/phase-NN/stage7-integration-summary.md     │
@@ -311,7 +316,7 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 | `structure.md`                    | Stage 5                      | File mapping, interfaces, create/modify, Mermaid diagram                    |
 | `plan.md`                         | Stage 6, 8.5                 | Current remaining-work implementation plan                                  |
 | `phase-manifest.md`               | Stage 6, 8.5                 | Current phase ordering, task-to-phase mapping, and replan gates             |
-| `baseline-results.md`             | Stage 6                      | Pre-implementation build/test baseline                                      |
+| `baseline-results.md`             | Stage 6                      | Pre-implementation build/lint/typecheck/E2E/test baseline                   |
 | `tasks/task-NN.md`                | Stage 6                      | Canonical initial task specs with appended review status                    |
 | `reviews/*.md`                    | Stages 1, 3, 4, 5, 6, 8, 8.5 | Automated review history                                                    |
 | `feedback/{step}-round-NN.md`     | Any gate                     | Rejection feedback + rejected artifact                                      |
@@ -328,6 +333,7 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 | `phases/phase-01/tasks/ -> ../../tasks/`        | Deepwork   | Symlink from Phase 1 to the canonical Stage 6 task set                    |
 | `phases/phase-NN/tasks/task-NN.md`              | Stage 8.5  | Complete task set for that phase, with stable task IDs and review status  |
 | `phases/phase-NN/execution-manifest.md`         | Stage 7    | Per-phase execution and review results                                    |
+| `phases/phase-NN/e2e-regression-results.md`     | Stage 7    | Per-wave E2E regression results for the phase                             |
 | `phases/phase-NN/stage7-summary.md`             | Stage 7    | Per-phase implementation summary                                          |
 | `phases/phase-NN/integration-results.md`        | Stage 7    | Per-phase integration results                                             |
 | `phases/phase-NN/stage7-integration-summary.md` | Stage 7    | Per-phase integration summary                                             |
@@ -671,7 +677,7 @@ Reviews the plan for goals coverage, dependency correctness, phase and wave cohe
 
 #### qrspi-baseline-checker
 
-Records the pre-implementation build and test baseline before Stage 7 begins. Produces `baseline-results.md`, capturing known pre-existing failures without attempting fixes.
+Records the pre-implementation build, lint, typecheck, E2E, and test baseline before Stage 7 begins. Produces `baseline-results.md`, capturing known pre-existing failures without attempting fixes and marking missing checks as `SKIPPED` or `NOT CONFIGURED`.
 
 ---
 
@@ -679,7 +685,11 @@ Records the pre-implementation build and test baseline before Stage 7 begins. Pr
 
 #### qrspi-implement
 
-Stage orchestrator. Analyzes current-phase task dependencies into waves, then runs three per-wave task batches in sequence: RED, GREEN, and VERIFY. It validates that every task listed for the phase exists in `phases/phase-NN/tasks/`, records per-task review outcomes, runs integration checks, and writes phase-local execution artifacts.
+Stage orchestrator. Analyzes current-phase task dependencies into waves, then runs three per-wave task batches in sequence: RED, GREEN, and VERIFY. After each completed wave it runs a wave-level E2E regression gate, then after all waves it runs integration and baseline-regression checks. It validates that every task listed for the phase exists in `phases/phase-NN/tasks/`, records per-task review outcomes, and writes phase-local execution artifacts.
+
+#### qrspi-e2e-regression-checker
+
+Wave-level E2E regression gate. Re-runs the configured E2E command when the baseline says E2E is configured, compares current failures against the baseline E2E inventory, attributes new failures to suspected task IDs using the cumulative execution manifest, and returns PASS or FAIL without fixing anything.
 
 #### qrspi-impl-red
 
@@ -758,7 +768,7 @@ Stage orchestrator. Enumerates `phases/phase-*/` and dispatches the verifier wit
 
 #### qrspi-verifier
 
-Runs the full build/lint/test suite, checks aggregated per-phase acceptance results, and compares current failures against `baseline-results.md`. Fixes issues via a verify→fix loop (max 3 iterations). Reports PASS / PARTIAL / FAIL while distinguishing unchanged baseline failures from new regressions.
+Runs the full configured build/lint/typecheck/E2E/test suite, checks aggregated per-phase acceptance results, and compares current failures against `baseline-results.md`. Fixes issues via a verify→fix loop (max 3 iterations). Reports PASS / PARTIAL / FAIL while distinguishing unchanged baseline failures from new regressions.
 
 ---
 
@@ -770,4 +780,4 @@ Stage orchestrator. Enumerates `phases/phase-*/`, reads per-phase stage summarie
 
 #### qrspi-reporter
 
-Formats the Final Report from pipeline config, goals summary, phase manifest, `baseline-results.md`, per-phase acceptance results, per-phase replan notes, and the per-phase stage summaries. Produces a structured markdown report with pipeline route, phase structure, baseline status, per-phase implementation and acceptance status, build/test status, acceptance criteria results, overall status, unresolved items, and the preserved audit trail path. Never writes code or modifies files.
+Formats the Final Report from pipeline config, goals summary, phase manifest, `baseline-results.md`, per-phase acceptance results, per-phase replan notes, and the per-phase stage summaries. Produces a structured markdown report with pipeline route, phase structure, baseline status, per-phase implementation and acceptance status, build/lint/typecheck/E2E/test status, acceptance criteria results, overall status, unresolved items, and the preserved audit trail path. Never writes code or modifies files.

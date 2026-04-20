@@ -324,13 +324,20 @@ Read all final task files. Invoke `qrspi-baseline-checker` via the `task` tool:
 
 === INSTRUCTIONS ===
 Record the pre-implementation baseline for this repository.
-Run the project's standard build and test checks before any Stage 7 work begins.
-If checks already fail, record them as known baseline failures and do not attempt fixes.
+Run the project's standard pre-implementation checks before any Stage 7 work begins:
+- Build
+- Lint
+- Typecheck
+- E2E
+- Tests
+If a standard command for a check does not exist, record `NOT CONFIGURED` for that row.
+If a check exists but cannot be run in this baseline pass because of missing infrastructure or environment, record `SKIPPED` and explain why.
+If checks already fail, record them in the failure inventory and do not attempt fixes.
 
 Return:
 ### Baseline Status — CLEAN or DIRTY
-### Build/Test Results — table with Check, Status, Details
-### Known Baseline Failures — list each pre-existing failure, or "None"
+### Check Results — table with Check, Status, Command, Details
+### Failure Inventory — table with Check, Failure / Error, File(s), Notes, or `None.`
 ### Stage Summary — one-line summary of the baseline state
 ```
 
