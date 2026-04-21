@@ -1,5 +1,5 @@
 ---
-description: "Stage 8 orchestrator — dispatches the acceptance tester inner loop for the current phase and, when failures persist, a backward-loop detector. Writes coverage-plan.md, acceptance-results.md, backward-loop-analysis.md, and stage8-summary.md inside the current phase directory, plus phase-scoped review artifacts."
+description: "Stage 8 orchestrator — dispatches a phase-scoped, reviewer-gated acceptance tester inner loop for the current phase and, when failures persist, a backward-loop detector. Writes coverage-plan.md, acceptance-results.md, backward-loop-analysis.md, and stage8-summary.md inside the current phase directory, plus phase-scoped review artifacts."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -106,14 +106,17 @@ Invoke `qrspi-acceptance-tester` via the `task` tool:
 
 === INSTRUCTIONS ===
 Run the acceptance-test inner loop with a maximum of 3 rounds.
-Test only the acceptance criteria assigned to the current phase in `phase-manifest.md`.
+Before round 1, extract only the acceptance criteria assigned to the current phase in `phase-manifest.md`.
+Resolve phase-manifest labels or IDs against `goals.md` when possible, and treat that current-phase list as the authoritative Stage 8 scope.
+If the current phase has no assigned acceptance criteria, do not invent any. Return `PASS` with an empty coverage plan and empty acceptance results.
 Each round must:
-1. Dispatch `qrspi-coverage-planner` to draft or revise a coverage plan for every acceptance criterion
+1. Dispatch `qrspi-coverage-planner` to draft or revise a coverage plan for the current-phase criteria only, with an `Action` of `reuse`, `revise`, `new`, or `blocked` for each criterion
 2. Dispatch the 3 acceptance reviewers in parallel to detect plan issues
-3. Revise the plan from reviewer findings
-4. Dispatch the writer subagent to write the planned acceptance tests
-5. Dispatch the execution subagent to run the tests
-6. If tests fail for a simple local bug, allow up to 2 fix attempts in that round
+3. Keep revising and re-reviewing the plan until no blocking (`CRITICAL` or `HIGH`) findings remain, with at most 3 plan-review cycles per round
+4. Dispatch the writer subagent only after blocking findings are cleared
+5. Reconcile reused, revised, created, and deleted test files so stale coverage is removed before execution
+6. Dispatch the execution subagent to run the active tests and mark `blocked` criteria as `FAIL` without inventing tests
+7. If tests fail for a simple local bug, allow up to 2 fix attempts in that round
 
 Return:
 ### Status — PASS or FAIL
@@ -128,9 +131,9 @@ Return:
 
 When `qrspi-acceptance-tester` completes:
 
-- Write `### Coverage Plan` to `.pipeline/<run-id>/<phase-dir>/coverage-plan.md`.
+- Write `### Coverage Plan` to `.pipeline/<run-id>/<phase-dir>/coverage-plan.md`, preserving the action and action-rationale fields.
 - Write `### Acceptance Results` to `.pipeline/<run-id>/<phase-dir>/acceptance-results.md`.
-- Write each round block from `### Review Round Artifacts` to `.pipeline/<run-id>/reviews/acceptance-phase-[PP]-review-round-NN.md` so prior phases are not overwritten.
+- Write each round block from `### Review Round Artifacts` to `.pipeline/<run-id>/reviews/acceptance-phase-[PP]-review-round-NN.md` so prior phases are not overwritten. Each round block must preserve the reconciliation summary.
 
 ### Step D — Dispatch Backward-Loop Detector When Needed
 

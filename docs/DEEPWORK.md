@@ -728,15 +728,15 @@ Runs a lightweight integration gate after all implementation waves complete. Che
 
 #### qrspi-accept
 
-Stage orchestrator. Dispatches the acceptance tester to run an inner review/write/run loop (max 3 rounds) against the current phase's acceptance criteria. If persistent failures remain, dispatches the backward-loop detector to classify them and recommend next steps. Writes phase-local coverage, acceptance, summary, and backward-loop analysis artifacts plus phase-scoped review history.
+Stage orchestrator. Dispatches the acceptance tester to run a phase-scoped inner review/revise/write/run loop (max 3 rounds) against the acceptance criteria assigned to the current phase. It blocks test generation until blocking review findings clear, reconciles reused/revised/created/deleted tests before execution, and if persistent failures remain dispatches the backward-loop detector to classify them and recommend next steps. Writes phase-local coverage, acceptance, summary, and backward-loop analysis artifacts plus phase-scoped review history.
 
 #### qrspi-coverage-planner
 
-Drafts or revises the acceptance coverage plan for a single round. Maps every acceptance criterion to a concrete test type, trigger, expected outcome, and relevant files or components from the execution manifest before any acceptance reviewers or test-writing work runs.
+Drafts or revises the current phase's acceptance coverage plan for a single round. Maps each phase-scoped criterion to a lifecycle action (`reuse`, `revise`, `new`, or `blocked`), a concrete test type, trigger, expected outcome, relevant files or components, and a planned test file before any acceptance reviewers or test-writing work runs.
 
 #### qrspi-acceptance-tester
 
-Runs the acceptance test inner loop: dispatches the coverage planner, dispatches 3 acceptance reviewers in parallel to detect plan issues, writes and runs the acceptance tests, and allows up to 2 fix attempts per round for simple local bugs with an explicit root-cause statement before any fix. Tests only the acceptance criteria assigned to the current phase in `phase-manifest.md`. Reports per-criterion PASS or FAIL.
+Runs the acceptance test inner loop: dispatches the coverage planner, dispatches 3 acceptance reviewers in parallel to detect plan issues, blocks test generation until blocking review findings clear, writes or reconciles the active acceptance tests, validates that stale coverage was deleted before execution, and allows up to 2 fix attempts per round for simple local bugs with an explicit root-cause statement before any fix. Tests only the acceptance criteria assigned to the current phase in `phase-manifest.md`. Reports per-criterion PASS or FAIL.
 
 #### qrspi-backward-loop-detector
 
