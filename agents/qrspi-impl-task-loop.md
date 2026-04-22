@@ -235,6 +235,7 @@ Handle the verify result according to **Verify Result Handling**.
 Use a maximum of 3 local recovery retries after the first failed verify result. This gives the task up to 4 total verify invocations: the initial verify attempt plus retries 1, 2, and 3.
 
 Treat the following as retry-eligible local failures:
+
 - `### Status — FAIL` with `### Review Status — NOT RUN`
 - `### Status — FAIL` with `### Review Status — UNRESOLVED`
 - `### Status — PASS` with `### Review Status` other than `CLEAN`; normalize this to a local contract violation instead of passing it upward
