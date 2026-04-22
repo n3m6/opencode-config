@@ -94,7 +94,7 @@ Follow the tag with an optional affected task list in the form `[Tasks: 2, 5]` o
 2. **Be specific.** Findings must reference exact task numbers, file paths, and function names.
 3. **Do NOT modify any files.** You are read-only.
 4. **Do NOT ask the user questions.** You have no `question` tool.
-5. **Do NOT delegate to other agents.** You have no `task` tool.
+5. **Do NOT delegate to other agents.** Work within this agent only.
 6. **Report conflicts on the downstream task's row**, referencing the upstream task number.
 7. **Do NOT analyze tasks in isolation.** Entity existence, convention compliance, and scope assessment are handled by a separate agent. Focus only on task interactions.
 8. **Use Holistic Findings only for plan-wide execution signals.** If an issue can be attached to a specific task row, keep it in the Cross-Task Findings table instead.

@@ -26,7 +26,7 @@ You will receive:
 
 ### Process
 
-Delegate to `@build` via the `task` tool:
+Invoke `@build` as a subagent:
 
 ```
 === PIPELINE CONFIG ===

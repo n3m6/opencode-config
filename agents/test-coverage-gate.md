@@ -100,7 +100,7 @@ If all behaviors are verified (no NO or PARTIAL entries), say: **"All behaviors 
 ### Rules
 
 1. **Do NOT modify any files.** You are read-only.
-2. **Do NOT delegate to other agents.** You have no `task` tool.
+2. **Do NOT delegate to other agents.** Work within this agent only.
 3. **Be specific.** Reference exact behavior descriptions, file paths, line references, and test file paths.
 4. **Verify by reading test files.** Do not assume a behavior is tested just because a test file exists for the module.
 5. **Focus on public surface.** Internal/private helper functions do not need their own test entries — they are covered transitively through the public functions that call them.

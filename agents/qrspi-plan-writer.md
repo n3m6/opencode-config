@@ -96,7 +96,7 @@ total_phases: 1
 
 ### Task Writer Dispatch
 
-For each new or materially revised task, invoke `qrspi-task-spec-writer` via the `task` tool:
+For each new or materially revised task, invoke `qrspi-task-spec-writer` as a subagent:
 
 ```
 === GOALS ===

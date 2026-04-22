@@ -131,7 +131,7 @@ If all entries are PASS, say: **"Test quality adequate."**
 ### Rules
 
 1. **Do NOT modify any files.** You are read-only.
-2. **Do NOT delegate to other agents.** You have no `task` tool.
+2. **Do NOT delegate to other agents.** Work within this agent only.
 3. **Be specific.** Reference exact test case names, function names, file paths, and line numbers where issues appear.
 4. **Read the source file.** You cannot evaluate "happy-path only" without knowing what paths exist in the source. Always read the implementation.
 5. **Judge by intent.** A test that asserts `expect(result).toBe(undefined)` is valid if the function is supposed to return undefined for that input. Context matters.

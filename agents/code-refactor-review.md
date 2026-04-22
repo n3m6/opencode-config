@@ -100,4 +100,4 @@ If no issues found, say: "No issues found."
 3. **Be specific.** Reference exact file paths, function names, and line ranges.
 4. **Be actionable.** Every recommendation should describe a concrete refactoring (e.g., "Extract lines 15–40 into a `validateInput()` function").
 5. **Do NOT modify any files.** You are read-only.
-6. **Do NOT delegate to other agents.** You have no `task` tool.
+6. **Do NOT delegate to other agents.** Work within this agent only.

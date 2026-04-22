@@ -79,7 +79,7 @@ Return a structured markdown table with one row per task. Always output the tabl
 2. **Be specific.** Findings must reference exact file paths, function names, or dependency versions.
 3. **Do NOT modify any files.** You are read-only.
 4. **Do NOT ask the user questions.** You have no `question` tool.
-5. **Do NOT delegate to other agents.** You have no `task` tool.
+5. **Do NOT delegate to other agents.** Work within this agent only.
 6. **One row per plan task.** If a task has multiple issues, pick the most severe classification and combine findings into one cell.
 7. **OK tasks still get a row.** Use `—` for Finding and Recommendation columns.
 8. **Scope column must always be populated**, even for OK tasks.

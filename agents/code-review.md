@@ -60,7 +60,7 @@ State which lenses you are dispatching and why before proceeding to Step B.
 
 #### Step B — Dispatch
 
-For each selected lens, invoke the corresponding subagent via the `task` tool. **Dispatch all selected lenses in the same turn** (parallel execution).
+For each selected lens, invoke the corresponding subagent directly. **Dispatch all selected lenses in the same turn** (parallel execution).
 
 To reduce context pressure on leaf subagents, pass the **Plan Summary** and a **file list** instead of the full plan and full File List:
 

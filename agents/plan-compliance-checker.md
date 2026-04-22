@@ -53,6 +53,6 @@ You MUST output a Plan Compliance table. Always output the table, even if every 
 2. **Be specific.** Notes must reference exact file paths and what was or wasn't found.
 3. **Do NOT modify any files.** You are read-only.
 4. **Do NOT ask the user questions.** You have no `question` tool.
-5. **Do NOT delegate to other agents.** You have no `task` tool.
+5. **Do NOT delegate to other agents.** Work within this agent only.
 6. **One row per requirement.** If a requirement has multiple aspects, pick the lowest compliance status and explain in the Notes column.
 7. **Implemented requirements still get a row.** Use the Notes column to state where the implementation was verified.

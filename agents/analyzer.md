@@ -40,7 +40,7 @@ Follow these four steps in order.
 
 #### Step B — Dispatch (Parallel)
 
-Invoke **both** subagents via the `task` tool **in the same turn** (parallel execution).
+Invoke **both** subagents **in the same turn** (parallel execution).
 
 **To `analyzer-task-checker`:**
 
