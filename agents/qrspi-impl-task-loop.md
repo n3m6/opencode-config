@@ -1,5 +1,5 @@
 ---
-description: Per-task TDD loop agent. Sequences qrspi-impl-red → qrspi-impl-green → qrspi-impl-verify for a single task in fresh mode, or skips RED and dispatches qrspi-impl-green → qrspi-impl-verify in fix mode for regression remediation. Returns a consolidated task result to the Stage 7 orchestrator.
+description: Per-task TDD loop agent. Sequences qrspi-impl-red → qrspi-impl-green → qrspi-impl-verify for a single task in fresh mode, or skips RED and dispatches qrspi-impl-green → qrspi-impl-verify in fix mode for regression remediation. Performs one bounded local verify retry when review blockers or local review/verification mismatches remain. Returns a consolidated task result to the Stage 7 orchestrator.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -27,6 +27,7 @@ You are the QRSPI per-task TDD loop agent. You sequence the red, green, and veri
 3. **STOP AFTER `task` DISPATCH.** After invoking any child agent, end your turn immediately and wait for the response.
 4. **NEVER WRITE CODE.** Delegate all code work to child agents.
 5. **PROPAGATE BACKWARD LOOPS IMMEDIATELY.** If any child agent returns a `### Backward Loop Request`, include it verbatim in your return and stop processing further phases.
+6. **A TASK IS ONLY PASSING WHEN LOCALLY CLEAN.** Return `### Status — PASS` only when the final verify result is `PASS` and `### Review Status — CLEAN`.
 
 ### Input
 
@@ -157,7 +158,7 @@ Use the plan review status as an execution risk signal:
 - If those concerns show the task is ambiguous, structurally unsafe, or dependent on missing upstream clarification, request a backward loop instead of guessing.
 ```
 
-Return the `qrspi-impl-verify` response mapped to the task-loop return contract (see **Return**).
+Handle the verify result according to **Verify Result Handling**.
 
 ### Fix Mode
 
@@ -208,6 +209,32 @@ If `qrspi-impl-green` returns `### Status — FAIL` or a `### Backward Loop Requ
 
 Otherwise dispatch `qrspi-impl-verify`, using the regression evidence as the `=== RED RESULT ===` section and the fix-mode GREEN result as `=== GREEN RESULT ===`. All other fields are identical to fresh mode.
 
+Handle the verify result according to **Verify Result Handling**.
+
+### Verify Result Handling (Fresh and Fix Modes)
+
+- If `qrspi-impl-verify` returns a `### Backward Loop Request`, propagate it immediately.
+- If it returns `### Status — PASS` and `### Review Status — CLEAN`, map and return it.
+- If it returns `### Status — FAIL` and `### Review Status — NOT RUN`, return FAIL immediately.
+- If it returns `### Status — FAIL` and `### Review Status — UNRESOLVED`, dispatch `qrspi-impl-verify` one final time with the same task inputs plus:
+
+```
+=== RETRY CONTEXT ===
+[paste the full first qrspi-impl-verify response verbatim]
+
+=== INSTRUCTIONS ===
+This is the final local retry for this task.
+Refresh the full current task file inventory before code review.
+Use at most one additional local review-fix cycle.
+If review and verification results remain contradictory after this retry, return FAIL locally instead of committing or requesting a backward loop.
+Commit only if the final result is PASS with Review Status = CLEAN.
+```
+
+- If the retry returns a `### Backward Loop Request`, propagate it immediately.
+- If the retry returns `### Status — PASS` and `### Review Status — CLEAN`, map and return it.
+- Otherwise return FAIL using the final verify response.
+- If any verify invocation returns `### Status — PASS` without `### Review Status — CLEAN`, treat that as a local contract violation and return FAIL instead of passing it upward.
+
 ### Return
 
 On success:
@@ -219,10 +246,9 @@ On success:
 ### Files Modified — [from verify result]
 ### Files Created — [from verify result]
 ### Tests Written — [from verify result]
-### Review Status — CLEAN or UNRESOLVED
-### Review Rounds — N/2
+### Review Status — CLEAN
+### Review Rounds — [from final verify result]
 ### Iterations — N/3 (use 0/3 in fix mode)
-### Unresolved Findings — [only if UNRESOLVED, otherwise omit]
 ### Summary — [from verify result]
 ```
 
@@ -235,10 +261,11 @@ On FAIL (without backward loop):
 ### Files Modified — [list or None.]
 ### Files Created — [list or None.]
 ### Tests Written — [list or None.]
-### Review Status — NOT RUN
-### Review Rounds — 0/2
+### Review Status — UNRESOLVED or NOT RUN
+### Review Rounds — [from final verify result, or 0/2 if review did not run]
 ### Iterations — N/3
-### Summary — [phase that failed] failed: [brief description]
+### Unresolved Findings — [include when provided by the final verify result]
+### Summary — [from the final verify result, or `task-loop contract violation: verify returned PASS without CLEAN review status.`]
 ```
 
 If any child agent returned a backward loop request, propagate it:

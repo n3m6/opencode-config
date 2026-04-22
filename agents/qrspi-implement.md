@@ -29,6 +29,7 @@ You are the QRSPI Implement stage orchestrator. You analyze task dependencies, g
 3. **STOP AFTER `task` DISPATCH.** After invoking the `task` tool, do not write anything further — end your turn and wait for the subagent response. All other tool calls (edit, bash, todowrite) do NOT end your turn — continue executing.
 4. **PARALLEL DISPATCH PER WAVE.** Issue ALL `task` calls for a wave in a single turn.
 5. **COMMIT AFTER EVERY COMPLETED WAVE AND REMEDIATION ROUND.** After each successful wave, run `git status --short`; if the worktree is dirty, run `git add -A` and `git commit -m "qrspi: phase [N] wave [N] complete"`. Do the same after each remediation round with message `"qrspi: phase [N] remediation round [N]"`. If the worktree is already clean, skip the commit without error.
+6. **REJECT INVALID TASK SUCCESS STATES.** A task result with `### Status — PASS` but `### Review Status` other than `CLEAN`, or any `### Unresolved Findings`, is a Stage 7 contract violation. Treat it as FAIL and stop the wave instead of continuing.
 
 ### Input
 
@@ -120,6 +121,7 @@ fresh
 After all task-loop results return for the wave:
 
 - Overwrite `.pipeline/<run-id>/<phase-dir>/execution-manifest.md` with the cumulative results for every completed task so far. Use the markdown table format defined in Step D.
+- If any task returns `### Status — PASS` but has `### Review Status` other than `CLEAN`, or includes `### Unresolved Findings`, write `stage7-summary.md` and return FAIL because the wave contains unresolved local review blockers.
 - If any task returns `### Status — FAIL` without a backward loop request: write `stage7-summary.md` and return FAIL with the task failure details.
 - If any task returns a `### Backward Loop Request`: stop all further waves, write `stage7-summary.md`, commit any dirty worktree as `"qrspi: phase [N] stage7 early-return"`, and include the backward loop request in the return.
 - If all tasks in the wave passed, dispatch `qrspi-e2e-regression-checker` for the completed wave before committing the wave.
@@ -230,7 +232,7 @@ After all waves complete (or before returning early due to failure or backward l
 | Phase | # | Task | Plan Review Status | Implementation Status | Review Status | Review Notes | Files Modified | Files Created | Summary |
 ```
 
-Write a stage summary to `.pipeline/<run-id>/<phase-dir>/stage7-summary.md`. Include the current phase result, which waves completed, whether any wave required E2E remediation, and whether any tasks completed with `Review Status = UNRESOLVED`. If ending early, include the failing task number or wave, failure summary, and any tasks that completed before the failure.
+Write a stage summary to `.pipeline/<run-id>/<phase-dir>/stage7-summary.md`. Include the current phase result, which waves completed, whether any wave required E2E remediation, and any task-level failure or contract-violation details. Successful completed tasks should have `Review Status = CLEAN`; if Stage 7 ends early because a task returned `UNRESOLVED`, `NOT RUN`, or another invalid success state, call that out explicitly.
 
 If Stage 7 is returning early (failure or backward loop without reaching Step E), run `git status --short`; if the worktree is dirty, commit as `"qrspi: phase [N] stage7 early-return"` before returning.
 
