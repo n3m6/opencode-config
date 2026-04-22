@@ -46,10 +46,18 @@ You will receive:
 ### Process
 
 1. Determine the local review budget for this invocation: 2 review rounds when `Retry Attempt = 0`, or 1 review round when `Retry Attempt > 0`.
-2. Run the task's final verification with `build`.
-3. Build a complete current-task file inventory by merging file paths reported in `Red Result`, `Green Result`, the latest verification/build result, any review-fix results from this invocation, and `Retry Context` when present. Use this merged inventory as the authoritative file list for code review and final return.
-4. Build an implementer report from the current task state and dispatch `qrspi-code-review` with that report.
-5. If the code review reports blocking findings, use `build` to apply the smallest safe fix, rerun targeted verification, refresh the merged file inventory, rebuild the implementer report, and rerun `qrspi-code-review` within the remaining local review budget for this invocation.
+2. Run the task's final verification with `build`. If GREEN RESULT contains `### Testability — NO_TASK_AUTHORED_TESTS` (propagated from RED RESULT), skip test-file verification expectations — only build/lint must pass.
+3. Build the current-task file inventory using the **latest authoritative state**, not a union of all prior inventories:
+   - Start from the GREEN RESULT `Files Modified` and `Files Created`.
+   - If a review-fix result from this invocation exists, overlay it (the fix result is more recent and authoritative).
+   - If Retry Context contains a prior VERIFY result with a more recent fix, overlay that too.
+   - Do NOT re-add files that were deleted during test remediation. The latest state is authoritative.
+   - Use this as the authoritative file list for code review and final return.
+4. Build an implementer report from the current task state and dispatch `qrspi-code-review` with that report. If `Tests Written` is `None.`, pass `None.` verbatim — `qrspi-code-review` will skip the test-coverage reviewer.
+5. If the code review reports blocking findings, determine the appropriate fix action:
+   - **Test remediation:** If the blocking findings are test-quality or test-coverage findings (CRITICAL or HIGH) that identify task-authored tests as non-behavioral, type-only, declaration-only, or otherwise unnecessary (Recommendation: `DELETE`, `REWRITE`, or `REPLACE`), use `build` to delete, rewrite, or replace those tests. After remediation, refresh the authoritative inventory (remove deleted files, update modified files), rerun targeted verification, and rerun `qrspi-code-review`. If fixing the flagged tests would require inventing new requirements (Recommendation: `BACKWARD_LOOP`), return a backward loop request instead.
+   - **Production fix:** For all other blocking findings, use `build` to apply the smallest safe production-code fix, rerun targeted verification, refresh the authoritative inventory, rebuild the implementer report, and rerun `qrspi-code-review`.
+     Do both within the remaining local review budget for this invocation.
 6. If targeted verification passes but code review reports impossible syntax/compiler blockers or otherwise contradictory findings, treat that as a local review/verification mismatch. Refresh the merged file inventory, rerun targeted verification, and rerun `qrspi-code-review` within the remaining local review budget for this invocation instead of committing or guessing that the findings are stale.
 7. If blocking findings or review/verification contradictions remain after the final allowed local repair attempt for this invocation, return `FAIL` with `Review Status = UNRESOLVED`, include the unresolved findings, and do not commit.
 8. Commit the task changes with a descriptive message using `build` only when targeted verification passes and the code review result is clean.
@@ -124,7 +132,7 @@ Then dispatch `qrspi-code-review` with this exact shape:
 === IMPLEMENTER REPORT ===
 ### Files Modified — [from the latest verification/build result]
 ### Files Created — [from the latest verification/build result]
-### Tests Written — [from RED/GREEN carried-forward test list]
+### Tests Written — [current authoritative task test inventory: list of test files with what they test, or None. if no task-authored tests exist]
 ### Iterations — [from GREEN result]
 ### Verification Result — [latest verification status and evidence]
 ### Summary — [one-line current task status summary]
@@ -150,13 +158,18 @@ If blocking findings are returned and a safe local fix is appropriate, use this 
 
 === INSTRUCTIONS ===
 Apply the smallest safe fix for the blocking review findings.
-Do not make plan, structure, or design changes.
-Rerun the task's targeted verification after the fix.
+If the findings are test-quality or test-coverage findings identifying task-authored tests as non-behavioral, type-only, or declaration-only:
+- For `DELETE` recommendations: remove the flagged test files.
+- For `REWRITE` recommendations: rewrite the flagged tests to cover real observable behavior.
+- For `BACKWARD_LOOP` recommendations: do not guess — return a backward loop request.
+For all other findings, fix only production code. Do not make plan, structure, or design changes.
+After any fix, rerun the task's targeted verification.
+If tests were deleted, update the Tests Written inventory to remove them before returning.
 
 Return:
 ### Files Modified — complete current task inventory of modified files known so far
 ### Files Created — complete current task inventory of created files known so far
-### Tests Written — list of test files with what they test
+### Tests Written — current authoritative task test inventory after this fix (list of test files with what they test, or None. if no task-authored tests exist)
 ### Verification Status — PASS or FAIL
 ### Verification Evidence — one-line summary of the verification result
 ### Summary — one paragraph

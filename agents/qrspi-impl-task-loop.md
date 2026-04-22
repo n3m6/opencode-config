@@ -82,6 +82,8 @@ Use the plan review status as a risk signal:
 
 If `qrspi-impl-red` returns `### Status — FAIL` or a `### Backward Loop Request`, stop and return immediately (see **Return**).
 
+If `qrspi-impl-red` returns `### Status — PASS` with `### Testability — NO_TASK_AUTHORED_TESTS`, continue to GREEN in **no-test mode** — this is a successful RED result, not a failure. Pass the full RED RESULT verbatim to GREEN so GREEN can detect and apply no-test mode.
+
 Otherwise dispatch `qrspi-impl-green`:
 
 ```
@@ -117,6 +119,7 @@ None.
 
 === INSTRUCTIONS ===
 Implement the minimum production changes needed to make the RED tests pass.
+If RED RESULT contains `### Testability — NO_TASK_AUTHORED_TESTS`, implement the task without test files. Run only build/lint validation — do not create or modify test files.
 Use a maximum of 3 implementation iterations.
 Use the plan review status as an execution risk signal:
 - If the review state is `clean`, proceed normally.
@@ -263,6 +266,7 @@ This is local recovery retry [N]/3 after a failed verify result.
 Use the RETRY CONTEXT as the authoritative description of the current local blocker.
 If `Review Status = NOT RUN`, prioritize the verification failure that prevented code review.
 If `Review Status = UNRESOLVED`, prioritize the blocking review findings or review/verification mismatch.
+  - If the unresolved findings are test-quality or test-coverage findings about task-authored tests (e.g., DELETE or REWRITE recommendations), the repair target may be the test files themselves. You may delete, rewrite, or replace bad task-authored tests to clear the blocker.
 Preserve the targeted slice described by the RED RESULT.
 Use a maximum of 2 implementation iterations on retries.
 Do not run the specialized code-review gate or commit in this step.
@@ -281,7 +285,7 @@ Do not run the specialized code-review gate or commit in this step.
 === INSTRUCTIONS ===
 This is local recovery retry [N]/3 after a failed verify result.
 Run final verification again for the current task state.
-Refresh the full current task file inventory before code review.
+Refresh the full current task file inventory before code review. If tests were deleted or rewritten during GREEN retry, the refreshed inventory is authoritative — do not re-add deleted test files.
 Use at most one review round on retry invocations.
 Treat the RETRY CONTEXT as the prior failure record, not as permission to skip verification.
 Commit only if the final result is PASS with Review Status = CLEAN.

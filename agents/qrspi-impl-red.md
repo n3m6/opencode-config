@@ -1,5 +1,5 @@
 ---
-description: Writes the failing-test RED phase for a single task. Uses build to author tests and confirm they fail for the expected reason. Can request a backward loop if the task spec is too ambiguous to encode safely.
+description: Writes the failing-test RED phase for a single task. Determines whether the task requires task-authored tests before dispatching build. Returns NO_TASK_AUTHORED_TESTS for type-only, declaration-only, config-only, docs-only, or scaffolding-only tasks. Can request a backward loop if the task spec is too ambiguous to encode safely.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -40,8 +40,18 @@ You will receive:
 ### Process
 
 1. Read the task spec and test expectations in full.
-2. If the plan review status is `unclean-cap` and the ambiguity prevents safe test writing, return a backward loop request instead of guessing.
-3. Dispatch `build` to write the task's failing tests and run only the targeted test slice needed to prove the task is still red.
+2. **Determine testability.** A task does NOT require task-authored tests when it is any of the following:
+   - Type-definition only (e.g., defines only interfaces, type aliases, or enums with no runtime value)
+   - Interface or declaration only (e.g., `.d.ts` files, re-export barrels, pure type modules)
+   - Configuration only (e.g., tsconfig, eslint config, build config)
+   - Documentation only
+   - Scaffolding only (e.g., empty placeholder files, directory structure)
+   - Otherwise has no caller-observable runtime behavior to test
+
+   If the task is one of the above, return the **NO_TASK_AUTHORED_TESTS** block immediately without dispatching `build`.
+
+3. If the plan review status is `unclean-cap` and the ambiguity prevents safe test writing, return a backward loop request instead of guessing.
+4. Dispatch `build` to write the task's failing tests and run only the targeted test slice needed to prove the task is still red.
 
 Use this dispatch:
 
@@ -80,6 +90,14 @@ Test style:
 - Do not test private helpers. If a helper needs direct coverage, exercise it through the public interface that uses it.
 - Do not add tests to raise line or branch coverage. Every test must map to a behavior in the task's expectations.
 
+Forbidden test patterns — do NOT write any test that:
+- Asserts only that a type, interface, or declaration has a certain shape (type-shape test).
+- Asserts only that a value satisfies a TypeScript type or that a generic resolves correctly (compile-time trivia).
+- Targets a file whose entire content is type declarations or re-exports with no runtime logic (declaration-only file).
+- Tests a private helper that is not reachable through the public interface.
+- Exists only to raise line or branch coverage with no meaningful assertion.
+- Mirrors the structure of the production code rather than describing caller-observable behavior.
+
 Return:
 ### Status — PASS or FAIL
 ### Tests Written — list of test files with what they test
@@ -90,6 +108,18 @@ Return:
 ```
 
 ### Return
+
+If the task has no caller-observable runtime behavior to test (type-only, declaration-only, config-only, docs-only, or scaffolding-only):
+
+```
+### Status — PASS
+### Testability — NO_TASK_AUTHORED_TESTS
+### Tests Written — None.
+### Test Files Created — None.
+### Test Files Modified — None.
+### Failure Evidence — None.
+### Summary — Task is type/declaration/config/docs/scaffolding-only with no caller-observable runtime behavior. No task-authored tests required.
+```
 
 If the task spec is too ambiguous or structurally unsafe to encode as failing tests:
 

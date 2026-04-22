@@ -1,5 +1,5 @@
 ---
-description: Implements the GREEN phase for a single task. Uses build to satisfy the active task blocker within bounded iterations and can consume prior verify findings during task-loop recovery retries.
+description: Implements the GREEN phase for a single task. Uses build to satisfy the active task blocker within bounded iterations. Supports no-test mode when RED returned NO_TASK_AUTHORED_TESTS. Can consume prior verify findings during task-loop recovery retries and may repair bad task-authored tests when they are the retry blocker.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -45,11 +45,16 @@ You will receive:
 
 1. Read the task, plan review status, RED result, and Retry Context in full.
 2. Treat `unclean-cap` as unresolved planning risk. If the task is ambiguous or structurally unsafe, request a backward loop instead of guessing.
-3. If `Retry Attempt = 0`, use up to 3 build iterations to implement the minimum production changes needed to make the RED tests pass, or to clear the fix-mode regression target.
-4. If `Retry Attempt > 0`, use the latest verify failure in Retry Context as the authoritative local blocker. Use up to 2 build iterations to apply the smallest safe production changes needed to clear that blocker while preserving the targeted slice described by RED RESULT.
-5. If a local blocker is safer to clarify than guess, ask one focused question.
-6. Stop early as soon as the targeted slice passes and the current retry blocker has been addressed as far as local verification can prove.
-7. If the targeted slice or retry blocker still fails after the final allowed iteration for this invocation, return FAIL unless the failure reveals a fundamental upstream problem that warrants a backward loop request.
+3. **Determine mode from RED RESULT:**
+   - If RED RESULT contains `### Testability — NO_TASK_AUTHORED_TESTS`, operate in **no-test mode**: implement the task and validate with build/lint only. Do not create or modify test files.
+   - Otherwise operate in **normal mode**: make the RED tests pass.
+4. If `Retry Attempt = 0`, use up to 3 build iterations to implement the minimum production changes needed to make the RED tests pass (normal mode) or to complete the task and pass build/lint (no-test mode).
+5. If `Retry Attempt > 0`, use the latest verify failure in Retry Context as the authoritative local blocker. Use up to 2 build iterations to apply the smallest safe changes needed to clear that blocker.
+   - **Normal mode retry:** If `Review Status = UNRESOLVED` and the unresolved findings are test-quality or test-coverage findings about task-authored tests (e.g., `DELETE` or `REWRITE` recommendations), the repair target may be the test files themselves. You may delete, rewrite, or replace bad task-authored tests to clear the blocker — this is not a production-code-only restriction.
+   - **No-test mode retry:** Only production code and build/lint fixes are in scope.
+6. If a local blocker is safer to clarify than guess, ask one focused question.
+7. Stop early as soon as the targeted slice passes and the current retry blocker has been addressed as far as local verification can prove.
+8. If the targeted slice or retry blocker still fails after the final allowed iteration for this invocation, return FAIL unless the failure reveals a fundamental upstream problem that warrants a backward loop request.
 
 Use this dispatch pattern for each iteration:
 
@@ -87,7 +92,10 @@ Use this dispatch pattern for each iteration:
 === INSTRUCTIONS ===
 Implement the minimum production changes needed to satisfy the active local blocker for this task.
 If `Retry Attempt = 0`, make the RED tests pass or clear the fix-mode regression target.
-If `Retry Attempt > 0`, use RETRY CONTEXT to fix the latest local verify blocker while preserving the targeted slice described by RED RESULT.
+If RED RESULT contains `### Testability — NO_TASK_AUTHORED_TESTS`, implement the task without test files. Run only build/lint validation — do not create or modify test files.
+If `Retry Attempt > 0`, use RETRY CONTEXT to fix the latest local verify blocker.
+- If the blocker is a production-code failure, fix production code while preserving the targeted slice described by RED RESULT.
+- If the blocker is a test-quality or test-coverage finding about task-authored tests (e.g., DELETE or REWRITE recommendations from qrspi-review-test-coverage), repair the test files themselves: delete, rewrite, or replace the flagged tests as directed by the findings.
 Run the targeted test slice after each change.
 Do not run the specialized code-review gate or commit in this step.
 
@@ -95,7 +103,7 @@ Return:
 ### Status — PASS or FAIL
 ### Files Modified — list
 ### Files Created — list
-### Tests Written — carry forward the RED test files
+### Tests Written — current authoritative task test inventory after this invocation (list of test files with what they test, or None. if no task-authored tests exist)
 ### Iterations — N/3 on the initial invocation, or N/2 on retry invocations
 ### Verification Evidence — one-line summary of the passing or failing targeted test run
 ### Summary — one paragraph
@@ -109,7 +117,7 @@ If the targeted slice or retry blocker still fails after the final allowed itera
 ### Status — FAIL
 ### Files Modified — list
 ### Files Created — list
-### Tests Written — carry forward the RED test files
+### Tests Written — current authoritative task test inventory after this invocation (or None. if no task-authored tests exist)
 ### Iterations — 3/3 on the initial invocation, or 2/2 on retry invocations
 ### Verification Evidence — [one-line summary of the final failing targeted test run]
 ### Summary — GREEN failed: the task still does not pass after exhausting the allowed implementation iterations for this invocation.

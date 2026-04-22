@@ -65,7 +65,7 @@ If a listed path does not exist, note that in the final summary.
 Always dispatch:
 
 - `qrspi-review-code-quality`
-- `qrspi-review-test-coverage`
+- `qrspi-review-test-coverage` — **unless** the normalized `Tests Written` list from the Implementer Report is empty (i.e., `None.` or blank after stripping bullets). When skipping, record `qrspi-review-test-coverage — SKIPPED (no task-authored tests)` in the Reviewers Run section of the collated output.
 
 Dispatch `qrspi-review-security` only when a deterministic grep over the changed files matches one or more of these signals:
 
