@@ -103,7 +103,7 @@ Each stage is handled by a dedicated subagent that:
 | 3 — Research    | `qrspi-research`  | No         | `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer`, `qrspi-research-reviewer`                                                                                                                                                                                                                                                                                       |
 | 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`, `qrspi-design-reviewer`                                                                                                                                                                                                                                                                                                                                                |
 | 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`                                                                                                                                                                                                                                                                                                                                                                           |
-| 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-plan-reviewer`, `qrspi-baseline-checker`                                                                                                                                                                                                                                                                                                                               |
+| 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-task-spec-writer`, `qrspi-task-spec-reviewer`, `qrspi-plan-reviewer`, `qrspi-baseline-checker`                                                                                                                                                                                                                                                                         |
 | 7 — Implement   | `qrspi-implement` | No         | `qrspi-impl-red`, `qrspi-impl-green`, `qrspi-impl-verify` (dispatches `qrspi-code-review`, which dispatches `qrspi-review-code-quality`, `qrspi-review-test-coverage`, `qrspi-review-security`, `qrspi-review-silent-failure`, `qrspi-review-goal-traceability`, `qrspi-review-code-simplifier`), `qrspi-e2e-regression-checker`, `qrspi-integration-checker`, `qrspi-baseline-regression-checker` |
 | 8 — Accept-Test | `qrspi-accept`    | No         | `qrspi-acceptance-tester` (dispatches `qrspi-coverage-planner`, `qrspi-review-accept-goal-traceability`, `qrspi-review-accept-spec`, `qrspi-review-accept-code-quality`, and `build`), `qrspi-backward-loop-detector`                                                                                                                                                                              |
 | 8.5 — Replan    | `qrspi-replan`    | No         | `qrspi-replan-writer`, `qrspi-replan-reviewer`                                                                                                                                                                                                                                                                                                                                                     |
@@ -220,13 +220,17 @@ Each pipeline run writes state files to `.pipeline/qrspi-<run-id>/`. The run ID 
 ├── phase-manifest.md                  Written: Stage 6   — Phase ordering, task-to-phase mapping, replan gates; updated by Replan
 ├── baseline-results.md                Written: Stage 6   — Pre-implementation build/lint/typecheck/E2E/test baseline
 ├── tasks/
-│   └── task-NN.md                    Written: Stage 6   — Canonical initial task specs with stable task IDs
+│   ├── outlines/
+│   │   └── task-NN.outline           Written: Stage 6   — Per-task planning outlines produced by plan-writer; input to task-spec-writer
+│   └── task-NN.md                    Written: Stage 6   — Canonical initial task specs with stable task IDs, source traceability, and review status
 ├── reviews/
 │   ├── goals-review-round-NN.md      Written: Stage 1   — Goals automated review history
 │   ├── research-review-round-NN.md   Written: Stage 3   — Research automated review history
 │   ├── design-review-round-NN.md     Written: Stage 4   — Design automated review history
 │   ├── structure-review-round-NN.md  Written: Stage 5   — Structure automated review history
-│   ├── plan-review-round-NN.md       Written: Stage 6   — Plan automated review history
+│   ├── plan-review-round-NN.md       Written: Stage 6   — Plan-level automated review history
+│   ├── task-spec/
+│   │   └── task-NN-review-round-MM.md Written: Stage 6  — Per-task spec review history (per-task reviewer output)
 │   ├── acceptance-phase-NN-review-round-MM.md Written: Stage 8   — Acceptance review history per phase
 │   └── replan-review-round-NN.md     Written: Stage 8.5 — Replan automated review history
 ├── feedback/

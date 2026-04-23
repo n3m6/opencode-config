@@ -301,29 +301,31 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 
 ### Top-Level Artifacts
 
-| File                              | Written By                   | Purpose                                                                     |
-| --------------------------------- | ---------------------------- | --------------------------------------------------------------------------- |
-| `state.md`                        | Deepwork                     | Recovery state and next-stage cursor (YAML frontmatter)                     |
-| `config.md`                       | Stage 1                      | Route, run_id, and metadata                                                 |
-| `requirements.md`                 | Stage 1                      | Verbatim user task or PRD preserved for downstream reference                |
-| `goals.md`                        | Stage 1                      | Distilled intent, requirements, constraints, non-goals, acceptance criteria |
-| `questions.md`                    | Stage 2                      | Tagged research questions                                                   |
-| `question-leakage-review.md`      | Stage 2                      | Independent review of question neutrality                                   |
-| `question-quality-review.md`      | Stage 2                      | Independent review of question coverage and tagging quality                 |
-| `research/q-NN.md`                | Stage 3                      | Per-question research findings                                              |
-| `research/summary.md`             | Stage 3                      | Unified research summary                                                    |
-| `design.md`                       | Stage 4                      | Architecture, vertical slices, phases, replan gates, test strategy          |
-| `structure.md`                    | Stage 5                      | File mapping, interfaces, create/modify, Mermaid diagram                    |
-| `plan.md`                         | Stage 6, 8.5                 | Current remaining-work implementation plan                                  |
-| `phase-manifest.md`               | Stage 6, 8.5                 | Current phase ordering, task-to-phase mapping, and replan gates             |
-| `baseline-results.md`             | Stage 6                      | Pre-implementation build/lint/typecheck/E2E/test baseline                   |
-| `tasks/task-NN.md`                | Stage 6                      | Canonical initial task specs with appended review status                    |
-| `reviews/*.md`                    | Stages 1, 3, 4, 5, 6, 8, 8.5 | Automated review history                                                    |
-| `feedback/{step}-round-NN.md`     | Any gate                     | Rejection feedback + rejected artifact                                      |
-| `feedback/deferred-replan-NN.md`  | Deepwork                     | Deferred phase-boundary issues from backward loops                          |
-| `feedback/goals-reset-context.md` | Deepwork                     | Accumulated learnings before a full reset to Goals                          |
-| `stage9-summary.md`               | Stage 9                      | Verification summary (PASS/PARTIAL/FAIL)                                    |
-| `stage10-summary.md`              | Stage 10                     | Final report                                                                |
+| File                                           | Written By                   | Purpose                                                                          |
+| ---------------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------- |
+| `state.md`                                     | Deepwork                     | Recovery state and next-stage cursor (YAML frontmatter)                          |
+| `config.md`                                    | Stage 1                      | Route, run_id, and metadata                                                      |
+| `requirements.md`                              | Stage 1                      | Verbatim user task or PRD preserved for downstream reference                     |
+| `goals.md`                                     | Stage 1                      | Distilled intent, requirements, constraints, non-goals, acceptance criteria      |
+| `questions.md`                                 | Stage 2                      | Tagged research questions                                                        |
+| `question-leakage-review.md`                   | Stage 2                      | Independent review of question neutrality                                        |
+| `question-quality-review.md`                   | Stage 2                      | Independent review of question coverage and tagging quality                      |
+| `research/q-NN.md`                             | Stage 3                      | Per-question research findings                                                   |
+| `research/summary.md`                          | Stage 3                      | Unified research summary                                                         |
+| `design.md`                                    | Stage 4                      | Architecture, vertical slices, phases, replan gates, test strategy               |
+| `structure.md`                                 | Stage 5                      | File mapping, interfaces, create/modify, Mermaid diagram                         |
+| `plan.md`                                      | Stage 6, 8.5                 | Current remaining-work implementation plan                                       |
+| `phase-manifest.md`                            | Stage 6, 8.5                 | Current phase ordering, task-to-phase mapping, and replan gates                  |
+| `baseline-results.md`                          | Stage 6                      | Pre-implementation build/lint/typecheck/E2E/test baseline                        |
+| `tasks/outlines/task-NN.outline`               | Stage 6                      | Per-task planning outlines produced by plan-writer; input to task-spec-writer    |
+| `tasks/task-NN.md`                             | Stage 6                      | Canonical initial task specs with source traceability and appended review status |
+| `reviews/task-spec/task-NN-review-round-MM.md` | Stage 6                      | Per-task spec review history from task-spec-reviewer                             |
+| `reviews/*.md`                                 | Stages 1, 3, 4, 5, 6, 8, 8.5 | Automated review history                                                         |
+| `feedback/{step}-round-NN.md`                  | Any gate                     | Rejection feedback + rejected artifact                                           |
+| `feedback/deferred-replan-NN.md`               | Deepwork                     | Deferred phase-boundary issues from backward loops                               |
+| `feedback/goals-reset-context.md`              | Deepwork                     | Accumulated learnings before a full reset to Goals                               |
+| `stage9-summary.md`                            | Stage 9                      | Verification summary (PASS/PARTIAL/FAIL)                                         |
+| `stage10-summary.md`                           | Stage 10                     | Final report                                                                     |
 
 ### Phase-Scoped Artifacts
 
@@ -442,7 +444,7 @@ Terminal review states:
 
 Stage 3 (Research) differs: if the review loop reaches the 10-round cap with unresolved material issues, the stage returns `FAIL` rather than proceeding with weak research.
 
-Stage 6 (Plan) additionally appends a final review status block to every `tasks/task-NN.md` after the loop ends, so Stage 7 implementers can treat outstanding review concerns as an execution risk signal.
+Stage 6 (Plan) runs two review layers: a per-task review loop (max 3 rounds) where `qrspi-task-spec-reviewer` repairs each task spec in place and records unresolved cross-task conflicts, followed by a plan-level review loop (min 5 / max 10 rounds). After both loops complete, Stage 6 appends a final review status block to every `tasks/task-NN.md` recording both the task-spec review state and the plan-level review state, so Stage 7 implementers can treat outstanding concerns as an execution risk signal.
 
 ---
 
@@ -665,15 +667,23 @@ Reviews `structure.md` independently for design alignment, file action correctne
 
 #### qrspi-plan
 
-Stage orchestrator. Reads route-appropriate inputs plus optional repository guidance from `AGENTS.md`, dispatches the plan writer, runs the automated plan review loop (min 5 / max 10 rounds), appends final review status to each task spec, and dispatches the baseline checker. No human gate.
+Stage orchestrator. Reads route-appropriate inputs plus optional repository guidance from `AGENTS.md`, dispatches the plan writer to produce a draft plan and task outlines, generates individual task specs from those outlines, runs a per-task review loop (max 3 rounds), runs the automated plan-level review loop (min 5 / max 10 rounds), appends final review status to each task spec, and dispatches the baseline checker. No human gate.
 
 #### qrspi-plan-writer
 
-Writes ordered task specifications with file paths, descriptions, test expectations, dependencies, phase assignments, and stable task IDs while honoring repository instructions from `AGENTS.md` when present. Produces `plan.md`, `phase-manifest.md`, and individual `task-NN.md` files. Supports full route (uses all prior artifacts) and quick-fix route (single task from goals + research). Read-only.
+Writes ordered task outlines with task metadata, dependencies, phase assignments, scope, acceptance-criteria coverage, and stable task IDs while honoring repository instructions from `AGENTS.md` when present. Produces `plan.md`, `phase-manifest.md`, and individual `task-NN.outline` files. Supports full route (uses all prior artifacts) and quick-fix route (single outline from goals + research). Read-only.
+
+#### qrspi-task-spec-writer
+
+Expands a single task outline into a self-contained `task-NN.md` spec. Reads `plan.md`, `design.md`, `structure.md`, and `requirements.md` from the pipeline run directory for full-route tasks. Produces concrete file paths, descriptions, test expectations, dependency explanations, traceability metadata, and a `## Source Traceability` section citing upstream artifact sections. Read-only.
+
+#### qrspi-task-spec-reviewer
+
+Per-task mutating reviewer. Reads the current task outline, task spec, full plan, design, structure, and all sibling task specs to check outline-to-spec fidelity, structure-slice fidelity, source-traceability completeness, dependency correctness, self-containment, and cross-task consistency. Repairs only the current `task-NN.md` file in place. Records unresolved cross-task conflicts it could not fix locally.
 
 #### qrspi-plan-reviewer
 
-Reviews the plan for AGENTS guidance compliance, goals coverage, dependency correctness, phase and wave coherence, task self-containment, file specificity, test expectation specificity, and placeholder-free quality. Flags forward dependencies, vague files, vague tests, missing coverage, conflicts with `AGENTS.md`, or overview/task mismatches. Read-only.
+Reviews the plan for AGENTS guidance compliance, goals coverage, dependency correctness, phase and wave coherence, task self-containment, source traceability, file specificity, test expectation specificity, and placeholder-free quality. Flags forward dependencies, vague files, vague tests, missing coverage, invalid source traceability citations, conflicts with `AGENTS.md`, or overview/task mismatches. Read-only.
 
 #### qrspi-baseline-checker
 

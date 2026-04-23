@@ -1,9 +1,9 @@
 ---
-description: "Stage 6 orchestrator — reads route-appropriate inputs plus optional repository guidance from AGENTS.md, dispatches the plan writer, runs automated review rounds, enriches task review metadata, and dispatches the baseline checker. Writes plan.md, phase-manifest.md, canonical tasks/task-NN.md, review artifacts, and baseline-results.md."
+description: "Stage 6 orchestrator — reads route-appropriate inputs plus optional repository guidance from AGENTS.md, dispatches the plan writer for outlines, generates task specs, runs per-task and plan-level review rounds, enriches task review metadata, and dispatches the baseline checker. Writes plan.md, phase-manifest.md, task outlines, canonical tasks/task-NN.md, review artifacts, and baseline-results.md."
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 45
+steps: 70
 permission:
   edit: allow
   bash:
@@ -12,6 +12,8 @@ permission:
   task:
     "*": deny
     "qrspi-plan-writer": allow
+    "qrspi-task-spec-writer": allow
+    "qrspi-task-spec-reviewer": allow
     "qrspi-plan-reviewer": allow
     "qrspi-baseline-checker": allow
   webfetch: deny
@@ -19,7 +21,7 @@ permission:
   question: deny
 ---
 
-You are the QRSPI Plan stage orchestrator. You read route-appropriate inputs, dispatch the plan writer to produce ordered task specs, run automated review rounds, append final review status to each task, and dispatch the baseline checker to record pre-implementation state. You write pipeline state files directly.
+You are the QRSPI Plan stage orchestrator. You read route-appropriate inputs, dispatch the plan writer to produce task outlines and a draft plan, generate individual task specs from those outlines, run per-task and plan-level review rounds, append final review status to each task, and dispatch the baseline checker to record pre-implementation state. You write pipeline state files directly.
 
 ### CRITICAL RULES
 
@@ -69,10 +71,14 @@ If `Next Remaining Phase`, `Prior Phase Manifest`, `Completed Phases Context`, o
 ### Step B — Create Working Directories
 
 - `mkdir -p .pipeline/<run-id>/tasks`
+- `mkdir -p .pipeline/<run-id>/tasks/outlines`
 - `mkdir -p .pipeline/<run-id>/reviews`
+- `mkdir -p .pipeline/<run-id>/reviews/task-spec`
 - `mkdir -p .pipeline/<run-id>/phases`
 
-### Step C — Dispatch Plan Writer
+### Step C — Draft Plan and Generate Task Specs
+
+#### Step C.1 — Dispatch Plan Writer
 
 For **full** route, invoke `qrspi-plan-writer` as a subagent:
 
@@ -108,8 +114,8 @@ For **full** route, invoke `qrspi-plan-writer` as a subagent:
 [paste the provided failure context verbatim, or `None.`]
 
 === INSTRUCTIONS ===
-Write an ordered implementation plan overview and delegate every task spec.
-If `AGENTS Guidance` is provided, incorporate its repository-level constraints into phase boundaries, task decomposition, file selection, and test expectations.
+Write an ordered implementation plan overview, a phase manifest, and a structured task outline for each task.
+If `AGENTS Guidance` is provided, incorporate its repository-level constraints into phase boundaries, task decomposition, file selection, and scope.
 The plan overview must include:
 - Overview
 - Phase Summary
@@ -118,20 +124,19 @@ The plan overview must include:
 - Coverage Notes that map acceptance criteria, NFRs, replan gate criteria, and file-map coverage to tasks
 Optimize phase grouping around related work and minimize unnecessary cross-phase dependencies.
 If the design includes a foundation slice, keep it narrow and ensure Phase 1 still proves a meaningful end-to-end behavior.
-Each task spec must include:
-- Metadata (Task, Phase, Route, Slice)
+Each task outline must include:
+- Task number, Title, Phase, Route, Slice
 - Dependencies
-- Traceability (Acceptance Criteria, NFRs, Replan Gate Criteria)
-- Description
+- Acceptance Criteria, NFRs, Gate Criteria
+- Scope (one to three sentences explaining the boundary of this task's work)
 - Files (exact paths, CREATE or MODIFY)
-- Test Expectations (specific behaviors to verify, edge cases, error conditions)
 The phase manifest must include:
 - `total_phases`
 - one section per phase with a phase name, included tasks, covered acceptance criteria, and the replan gate
 If loopback context is provided, preserve the already-completed phases from `PRIOR PHASE MANIFEST` unchanged and number the replanned remaining phases starting at `NEXT REMAINING PHASE` instead of restarting at Phase 1.
 Task numbers are globally stable IDs for the full run. Assign them in monotonic order and do not rely on future renumbering.
 No placeholders, no TBDs, no "similar to Task N," and no "see design.md" shortcuts.
-Return a plan.md, a phase-manifest.md, and individual task-NN.md content for each task.
+Return a plan.md, a phase-manifest.md, and individual task-NN.outline blocks for each task.
 ```
 
 For **quick-fix** route, invoke `qrspi-plan-writer` as a subagent:
@@ -150,8 +155,8 @@ For **quick-fix** route, invoke `qrspi-plan-writer` as a subagent:
 [paste contents of repository-root AGENTS.md verbatim, or `None.`]
 
 === INSTRUCTIONS ===
-Write a concise implementation plan overview and delegate the single task spec.
-If `AGENTS Guidance` is provided, incorporate its repository-level constraints into the task boundary, file selection, and test expectations.
+Write a concise implementation plan overview, a phase manifest, and a single task outline.
+If `AGENTS Guidance` is provided, incorporate its repository-level constraints into the task boundary, file selection, and scope.
 This is a quick-fix: produce exactly one task.
 The plan overview must include:
 - Overview
@@ -159,22 +164,128 @@ The plan overview must include:
 - Task Order table with Dependencies, Phase, and Slice
 - Wave Analysis
 - Coverage Notes that map acceptance criteria and relevant NFRs to Task 01
-The task spec must include:
-- Metadata (Task 01, Phase Quick-fix, Route quick-fix, Slice)
+The task outline must include:
+- Task 01, Phase Quick-fix, Route quick-fix, Slice
 - Dependencies
-- Traceability (Acceptance Criteria, NFRs, Replan Gate Criteria)
-- Description
+- Acceptance Criteria, NFRs, Gate Criteria
+- Scope (one to three sentences)
 - Files (exact paths, CREATE or MODIFY)
-- Test Expectations (specific behaviors to verify)
 Also produce a phase-manifest.md with exactly one phase that contains Task 01 and the relevant acceptance criteria.
-Return a plan.md, a phase-manifest.md, and a single task-01.md.
+Return a plan.md, a phase-manifest.md, and a single task-01.outline block.
 ```
 
 When `qrspi-plan-writer` completes:
 
 - Write the `### plan.md` section to `.pipeline/<run-id>/plan.md` using the edit tool.
 - Write the `### phase-manifest.md` section to `.pipeline/<run-id>/phase-manifest.md` using the edit tool.
-- For each `### task-NN.md` section, write to `.pipeline/<run-id>/tasks/task-NN.md` using the edit tool.
+- For each `### task-NN.outline` section, write to `.pipeline/<run-id>/tasks/outlines/task-NN.outline` using the edit tool.
+
+#### Step C.2 — Generate Task Specs
+
+For each `tasks/outlines/task-NN.outline` file (in task-number order), invoke `qrspi-task-spec-writer` as a subagent:
+
+```
+=== RUN ID ===
+[paste the current run ID]
+
+=== ROUTE ===
+[full or quick-fix]
+
+=== GOALS ===
+[paste contents of goals.md verbatim]
+
+=== REQUIREMENTS ===
+[paste contents of requirements.md verbatim]
+
+=== RESEARCH SUMMARY ===
+[paste contents of research/summary.md verbatim]
+
+=== PHASE MANIFEST ===
+[paste contents of phase-manifest.md verbatim]
+
+=== PLAN OVERVIEW ===
+[paste contents of plan.md verbatim]
+
+=== TASK OUTLINE ===
+[paste contents of tasks/outlines/task-NN.outline verbatim]
+
+=== DESIGN CONTEXT ===
+[For full route: N/A — task-spec-writer reads design.md from disk via the Run ID above]
+[For quick-fix: N/A]
+
+=== STRUCTURE CONTEXT ===
+[For full route: N/A — task-spec-writer reads structure.md from disk via the Run ID above]
+[For quick-fix: N/A]
+
+=== AGENTS GUIDANCE ===
+[paste contents of repository-root AGENTS.md verbatim, or `None.`]
+
+=== INSTRUCTIONS ===
+Write exactly one self-contained task spec for this outline.
+For full-route tasks, read plan.md, design.md, structure.md, and requirements.md from disk using the Run ID before writing the spec.
+Include a ## Source Traceability section citing the goals acceptance-criteria labels, plan task/phase, design slice name, and structure slice/files.
+```
+
+When `qrspi-task-spec-writer` returns:
+
+- If the writer returns a FAIL block, stop immediately and return a Stage 6 FAIL with the failing task number and reason.
+- Otherwise, write the `### task-NN.md` section to `.pipeline/<run-id>/tasks/task-NN.md` using the edit tool.
+
+Repeat for every task outline. Once all task specs are written, proceed to Step C.3.
+
+#### Step C.3 — Per-Task Review Loop
+
+After all task specs are written, run a per-task review loop so each reviewer sees the full sibling task set.
+
+1. Set `task_spec_round = 1`.
+2. For each task in task-number order, invoke `qrspi-task-spec-reviewer` as a subagent:
+
+```
+=== RUN ID ===
+[paste the current run ID]
+
+=== CURRENT TASK NUMBER ===
+[NN]
+
+=== CURRENT TASK OUTLINE ===
+[paste contents of tasks/outlines/task-NN.outline verbatim]
+
+=== CURRENT TASK SPEC ===
+[paste contents of tasks/task-NN.md verbatim]
+
+=== PLAN ===
+[paste contents of plan.md verbatim]
+
+=== DESIGN ===
+[paste contents of design.md verbatim, or N/A for quick-fix]
+
+=== STRUCTURE ===
+[paste contents of structure.md verbatim, or N/A for quick-fix]
+
+=== ALL CURRENT TASK SPECS ===
+[paste contents of all tasks/task-NN.md files verbatim]
+
+=== AGENTS GUIDANCE ===
+[paste contents of repository-root AGENTS.md verbatim, or `None.`]
+
+=== REVIEW ROUND ===
+[task_spec_round]
+
+=== INSTRUCTIONS ===
+Review this task spec against its outline and all sibling task specs.
+Repair the current task file in place if defects are found.
+Do not edit any sibling task file, plan.md, phase-manifest.md, or project source code.
+```
+
+3. Write each reviewer output to `.pipeline/<run-id>/reviews/task-spec/task-NN-review-round-MM.md` using the edit tool.
+4. After all tasks are reviewed for the current round, apply this decision logic:
+   - If all reviewers returned `### Status — PASS` (after any in-place repairs), stop the per-task review loop.
+   - If any reviewer returned `### Unresolved Cross-Task Conflicts` entries (other than `None.`) and `task_spec_round < 3`, increment `task_spec_round` and run another round. Re-read all task files before each reviewer dispatch so each reviewer sees sibling repairs from earlier reviewers in the same round.
+   - If `task_spec_round = 3`, stop regardless of remaining conflicts.
+
+5. Track the terminal per-task review state for use in Step E:
+   - `task_spec_clean` if all tasks passed by the final round.
+   - `task_spec_unclean-cap` if the final round still had failures or unresolved conflicts.
 
 ### Step D — Automated Review Loop
 
@@ -226,13 +337,13 @@ After writing the draft artifacts, run an internal review loop before baseline c
 
 === INSTRUCTIONS ===
 Review this plan draft for AGENTS guidance compliance, goals coverage, dependency correctness, phase and wave coherence,
-NFR coverage, phase cohesion, cross-phase coupling, task self-containment, file specificity,
+NFR coverage, phase cohesion, cross-phase coupling, task self-containment, source traceability, file specificity,
 acceptance traceability, test expectation specificity, test strategy depth, replan gate traceability,
 and placeholder-free quality. When later-phase loopback context is present, also verify that completed phases remain preserved unchanged and that replanned phases start at `NEXT REMAINING PHASE`. Flag forward dependencies, vague files, vague tests,
-missing coverage, overview/task mismatches, or conflicts with preserved completed-phase history.
+missing coverage, overview/task mismatches, missing or invalid source traceability citations, or conflicts with preserved completed-phase history.
 ```
 
-On review rounds 2 and later, dispatch `qrspi-plan-reviewer` as a subagent with the current artifacts plus the latest review baseline instead of re-pasting the full upstream artifacts again:
+On review rounds 2 and later, dispatch `qrspi-plan-reviewer` as a subagent with the current artifacts plus design, structure, and the latest review baseline:
 
 ```
 === GOALS ===
@@ -240,6 +351,12 @@ On review rounds 2 and later, dispatch `qrspi-plan-reviewer` as a subagent with 
 
 === REQUIREMENTS ===
 [paste contents of requirements.md verbatim]
+
+=== DESIGN ===
+[paste contents of design.md verbatim, or N/A for quick-fix]
+
+=== STRUCTURE ===
+[paste contents of structure.md verbatim, or N/A for quick-fix]
 
 === AGENTS GUIDANCE ===
 [paste contents of repository-root AGENTS.md verbatim, or `None.`]
@@ -258,11 +375,10 @@ On review rounds 2 and later, dispatch `qrspi-plan-reviewer` as a subagent with 
 
 === INSTRUCTIONS ===
 Review the current plan draft for AGENTS guidance compliance, goals coverage, dependency correctness, phase and wave coherence,
-NFR coverage, phase cohesion, cross-phase coupling, task self-containment, file specificity,
+NFR coverage, phase cohesion, cross-phase coupling, task self-containment, source traceability, file specificity,
 acceptance traceability, test expectation specificity, test strategy depth, replan gate traceability,
 and placeholder-free quality.
-Use `GOALS`, `REQUIREMENTS`, `AGENTS Guidance`, and `REVIEW BASELINE` to confirm that previously flagged issues were fixed and that
-previously-passing areas remain stable without requiring the full upstream artifact set again.
+Use `DESIGN`, `STRUCTURE`, `AGENTS Guidance`, and `REVIEW BASELINE` to confirm that per-task repairs did not introduce structure regressions and that previously flagged issues were fixed.
 ```
 
 4. Write the reviewer output to `.pipeline/<run-id>/reviews/plan-review-round-{NN}.md` using the edit tool.
@@ -282,8 +398,8 @@ previously-passing areas remain stable without requiring the full upstream artif
   === CURRENT PHASE MANIFEST ===
   [paste contents of phase-manifest.md verbatim]
 
-  === CURRENT TASK SPECS ===
-  [paste contents of all tasks/task-NN.md files verbatim]
+  === CURRENT TASK OUTLINES ===
+  [paste contents of all tasks/outlines/task-NN.outline files verbatim]
 
   === AGENTS GUIDANCE ===
   [paste contents of repository-root AGENTS.md verbatim, or `None.`]
@@ -298,7 +414,12 @@ previously-passing areas remain stable without requiring the full upstream artif
   [paste only the `### Fix Guidance` section from the reviewer output verbatim]
   ```
 
-  Then overwrite `plan.md`, `phase-manifest.md`, and all returned `tasks/task-NN.md` files, increment `review_round`, and continue the loop.
+  Then:
+  - Overwrite `plan.md` and `phase-manifest.md` with the returned sections using the edit tool.
+  - Overwrite each `tasks/outlines/task-NN.outline` with the returned outline sections using the edit tool.
+  - Re-generate all task specs: for each task outline, re-invoke `qrspi-task-spec-writer` using the Step C.2 dispatch template and overwrite `tasks/task-NN.md`.
+  - Re-run a per-task review pass: follow the Step C.3 loop (max 3 rounds) to completion before continuing.
+  - Increment `review_round` and continue the plan-level review loop.
 
 - If the reviewer returns `### Status — FAIL` and `review_round` is 10, stop the review loop. Do not run an eleventh round.
 
@@ -318,11 +439,13 @@ After the review loop ends, append a final review status block to every `tasks/t
 
 ```
 ## Review Status
-- **State:** [clean (round NN) or unclean-cap (round 10)]
-- **Outstanding Concerns:** ["None." if clean, otherwise paste the final review summary verbatim]
+- **Task-Spec Review:** [task_spec_clean (round NN) or task_spec_unclean-cap (round 3)]
+- **Task-Spec Conflicts:** ["None." or brief description of unresolved cross-task conflicts from the final task-spec reviewer round]
+- **Plan Review:** [clean (round NN) or unclean-cap (round 10)]
+- **Outstanding Concerns:** ["None." if both reviews clean, otherwise paste the final plan review summary verbatim]
 ```
 
-Do not change the existing Metadata, Dependencies, Description, Files, or Test Expectations sections.
+Do not change the existing Metadata, Dependencies, Traceability, Source Traceability, Description, Files, or Test Expectations sections.
 
 ### Step F — Dispatch Baseline Checker
 

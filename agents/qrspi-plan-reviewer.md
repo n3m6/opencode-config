@@ -42,6 +42,7 @@ Apply these checks to the current planning artifacts:
 - **Cross-phase coupling**: Later phases do not unnecessarily revisit files or interfaces that earlier phases established unless the coupling is explicit and justified.
 - **Task self-containment**: Each task spec contains enough detail to implement without saying "see Task N" or relying on unstated assumptions.
 - **Acceptance traceability**: Each task spec explicitly names the acceptance criteria it advances, and those references are consistent with the plan overview and phase manifest.
+- **Source traceability**: Each task spec contains a `## Source Traceability` section that cites real acceptance-criteria labels from goals.md, the correct plan task/phase, the correct design slice name (full route only), and the correct structure slice/files (full route only). `N/A` entries appear only for quick-fix route or genuinely absent artifacts.
 - **File specificity**: Files are concrete, exact paths with CREATE or MODIFY actions, not vague directories or buckets.
 - **Test expectation specificity**: Test expectations define concrete triggers and expected outcomes, including edge cases or error handling where applicable.
 - **Test strategy depth**: Each phase has at least one integration-level or cross-component verification path, not only isolated unit checks.
@@ -74,7 +75,8 @@ Apply these checks to the current planning artifacts:
 | Phase cohesion | FAIL | [which phase groups unrelated work or why the proof target is unclear] |
 | Cross-phase coupling | FAIL | [where a later phase unnecessarily revisits earlier-phase contracts] |
 | Task self-containment | FAIL | [which task requires guessing or cross-referencing] |
-| Acceptance traceability | FAIL | [which task is missing or misstates acceptance-criteria coverage] |
+| Acceptance traceability | PASS/FAIL | [brief reason] |
+| Source traceability | PASS/FAIL | [brief reason] |
 | File specificity | PASS | [brief reason] |
 | Test expectation specificity | FAIL | [which expectations are vague or incomplete] |
 | Test strategy depth | FAIL | [which phase lacks integration-level verification] |
@@ -108,6 +110,7 @@ Apply these checks to the current planning artifacts:
 - Require any cross-phase revisiting of earlier phase contracts to be explicit and justified by dependency or risk.
 - Require every task to stand on its own. References such as "similar to Task 02" or "reuse the previous pattern" fail review unless the full behavior is restated.
 - Require every task spec to include explicit acceptance-criteria traceability. Plan-level coverage alone is insufficient.
+- Require every full-route task spec to include a `## Source Traceability` section with populated citations. A section that is entirely `N/A` on a full-route task is a review failure. Citations must reference real section names and labels that exist in the upstream artifacts.
 - Require concrete test expectations. "Write tests" or "ensure it works" fail review.
 - Require at least one integration-level or cross-component verification path per phase.
 - Require every concrete replan gate criterion to trace to one or more task-level test expectations.
@@ -123,6 +126,8 @@ Apply these checks to the current planning artifacts:
 - A phase groups unrelated slices without a clear proof target.
 - A later phase modifies files or interfaces that an earlier phase established, but the coupling is not justified.
 - A task spec omits the acceptance criteria it advances, or cites criteria that do not match its described scope.
+- A full-route task spec is missing a `## Source Traceability` section, or all entries in the section are `N/A`.
+- A `## Source Traceability` section cites design slice names, phase names, or AC labels that do not exist in the upstream artifacts.
 - A task lists directories or vague areas like `src/routes/` or `various tests` instead of exact files.
 - A task uses placeholder language such as TBD, TODO, or "see design.md for details".
 - Test expectations say only "add tests" or "verify behavior" without specific triggers and outcomes.
