@@ -593,15 +593,15 @@ Stage orchestrator. Dispatches the question generator, runs dual independent rev
 
 #### qrspi-question-generator
 
-Generates 5–15 neutral, tagged research questions from `goals.md`. Tags each question as `codebase`, `web`, or `hybrid`. Prefers splitting `hybrid` questions into separate `codebase` and `web` questions unless the question truly requires both. Performs a first-pass self-review for goal leakage and can rewrite questions using reviewer feedback. Read-only.
+Performs a shallow repo orientation (ls, README, manifests, 2-level tree, goal-keyword greps) to ground questions in the actual codebase. Builds an internal investigation map — one zone per affected subsystem, named dependency, acceptance criterion, and risk area — then drafts one question per zone (two for high-risk zones). Targets 5–15 questions with a `Count justification:` line when outside that range. Every question carries four fields: `Tag` (codebase/web/hybrid), `Covers` (phrase from goals.md), `Answer shape` (concrete bounded deliverable), `Decision unblocked` (downstream design/plan decision). Applies a two-bullet neutrality contract: MAY reference existing systems/files/libs; MUST NOT reference the intended change, feature names, outcomes, or implementation direction. Incorporates reviewer feedback and human feedback history. Read-only.
 
 #### qrspi-question-leakage-reviewer
 
-Independently reviews `questions.md` against `goals.md` and flags any question that leaks the requested change to a goal-blind researcher. Produces per-question SAFE or LEAKS status with rewrite guidance. Read-only.
+Independently reviews `questions.md` question text against `goals.md` and flags any question that leaks the requested change to a goal-blind researcher. Applies the same two-bullet neutrality contract (MAY/MUST NOT). Judgment is scoped to question text only — `Covers`, `Answer shape`, and `Decision unblocked` are internal planning fields and are not evaluated for leakage. Produces per-question SAFE or LEAKS status with rewrite guidance. Read-only.
 
 #### qrspi-question-quality-reviewer
 
-Independently reviews `questions.md` against `goals.md` for comprehensiveness, objectivity, specificity, tag accuracy, hybrid splitting, redundancy, and missing investigation areas. Returns per-question and set-level findings with improvement guidance. Read-only.
+Independently reviews `questions.md` against `goals.md` for: per-question field completeness (all four fields present), Covers accuracy, Answer shape concreteness, Decision unblocked relevance, tag accuracy, hybrid necessity, objectivity, and specificity; and set-level: traceability matrix (every FR/NFR/constraint/AC in goals.md covered by at least one Covers), dependency validation coverage, comprehensiveness, redundancy, answerability, and count-justification verification. Emits a `### Traceability Matrix` in every review output. Read-only.
 
 ---
 

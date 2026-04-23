@@ -25,12 +25,17 @@ You will receive:
 
 ### Review Standard
 
-For each question, apply this test:
+For each question, apply the neutrality contract to the **question text only** (not the `Covers`, `Answer shape`, or `Decision unblocked` fields — those are internal planning aids, not researcher-visible):
 
-> If a researcher sees ONLY this question, could they reasonably infer the planned feature, fix, or desired outcome?
+- **MAY**: the question text may reference systems, files, libraries, and patterns that already exist in the repo today.
+- **MUST NOT**: the question text must not reference the intended change, proposed feature names, desired outcomes, or implementation direction.
 
-- **SAFE** means the question is purely investigative and does not reveal the requested change.
-- **LEAKS** means the question reveals or strongly hints at the requested change, feature name, intended outcome, or implementation direction.
+Apply this test to every question independently:
+
+> Read ONLY the question text. Could a researcher reasonably infer the planned feature, fix, or desired outcome from it?
+
+- **SAFE** — the question text satisfies both bullets of the neutrality contract and does not reveal the requested change.
+- **LEAKS** — the question text violates the MUST NOT rule: it reveals or strongly hints at the requested change, feature name, intended outcome, or implementation direction.
 
 ### Process
 

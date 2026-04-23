@@ -52,14 +52,25 @@ Invoke `qrspi-question-generator` as a subagent:
 [paste contents of requirements.md verbatim]
 
 === INSTRUCTIONS ===
-Generate 5–15 neutral research questions from these goals.
-Tag each question as: codebase, web, or hybrid.
-Self-review every question for goal leakage: a researcher reading ONLY the question
-must not be able to infer what feature or change is being planned.
+Generate research questions grounded in the repo and the goals.
+
+Format — every question must have all four fields:
+### Q{N}: [question text]
+**Tag**: codebase | web | hybrid
+**Covers**: [short phrase quoted or paraphrased from goals.md or requirements.md]
+**Answer shape**: [1–2 sentences describing what a complete finding looks like]
+**Decision unblocked**: [downstream design or planning decision this feeds]
+
+Neutrality contract — apply to every question text:
+- MAY reference systems, files, libraries, and patterns that already exist in the repo today.
+- MUST NOT reference the intended change, proposed feature names, desired outcomes, or implementation direction.
+
+Count: target 5–15. If outside this range, add a one-line `Count justification:` before `# Research Questions`.
+
 Prefer splitting `hybrid` questions into separate `codebase` and `web` questions
 unless a single answer truly requires both.
-If a question leaks intent or becomes prescriptive, rephrase it to be purely investigative.
-Return questions in the specified format with `### Q{N}` headers and `**Tag**` labels.
+If a question cannot be made neutral, drop it and replace it with one covering
+the same knowledge need from a neutral angle.
 ```
 
 When `qrspi-question-generator` completes:
@@ -83,13 +94,16 @@ When `qrspi-question-generator` completes:
 
 === INSTRUCTIONS ===
 Review every research question independently for goal leakage.
-Apply this test to each question: if a researcher sees ONLY that question,
-could they reasonably infer the planned feature or change?
+Apply the neutrality contract to the question text only (not Covers/Answer shape/Decision unblocked):
+- MAY: question text may reference existing systems, files, libraries, and patterns.
+- MUST NOT: question text must not reference the intended change, feature names, desired outcomes, or implementation direction.
+For each question, ask: could a researcher reading ONLY the question text reasonably infer the planned feature or change?
+Mark each question SAFE or LEAKS.
 
 Return:
 ### Status — PASS or FAIL
 ### Review Findings — one row per question with status SAFE or LEAKS and notes
-### Rewrite Guidance — only include for questions that leak intent
+### Rewrite Guidance — only include for questions that leak intent; rewrite the question text to satisfy the MUST NOT rule
 ### Stage Summary — one-line summary with counts of safe and leaking questions
 ```
 
@@ -108,14 +122,26 @@ Return:
 
 === INSTRUCTIONS ===
 Review this question set for comprehensiveness, objectivity, specificity,
-tag accuracy, hybrid splitting, redundancy, and missing areas.
+tag accuracy, hybrid splitting, redundancy, missing areas, per-question field completeness,
+traceability to goals, answerability, and decision relevance.
+
+Per-question checks: objectivity, specificity, tag accuracy, hybrid necessity,
+field completeness (Tag/Covers/Answer shape/Decision unblocked present),
+Covers accuracy (tied to a real goals item), Answer shape concreteness,
+Decision unblocked naming a real downstream decision.
+
+Set-level checks: comprehensiveness, traceability matrix (every FR/NFR/constraint/AC
+in goals.md covered by at least one question's Covers), dependency validation coverage,
+redundancy, missing areas, answerability, count justification (verify Count justification:
+line is present and reasonable if count is outside 5–15).
 
 Return:
 ### Status — PASS or FAIL
 ### Per-Question Findings — one row per question with status OK or ISSUE and notes
-### Set-Level Findings — overall coverage or redundancy findings
+### Traceability Matrix — table: goals.md item | type | covered by Q#; mark MISSING where uncovered
+### Set-Level Findings — overall coverage, redundancy, answerability, or count-justification findings
 ### Improvement Guidance — concrete retag, split, merge, remove, or add guidance
-### Stage Summary — one-line summary with counts of questions OK vs needing changes
+### Stage Summary — one-line summary: N questions OK, M need changes; K items covered, J missing
 ```
 
 5. Write the reviewer output to `.pipeline/<run-id>/question-quality-review.md` using the edit tool.
@@ -138,8 +164,13 @@ Return:
 
 === INSTRUCTIONS ===
 Rewrite the entire question set to resolve all issues.
-Preserve neutral, investigative phrasing.
+Preserve neutral phrasing and apply the neutrality contract:
+- MAY reference existing systems, files, libraries, and patterns.
+- MUST NOT reference the intended change, feature names, desired outcomes, or implementation direction.
+Ensure every question has all four fields: Tag, Covers, Answer shape, Decision unblocked.
+Ensure every FR/NFR/constraint/AC in goals.md is covered by at least one question's Covers.
 Retag, split, merge, drop, or add questions as needed.
+Target 5–15 questions; add a Count justification: line before # Research Questions if outside range.
 Return the full questions.md artifact in the standard format.
 ```
 
