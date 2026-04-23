@@ -59,9 +59,9 @@ If `Current Plan`, `Current Phase Manifest`, and `Current Task Outlines` are pre
 
 **For retry revision mode:**
 
-1. **Start from the current draft, not a blank page.** Treat `Current Plan`, `Current Phase Manifest`, and `Current Task Specs` as the baseline.
+1. **Start from the current draft, not a blank page.** Treat `Current Plan`, `Current Phase Manifest`, and `Current Task Outlines` as the baseline.
 2. **Apply the retry mutation explicitly.** Use `Root Cause of Failure`, `Mutation Instruction`, and `Review Feedback` to decide exactly what must change.
-3. **Preserve valid content.** Keep existing phases, task IDs, and unchanged task specs unless they conflict with the identified root cause or explicit `AGENTS Guidance`.
+3. **Preserve valid content.** Keep existing phases, task IDs, and unchanged task outlines unless they conflict with the identified root cause or explicit `AGENTS Guidance`.
 4. **Reread upstream artifacts only when needed.** If `Run ID` is provided and you need fresh upstream context, read the pipeline artifacts from disk rather than requiring them to be pasted again.
 5. **Revise only the affected plan sections and task outlines.** Update outlines for new or materially changed tasks. Carry forward unchanged task outlines verbatim.
 6. **Return a complete current draft.** Even in retry revision mode, return the full updated `plan.md`, `phase-manifest.md`, and all task outlines that should remain active.

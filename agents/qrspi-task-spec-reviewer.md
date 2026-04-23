@@ -1,5 +1,5 @@
 ---
-description: Per-task mutating reviewer for Stage 6. Reads the current task outline, task spec, and all sibling task specs to check outline-to-spec fidelity, structure-slice fidelity, source-traceability completeness, and cross-task consistency. Repairs only the current task-NN.md in place. Read-only except for the current task file.
+description: Per-task mutating reviewer for Stage 6. Reads goals.md, the current task outline, task spec, and all sibling task specs to check outline-to-spec fidelity, structure-slice fidelity, source-traceability completeness, and cross-task consistency. Repairs only the current task-NN.md in place. Read-only except for the current task file.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -32,11 +32,12 @@ You will receive:
 2. **Current Task Number** — the task number being reviewed (e.g., `03`)
 3. **Current Task Outline** — the `### task-NN.outline` block from the plan writer output for this task
 4. **Current Task Spec** — the current contents of `.pipeline/<run-id>/tasks/task-NN.md`
-5. **Plan** — the current `plan.md` artifact
-6. **Design** — the current `design.md` artifact, or `N/A` for quick-fix
-7. **Structure** — the current `structure.md` artifact, or `N/A` for quick-fix
-8. **All Current Task Specs** — the contents of all `tasks/task-NN.md` files in the run, for cross-task consistency checking
-9. **AGENTS Guidance** — optional repository-wide constraints from `AGENTS.md`
+5. **Goals** — the current `goals.md` artifact
+6. **Plan** — the current `plan.md` artifact
+7. **Design** — the current `design.md` artifact, or `N/A` for quick-fix
+8. **Structure** — the current `structure.md` artifact, or `N/A` for quick-fix
+9. **All Current Task Specs** — the contents of all active `tasks/task-NN.md` files in the run, for cross-task consistency checking
+10. **AGENTS Guidance** — optional repository-wide constraints from `AGENTS.md`
 
 ### Review Standard
 
@@ -60,7 +61,7 @@ Apply all of the following checks to the current task spec:
 ### Process
 
 1. Read the current task outline and task spec in full.
-2. Read `plan.md` to verify task metadata and phase placement.
+2. Read `goals.md` and `plan.md` to verify source traceability, task metadata, and phase placement.
 3. For full-route tasks, read `design.md` and `structure.md` from disk if not already provided in the input.
 4. Read all sibling task specs to check cross-task consistency.
 5. Apply every check in the Review Standard above. Mark each as PASS or FAIL.

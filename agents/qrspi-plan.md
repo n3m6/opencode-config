@@ -72,8 +72,11 @@ If `Next Remaining Phase`, `Prior Phase Manifest`, `Completed Phases Context`, o
 
 - `mkdir -p .pipeline/<run-id>/tasks`
 - `mkdir -p .pipeline/<run-id>/tasks/outlines`
+- `mkdir -p .pipeline/<run-id>/tasks/inactive`
+- `mkdir -p .pipeline/<run-id>/tasks/outlines/inactive`
 - `mkdir -p .pipeline/<run-id>/reviews`
 - `mkdir -p .pipeline/<run-id>/reviews/task-spec`
+- `mkdir -p .pipeline/<run-id>/reviews/task-spec/inactive`
 - `mkdir -p .pipeline/<run-id>/phases`
 
 ### Step C — Draft Plan and Generate Task Specs
@@ -176,13 +179,15 @@ Return a plan.md, a phase-manifest.md, and a single task-01.outline block.
 
 When `qrspi-plan-writer` completes:
 
+- Treat the returned outline set as the authoritative active task set for the current draft.
+- Before writing the returned outline sections, move any existing active `tasks/outlines/task-NN.outline`, `tasks/task-NN.md`, and `reviews/task-spec/task-NN-review-round-MM.md` files whose task number is not present in the returned outline set into the matching `inactive/` archive directories. Do not leave orphaned active task artifacts in place after a rewrite.
 - Write the `### plan.md` section to `.pipeline/<run-id>/plan.md` using the edit tool.
 - Write the `### phase-manifest.md` section to `.pipeline/<run-id>/phase-manifest.md` using the edit tool.
 - For each `### task-NN.outline` section, write to `.pipeline/<run-id>/tasks/outlines/task-NN.outline` using the edit tool.
 
 #### Step C.2 — Generate Task Specs
 
-For each `tasks/outlines/task-NN.outline` file (in task-number order), invoke `qrspi-task-spec-writer` as a subagent:
+For each active `tasks/outlines/task-NN.outline` file (in task-number order), invoke `qrspi-task-spec-writer` as a subagent:
 
 ```
 === RUN ID ===
@@ -235,7 +240,7 @@ Repeat for every task outline. Once all task specs are written, proceed to Step 
 
 #### Step C.3 — Per-Task Review Loop
 
-After all task specs are written, run a per-task review loop so each reviewer sees the full sibling task set.
+After all active task specs are written, run a per-task review loop so each reviewer sees the full sibling task set.
 
 1. Set `task_spec_round = 1`.
 2. For each task in task-number order, invoke `qrspi-task-spec-reviewer` as a subagent:
@@ -253,6 +258,9 @@ After all task specs are written, run a per-task review loop so each reviewer se
 === CURRENT TASK SPEC ===
 [paste contents of tasks/task-NN.md verbatim]
 
+=== GOALS ===
+[paste contents of goals.md verbatim]
+
 === PLAN ===
 [paste contents of plan.md verbatim]
 
@@ -263,7 +271,7 @@ After all task specs are written, run a per-task review loop so each reviewer se
 [paste contents of structure.md verbatim, or N/A for quick-fix]
 
 === ALL CURRENT TASK SPECS ===
-[paste contents of all tasks/task-NN.md files verbatim]
+[paste contents of all active tasks/task-NN.md files verbatim]
 
 === AGENTS GUIDANCE ===
 [paste contents of repository-root AGENTS.md verbatim, or `None.`]
@@ -280,8 +288,9 @@ Do not edit any sibling task file, plan.md, phase-manifest.md, or project source
 3. Write each reviewer output to `.pipeline/<run-id>/reviews/task-spec/task-NN-review-round-MM.md` using the edit tool.
 4. After all tasks are reviewed for the current round, apply this decision logic:
    - If all reviewers returned `### Status — PASS` (after any in-place repairs), stop the per-task review loop.
-   - If any reviewer returned `### Unresolved Cross-Task Conflicts` entries (other than `None.`) and `task_spec_round < 3`, increment `task_spec_round` and run another round. Re-read all task files before each reviewer dispatch so each reviewer sees sibling repairs from earlier reviewers in the same round.
-   - If `task_spec_round = 3`, stop regardless of remaining conflicts.
+
+- If any reviewer returned `### Status — FAIL` or any `### Unresolved Cross-Task Conflicts` entries (other than `None.`), and `task_spec_round < 3`, increment `task_spec_round` and run another round. Re-read all active task files before each reviewer dispatch so each reviewer sees sibling repairs from earlier reviewers in the same round and ignores archived inactive tasks.
+- If `task_spec_round = 3`, stop regardless of remaining failures or conflicts.
 
 5. Track the terminal per-task review state for use in Step E:
    - `task_spec_clean` if all tasks passed by the final round.
@@ -333,7 +342,7 @@ After writing the draft artifacts, run an internal review loop before baseline c
 [paste contents of phase-manifest.md verbatim]
 
 === TASK SPECS ===
-[paste contents of all tasks/task-NN.md files verbatim]
+[paste contents of all active tasks/task-NN.md files verbatim]
 
 === INSTRUCTIONS ===
 Review this plan draft for AGENTS guidance compliance, goals coverage, dependency correctness, phase and wave coherence,
@@ -361,6 +370,18 @@ On review rounds 2 and later, dispatch `qrspi-plan-reviewer` as a subagent with 
 === AGENTS GUIDANCE ===
 [paste contents of repository-root AGENTS.md verbatim, or `None.`]
 
+=== NEXT REMAINING PHASE ===
+[paste the provided next remaining phase number, or `1`]
+
+=== PRIOR PHASE MANIFEST ===
+[paste the provided prior phase manifest verbatim, or `None.`]
+
+=== COMPLETED PHASES CONTEXT ===
+[paste the provided completed phases context verbatim, or `None.`]
+
+=== FAILURE CONTEXT ===
+[paste the provided failure context verbatim, or `None.`]
+
 === PLAN ===
 [paste contents of plan.md verbatim]
 
@@ -368,7 +389,7 @@ On review rounds 2 and later, dispatch `qrspi-plan-reviewer` as a subagent with 
 [paste contents of phase-manifest.md verbatim]
 
 === TASK SPECS ===
-[paste contents of all tasks/task-NN.md files verbatim]
+[paste contents of all active tasks/task-NN.md files verbatim]
 
 === REVIEW BASELINE ===
 [paste the most recent reviewer output verbatim]
@@ -399,10 +420,22 @@ Use `DESIGN`, `STRUCTURE`, `AGENTS Guidance`, and `REVIEW BASELINE` to confirm t
   [paste contents of phase-manifest.md verbatim]
 
   === CURRENT TASK OUTLINES ===
-  [paste contents of all tasks/outlines/task-NN.outline files verbatim]
+  [paste contents of all active tasks/outlines/task-NN.outline files verbatim]
 
   === AGENTS GUIDANCE ===
   [paste contents of repository-root AGENTS.md verbatim, or `None.`]
+
+  === NEXT REMAINING PHASE ===
+  [paste the provided next remaining phase number, or `1`]
+
+  === PRIOR PHASE MANIFEST ===
+  [paste the provided prior phase manifest verbatim, or `None.`]
+
+  === COMPLETED PHASES CONTEXT ===
+  [paste the provided completed phases context verbatim, or `None.`]
+
+  === FAILURE CONTEXT ===
+  [paste the provided failure context verbatim, or `None.`]
 
   === ROOT CAUSE OF FAILURE ===
   [one sentence naming the primary defect that caused the FAIL]
@@ -416,8 +449,9 @@ Use `DESIGN`, `STRUCTURE`, `AGENTS Guidance`, and `REVIEW BASELINE` to confirm t
 
   Then:
   - Overwrite `plan.md` and `phase-manifest.md` with the returned sections using the edit tool.
-  - Overwrite each `tasks/outlines/task-NN.outline` with the returned outline sections using the edit tool.
-  - Re-generate all task specs: for each task outline, re-invoke `qrspi-task-spec-writer` using the Step C.2 dispatch template and overwrite `tasks/task-NN.md`.
+  - Treat the returned outline set as the new authoritative active task set. Move any previously active outline/spec/review files whose task number is absent from the returned set into the corresponding `inactive/` archive directories before continuing.
+  - Overwrite each active `tasks/outlines/task-NN.outline` with the returned outline sections using the edit tool.
+  - Re-generate all active task specs: for each active task outline, re-invoke `qrspi-task-spec-writer` using the Step C.2 dispatch template and overwrite `tasks/task-NN.md`.
   - Re-run a per-task review pass: follow the Step C.3 loop (max 3 rounds) to completion before continuing.
   - Increment `review_round` and continue the plan-level review loop.
 
@@ -435,7 +469,7 @@ Use `DESIGN`, `STRUCTURE`, `AGENTS Guidance`, and `REVIEW BASELINE` to confirm t
 
 ### Step E — Append Final Review Status To Task Specs
 
-After the review loop ends, append a final review status block to every `tasks/task-NN.md` file:
+After the review loop ends, append a final review status block to every active `tasks/task-NN.md` file:
 
 ```
 ## Review Status
@@ -449,7 +483,7 @@ Do not change the existing Metadata, Dependencies, Traceability, Source Traceabi
 
 ### Step F — Dispatch Baseline Checker
 
-Read all final task files. Invoke `qrspi-baseline-checker` as a subagent:
+Read all final active task files. Invoke `qrspi-baseline-checker` as a subagent:
 
 ```
 === PIPELINE CONFIG ===
@@ -459,7 +493,7 @@ Read all final task files. Invoke `qrspi-baseline-checker` as a subagent:
 [paste contents of plan.md verbatim]
 
 === TASK SPECS ===
-[paste contents of all tasks/task-NN.md files verbatim]
+[paste contents of all active tasks/task-NN.md files verbatim]
 
 === INSTRUCTIONS ===
 Record the pre-implementation baseline for this repository.

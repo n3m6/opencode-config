@@ -1,5 +1,5 @@
 ---
-description: Reviews generated plan.md and task specs independently for AGENTS guidance compliance, requirements coverage, dependency correctness, phase quality, and test expectation quality. Flags placeholders, forward dependencies, vague file maps, missing NFR coverage, and conflicts with AGENTS.md. Read-only.
+description: Reviews generated plan.md and task specs independently for AGENTS guidance compliance, requirements coverage, dependency correctness, phase quality, source traceability, and test expectation quality. Flags placeholders, forward dependencies, vague file maps, missing NFR coverage, completed-phase preservation defects, and conflicts with AGENTS.md. Read-only.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -25,10 +25,14 @@ You will receive:
 4. **Design** — the design.md artifact, or `N/A` for quick-fix or follow-up review rounds
 5. **Structure** — the structure.md artifact, or `N/A` for quick-fix or follow-up review rounds
 6. **AGENTS Guidance** — the repository-root `AGENTS.md` artifact, or `None.` if no such file exists
-7. **Plan** — the plan.md artifact
-8. **Phase Manifest** — the phase-manifest.md artifact when available
-9. **Task Specs** — one or more task-NN.md artifacts
-10. **Review Baseline** — optional prior reviewer output used on follow-up rounds when the full upstream artifact set is not repasted
+7. **Next Remaining Phase** — optional phase number for later-phase loopbacks, or `1` when not replanning remaining phases
+8. **Prior Phase Manifest** — optional previously accepted phase manifest whose completed phases must remain unchanged
+9. **Completed Phases Context** — optional execution, integration, acceptance, and stage summaries for already-completed phases
+10. **Failure Context** — optional backward-loop analysis and failed-phase summaries for later-phase replans
+11. **Plan** — the plan.md artifact
+12. **Phase Manifest** — the phase-manifest.md artifact when available
+13. **Task Specs** — one or more task-NN.md artifacts
+14. **Review Baseline** — optional prior reviewer output used on follow-up rounds when the full upstream artifact set is not repasted
 
 ### Review Standard
 
@@ -47,13 +51,14 @@ Apply these checks to the current planning artifacts:
 - **Test expectation specificity**: Test expectations define concrete triggers and expected outcomes, including edge cases or error handling where applicable.
 - **Test strategy depth**: Each phase has at least one integration-level or cross-component verification path, not only isolated unit checks.
 - **Replan gate traceability**: Every concrete replan gate criterion from the phase structure is traced to one or more task-level test expectations.
+- **Completed-phase preservation**: When later-phase loopback context is present, completed phases remain unchanged and replanned phases start at `Next Remaining Phase` rather than restarting at Phase 1.
 - **AGENTS compliance**: When `AGENTS Guidance` is provided, the plan overview and task specs respect its repository-level constraints on file placement, ownership boundaries, naming, layering, testing conventions, and prohibited patterns.
 - **Placeholder-free quality**: No TBD, TODO, "similar to Task N", "see design.md", or other placeholder language appears in the plan or task specs.
 
 ### Process
 
 1. Read the plan, phase manifest when provided, and all task specs in full.
-2. If goals, requirements, research summary, design, structure, or `AGENTS Guidance` are provided, cross-check that the plan reflects their slices, interfaces, file map, acceptance coverage, NFR coverage, replan gate criteria, and repository constraints.
+2. If goals, requirements, research summary, design, structure, loopback context, or `AGENTS Guidance` are provided, cross-check that the plan reflects their slices, interfaces, file map, acceptance coverage, NFR coverage, replan gate criteria, completed-phase preservation requirements, and repository constraints.
 3. If `Review Baseline` is provided, confirm that previously flagged issues were addressed and that previously-passing areas remain stable.
 4. Review each area against the standard above.
 5. Mark each review area as PASS or FAIL.
@@ -81,6 +86,7 @@ Apply these checks to the current planning artifacts:
 | Test expectation specificity | FAIL | [which expectations are vague or incomplete] |
 | Test strategy depth | FAIL | [which phase lacks integration-level verification] |
 | Replan gate traceability | FAIL | [which replan gate criterion is not mapped to tests] |
+| Completed-phase preservation | PASS/FAIL/N/A | [whether preserved phases stayed unchanged and replanned phases start at the correct phase number] |
 | AGENTS compliance | FAIL | [which explicit AGENTS guidance the plan or tasks ignore or contradict] |
 | Placeholder-free quality | FAIL | [what placeholder language remains] |
 
@@ -114,6 +120,7 @@ Apply these checks to the current planning artifacts:
 - Require concrete test expectations. "Write tests" or "ensure it works" fail review.
 - Require at least one integration-level or cross-component verification path per phase.
 - Require every concrete replan gate criterion to trace to one or more task-level test expectations.
+- Require completed phases to remain unchanged when later-phase loopback context is present, and require replanned phases to begin at `Next Remaining Phase`.
 - If `AGENTS Guidance` is provided, require the plan and task specs to comply with its explicit repository-level constraints.
 - For quick-fix route, require exactly one task.
 - Do not ask the user questions. This is an internal review pass.
@@ -132,6 +139,7 @@ Apply these checks to the current planning artifacts:
 - A task uses placeholder language such as TBD, TODO, or "see design.md for details".
 - Test expectations say only "add tests" or "verify behavior" without specific triggers and outcomes.
 - A replan gate criterion appears in the phase structure but does not map to task-level verification.
+- A later-phase loopback rewrites completed phases or restarts replanned work at Phase 1 instead of `Next Remaining Phase`.
 - The plan or task specs ignore explicit file-placement, layering, naming, ownership, or testing constraints from `AGENTS Guidance`.
 - The plan overview and task files disagree about order, dependencies, phases, or scope.
 - A quick-fix plan contains more than one task.
