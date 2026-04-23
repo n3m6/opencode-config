@@ -134,7 +134,7 @@ and granularity. Verify MODIFY and CREATE paths against the codebase.
 ### Step D — Human Gate
 
 1. Read the artifact: `cat .pipeline/<run-id>/structure.md`
-2. Present the artifact to the user via `question`:
+2. Use the `question` tool now to ask below question:
 
    ```
    ### Structure — Review
