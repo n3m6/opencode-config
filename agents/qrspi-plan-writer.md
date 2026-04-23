@@ -1,5 +1,5 @@
 ---
-description: Writes a plan overview, then dispatches per-task spec writers to produce ordered task specs with dependencies, file paths, and test expectations. Supports full and quick-fix routes and preserves traceability to requirements, NFRs, and replan gates. Read-only.
+description: Writes a plan overview, then dispatches per-task spec writers to produce ordered task specs with dependencies, file paths, and test expectations. Supports full and quick-fix routes and preserves traceability to requirements, NFRs, replan gates, and repository instructions from AGENTS.md. Read-only.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -41,23 +41,28 @@ You may also receive:
 7. **Prior Phase Manifest** — optional last known phase manifest that preserves already-completed phase numbering and summaries
 8. **Completed Phases Context** — optional execution, integration, acceptance, and stage summaries from already-completed phases
 9. **Failure Context** — optional backward-loop analysis, failed-phase summaries, and loop feedback from the triggering phase
-10. **Review Feedback** — prior plan review findings that must be addressed before returning the next draft
-11. **Run ID** — optional pipeline run identifier used only in retry revision mode so you can reread upstream artifacts from `.pipeline/<run-id>/` instead of requiring them to be pasted again
-12. **Current Plan** — optional current `plan.md` draft that should be revised instead of regenerated
-13. **Current Phase Manifest** — optional current `phase-manifest.md` draft that should be revised instead of regenerated
-14. **Current Task Specs** — optional current task specs that should be preserved or selectively revised
-15. **Root Cause of Failure** — optional one-sentence statement naming the primary defect from the last review round
-16. **Mutation Instruction** — optional one-sentence statement telling the next draft what must change differently
+10. **AGENTS Guidance** — optional repository-wide planning and implementation constraints from `AGENTS.md`
+11. **Review Feedback** — prior plan review findings that must be addressed before returning the next draft
+12. **Run ID** — optional pipeline run identifier used only in retry revision mode so you can reread upstream artifacts from `.pipeline/<run-id>/` instead of requiring them to be pasted again
+13. **Current Plan** — optional current `plan.md` draft that should be revised instead of regenerated
+14. **Current Phase Manifest** — optional current `phase-manifest.md` draft that should be revised instead of regenerated
+15. **Current Task Specs** — optional current task specs that should be preserved or selectively revised
+16. **Root Cause of Failure** — optional one-sentence statement naming the primary defect from the last review round
+17. **Mutation Instruction** — optional one-sentence statement telling the next draft what must change differently
 
 If `Current Plan`, `Current Phase Manifest`, and `Current Task Specs` are present, treat the call as **retry revision mode**. In retry revision mode, treat those current artifacts as the authoritative draft to revise. If `Run ID` is provided, you may reread `.pipeline/<run-id>/goals.md`, `research/summary.md`, `design.md`, and `structure.md` from disk when you need fresh upstream context before revising or before delegating updated task specs.
 
 ### Process
 
+**For all modes:**
+
+- If `AGENTS Guidance` is provided, treat it as repository-level constraints on file placement, layering, naming, testing conventions, ownership boundaries, and prohibited patterns. Use it to shape the plan overview, task boundaries, file selection, and task/test expectations, but do not invent new product requirements from it.
+
 **For retry revision mode:**
 
 1. **Start from the current draft, not a blank page.** Treat `Current Plan`, `Current Phase Manifest`, and `Current Task Specs` as the baseline.
 2. **Apply the retry mutation explicitly.** Use `Root Cause of Failure`, `Mutation Instruction`, and `Review Feedback` to decide exactly what must change.
-3. **Preserve valid content.** Keep existing phases, task IDs, and unchanged task specs unless they conflict with the identified root cause.
+3. **Preserve valid content.** Keep existing phases, task IDs, and unchanged task specs unless they conflict with the identified root cause or explicit `AGENTS Guidance`.
 4. **Reread upstream artifacts only when needed.** If `Run ID` is provided and you need fresh upstream context, read the pipeline artifacts from disk rather than requiring them to be pasted again.
 5. **Revise only the affected plan sections and task specs.** Re-dispatch `qrspi-task-spec-writer` for new or materially changed tasks. Carry forward unchanged current task specs verbatim.
 6. **Return a complete current draft.** Even in retry revision mode, return the full updated `plan.md`, `phase-manifest.md`, and all task specs that should remain active.
@@ -104,6 +109,9 @@ For each new or materially revised task, invoke `qrspi-task-spec-writer` as a su
 
 === RESEARCH SUMMARY ===
 [paste contents of research/summary.md verbatim]
+
+=== AGENTS GUIDANCE ===
+[paste contents of AGENTS Guidance verbatim, or `None.`]
 
 === PLAN OVERVIEW ===
 [paste the current plan overview draft verbatim]
@@ -218,6 +226,7 @@ For quick-fix, always emit exactly:
 - **Minimize cross-phase coupling.** Avoid plans where later phases must revise files or interfaces that an earlier phase just established unless the dependency is explicit and justified.
 - **Trace acceptance criteria into tasks.** Every task spec must name the acceptance criteria it directly advances; plan-level coverage alone is insufficient.
 - **Trace replan gates and NFRs.** Coverage Notes must map every concrete replan gate criterion and every in-scope NFR to at least one task.
+- **Honor AGENTS guidance.** If `AGENTS Guidance` is provided, the plan overview, task outlines, file selection, and test expectations must comply with its explicit repository-level constraints.
 - **Foundation slices stay bounded.** If the design includes a foundation slice, keep it narrow and ensure Phase 1 still includes at least one end-to-end slice that proves the architecture.
 - **Overview and task specs must agree.** The task order table, phase summary, wave analysis, and returned task specs must describe the same ordering and scope.
 - **Phase manifest must agree.** The phase manifest, phase summary, and task metadata must describe the same phase structure and replan gates.

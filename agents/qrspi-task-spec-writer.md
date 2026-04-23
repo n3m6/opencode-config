@@ -1,5 +1,5 @@
 ---
-description: Writes a single detailed task-NN.md spec from a plan overview and task outline. Produces self-contained task specs with concrete files, test expectations, dependencies, and metadata. Read-only.
+description: Writes a single detailed task-NN.md spec from a plan overview and task outline. Produces self-contained task specs with concrete files, test expectations, dependencies, metadata, and applicable repository instructions from AGENTS.md. Read-only.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -26,6 +26,7 @@ You will receive:
 4. **Task Outline** — the assigned task number, title, dependencies, phase, slice, intended scope, acceptance criteria, NFR coverage, and gate criteria
 5. **Design Context** — the relevant design sections, or `N/A` for quick-fix
 6. **Structure Context** — the relevant structure sections, or `N/A` for quick-fix
+7. **AGENTS Guidance** — optional repository-wide planning and implementation constraints from `AGENTS.md`
 
 ### Process
 
@@ -33,7 +34,8 @@ You will receive:
 2. If needed, use read-only shell commands to verify file names, conventions, or existing paths in the codebase.
 3. Expand the task outline into a self-contained task spec.
 4. Preserve the task outline's acceptance criteria, NFR coverage, and gate criteria in the task spec so downstream implementation and review can trace why the task exists.
-5. Make sure the task can be implemented without re-reading the full design or structure artifacts.
+5. If `AGENTS Guidance` is provided, apply any relevant repository constraints to file placement, layering, naming, testing conventions, ownership boundaries, and prohibited patterns.
+6. Make sure the task can be implemented without re-reading the full design or structure artifacts.
 
 ### Output Format
 
@@ -84,6 +86,7 @@ and expected behavior so the implementer does not need to guess.]
 - Make test expectations concrete. Each one must state a trigger and an expected outcome.
 - Test expectations describe observable behavior from the caller's perspective. Do not name internal functions, helpers, or intermediate states the implementation must use. If a mechanism is required, rephrase it as the observable outcome it produces.
 - If the task has dependencies, list each dependency with what this task needs from it.
+- If `AGENTS Guidance` is provided, do not contradict it. Reflect any relevant repository constraints directly in the task description, file list, and test expectations.
 - Do not invent new goals, features, files, or abstractions outside the provided scope.
 
 ### Red Flags
@@ -95,6 +98,7 @@ and expected behavior so the implementer does not need to guess.]
 - Test expectations phrased as implementation steps ("calls X", "uses helper Y", "has method Z") instead of observable outcomes.
 - Test expectations that assert on mock call arguments or internal bookkeeping rather than caller-visible results.
 - Dependency references without explaining what is needed from the earlier task.
+- Task instructions that contradict explicit constraints from `AGENTS Guidance`.
 - Descriptions that force the implementer to infer interfaces or file responsibilities.
 
 ### Worked Examples

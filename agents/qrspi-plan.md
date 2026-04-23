@@ -1,5 +1,5 @@
 ---
-description: "Stage 6 orchestrator — reads route-appropriate inputs, dispatches the plan writer, runs automated review rounds, enriches task review metadata, and dispatches the baseline checker. Writes plan.md, phase-manifest.md, canonical tasks/task-NN.md, review artifacts, and baseline-results.md."
+description: "Stage 6 orchestrator — reads route-appropriate inputs plus optional repository guidance from AGENTS.md, dispatches the plan writer, runs automated review rounds, enriches task review metadata, and dispatches the baseline checker. Writes plan.md, phase-manifest.md, canonical tasks/task-NN.md, review artifacts, and baseline-results.md."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -46,6 +46,7 @@ Extract the run ID and route from the prompt. Also parse any optional loopback c
 
 Read `config.md` to confirm the route: `cat .pipeline/<run-id>/config.md`
 Read the preserved requirements file: `cat .pipeline/<run-id>/requirements.md`
+If `AGENTS.md` exists at the repository root, read it and treat it as `AGENTS Guidance`. If it does not exist, treat `AGENTS Guidance` as `None.`
 
 **Full route** — read all prior artifacts:
 
@@ -91,6 +92,9 @@ For **full** route, invoke `qrspi-plan-writer` as a subagent:
 === STRUCTURE ===
 [paste contents of structure.md verbatim]
 
+=== AGENTS GUIDANCE ===
+[paste contents of repository-root AGENTS.md verbatim, or `None.`]
+
 === NEXT REMAINING PHASE ===
 [paste the provided next remaining phase number, or `1`]
 
@@ -105,6 +109,7 @@ For **full** route, invoke `qrspi-plan-writer` as a subagent:
 
 === INSTRUCTIONS ===
 Write an ordered implementation plan overview and delegate every task spec.
+If `AGENTS Guidance` is provided, incorporate its repository-level constraints into phase boundaries, task decomposition, file selection, and test expectations.
 The plan overview must include:
 - Overview
 - Phase Summary
@@ -141,8 +146,12 @@ For **quick-fix** route, invoke `qrspi-plan-writer` as a subagent:
 === RESEARCH SUMMARY ===
 [paste contents of research/summary.md verbatim]
 
+=== AGENTS GUIDANCE ===
+[paste contents of repository-root AGENTS.md verbatim, or `None.`]
+
 === INSTRUCTIONS ===
 Write a concise implementation plan overview and delegate the single task spec.
+If `AGENTS Guidance` is provided, incorporate its repository-level constraints into the task boundary, file selection, and test expectations.
 This is a quick-fix: produce exactly one task.
 The plan overview must include:
 - Overview
@@ -191,6 +200,9 @@ After writing the draft artifacts, run an internal review loop before baseline c
 === STRUCTURE ===
 [paste contents of structure.md verbatim, or N/A for quick-fix]
 
+=== AGENTS GUIDANCE ===
+[paste contents of repository-root AGENTS.md verbatim, or `None.`]
+
 === NEXT REMAINING PHASE ===
 [paste the provided next remaining phase number, or `1`]
 
@@ -213,7 +225,7 @@ After writing the draft artifacts, run an internal review loop before baseline c
 [paste contents of all tasks/task-NN.md files verbatim]
 
 === INSTRUCTIONS ===
-Review this plan draft for goals coverage, dependency correctness, phase and wave coherence,
+Review this plan draft for AGENTS guidance compliance, goals coverage, dependency correctness, phase and wave coherence,
 NFR coverage, phase cohesion, cross-phase coupling, task self-containment, file specificity,
 acceptance traceability, test expectation specificity, test strategy depth, replan gate traceability,
 and placeholder-free quality. When later-phase loopback context is present, also verify that completed phases remain preserved unchanged and that replanned phases start at `NEXT REMAINING PHASE`. Flag forward dependencies, vague files, vague tests,
@@ -229,6 +241,9 @@ On review rounds 2 and later, dispatch `qrspi-plan-reviewer` as a subagent with 
 === REQUIREMENTS ===
 [paste contents of requirements.md verbatim]
 
+=== AGENTS GUIDANCE ===
+[paste contents of repository-root AGENTS.md verbatim, or `None.`]
+
 === PLAN ===
 [paste contents of plan.md verbatim]
 
@@ -242,11 +257,11 @@ On review rounds 2 and later, dispatch `qrspi-plan-reviewer` as a subagent with 
 [paste the most recent reviewer output verbatim]
 
 === INSTRUCTIONS ===
-Review the current plan draft for goals coverage, dependency correctness, phase and wave coherence,
+Review the current plan draft for AGENTS guidance compliance, goals coverage, dependency correctness, phase and wave coherence,
 NFR coverage, phase cohesion, cross-phase coupling, task self-containment, file specificity,
 acceptance traceability, test expectation specificity, test strategy depth, replan gate traceability,
 and placeholder-free quality.
-Use `GOALS`, `REQUIREMENTS`, and `REVIEW BASELINE` to confirm that previously flagged issues were fixed and that
+Use `GOALS`, `REQUIREMENTS`, `AGENTS Guidance`, and `REVIEW BASELINE` to confirm that previously flagged issues were fixed and that
 previously-passing areas remain stable without requiring the full upstream artifact set again.
 ```
 
@@ -269,6 +284,9 @@ previously-passing areas remain stable without requiring the full upstream artif
 
   === CURRENT TASK SPECS ===
   [paste contents of all tasks/task-NN.md files verbatim]
+
+  === AGENTS GUIDANCE ===
+  [paste contents of repository-root AGENTS.md verbatim, or `None.`]
 
   === ROOT CAUSE OF FAILURE ===
   [one sentence naming the primary defect that caused the FAIL]

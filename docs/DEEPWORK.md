@@ -665,15 +665,15 @@ Reviews `structure.md` independently for design alignment, file action correctne
 
 #### qrspi-plan
 
-Stage orchestrator. Reads route-appropriate inputs, dispatches the plan writer, runs the automated plan review loop (min 5 / max 10 rounds), appends final review status to each task spec, and dispatches the baseline checker. No human gate.
+Stage orchestrator. Reads route-appropriate inputs plus optional repository guidance from `AGENTS.md`, dispatches the plan writer, runs the automated plan review loop (min 5 / max 10 rounds), appends final review status to each task spec, and dispatches the baseline checker. No human gate.
 
 #### qrspi-plan-writer
 
-Writes ordered task specifications with file paths, descriptions, test expectations, dependencies, phase assignments, and stable task IDs. Produces `plan.md`, `phase-manifest.md`, and individual `task-NN.md` files. Supports full route (uses all prior artifacts) and quick-fix route (single task from goals + research). Read-only.
+Writes ordered task specifications with file paths, descriptions, test expectations, dependencies, phase assignments, and stable task IDs while honoring repository instructions from `AGENTS.md` when present. Produces `plan.md`, `phase-manifest.md`, and individual `task-NN.md` files. Supports full route (uses all prior artifacts) and quick-fix route (single task from goals + research). Read-only.
 
 #### qrspi-plan-reviewer
 
-Reviews the plan for goals coverage, dependency correctness, phase and wave coherence, task self-containment, file specificity, test expectation specificity, and placeholder-free quality. Flags forward dependencies, vague files, vague tests, missing coverage, or overview/task mismatches. Read-only.
+Reviews the plan for AGENTS guidance compliance, goals coverage, dependency correctness, phase and wave coherence, task self-containment, file specificity, test expectation specificity, and placeholder-free quality. Flags forward dependencies, vague files, vague tests, missing coverage, conflicts with `AGENTS.md`, or overview/task mismatches. Read-only.
 
 #### qrspi-baseline-checker
 
