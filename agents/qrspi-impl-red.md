@@ -54,7 +54,7 @@ You will receive:
 
 3. If the plan review status is `unclean-cap` and the ambiguity prevents safe test writing, return a backward loop request instead of guessing.
 4. **If Rewrite Attempt > 0**, operate in **rewrite mode**: use `Prior RED Review Findings` to identify exactly which tests must be addressed. Preserve all tests not mentioned in those findings. Pass rewrite context to `build` as described in the dispatch template below.
-5. Dispatch `build` to write or rewrite the task's failing tests and run only the targeted test slice needed to prove the task is still red.
+5. Dispatch `build` to discover any existing task-authored tests, adopt tests that already cover a spec behavior and are already red for a task-related reason, and author tests only for behaviors not yet covered or covered only by structurally bad tests. Run the targeted test slice to confirm it is red.
 
 Use this dispatch:
 
@@ -88,14 +88,21 @@ Use this dispatch:
 
 === INSTRUCTIONS ===
 If `=== REWRITE ATTEMPT ===` is `0`:
-Write the failing tests for this task only.
-For each behavior in `## Test Expectations`, write at least one test that:
-- Uses the exact trigger described in the expectation.
-- Asserts the exact observable outcome described in the expectation.
-- Fails for a task-related semantic reason — not because of a missing import, syntax error, setup failure, or broken test harness.
-Run the targeted test slice and confirm at least one test fails for the intended task reason.
+Before writing any tests, search for existing test files related to this task — by task ID, feature name, or file path patterns implied by the task spec's file targets. For each discovered test file, run it in isolation and identify which behaviors from `## Test Expectations` it already exercises.
+
+For each behavior in `## Test Expectations`:
+- If an existing test already covers it AND it fails for a task-related semantic reason (not a harness/import/setup failure), **adopt it as-is**. Do not write a duplicate.
+- If an existing test covers the behavior but fails for a harness or setup reason unrelated to the task, or passes when it should fail (production code already exists), it does not satisfy RED. Rewrite or replace it.
+- If no existing test covers the behavior, write one.
+
+For every test you adopt, write, or rewrite:
+- Use the exact trigger described in the expectation.
+- Assert the exact observable outcome described in the expectation.
+- Fail for a task-related semantic reason — not because of a missing import, syntax error, setup failure, or broken test harness.
+
+Run the targeted test slice and confirm at least one test fails for a task-related reason.
 Do not implement production code in this step.
-Return `### Status — PASS` when the slice is confirmed red for a task-related reason. Return `### Status — FAIL` when tests cannot be written, all authored tests pass when they should fail, or the test runner cannot complete.
+Return `### Status — PASS` when the slice is confirmed red for a task-related reason. Return `### Status — FAIL` when no valid tests could be found, adopted, or written, all candidate tests pass when they should fail, or the test runner cannot complete.
 
 If `=== REWRITE ATTEMPT ===` is `1` or `2`:
 Address only the tests flagged in `=== PRIOR RED REVIEW FINDINGS ===`.
