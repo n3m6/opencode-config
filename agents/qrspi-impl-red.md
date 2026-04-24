@@ -1,5 +1,5 @@
 ---
-description: Writes the failing-test RED phase for a single task. Returns one of three explicit outcomes — PASS + TASK_AUTHORED_TESTS when failing tests are written and confirmed red, PASS + NO_TASK_AUTHORED_TESTS for type-only, declaration-only, config-only, docs-only, or scaffolding-only tasks, or FAIL for blocked or operationally broken RED runs. Can request a backward loop if the task spec is too ambiguous to encode safely.
+description: Writes the failing-test RED phase for a single task. Returns one of three explicit outcomes — PASS + TASK_AUTHORED_TESTS when failing tests are written and confirmed red, PASS + NO_TASK_AUTHORED_TESTS for type-only, declaration-only, config-only, docs-only, or scaffolding-only tasks, or FAIL for blocked or operationally broken RED runs. Can request a backward loop if the task spec is too ambiguous to encode safely. Supports rewrite mode when re-entered from the RED_REVIEW loop with prior blocking findings.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -36,6 +36,8 @@ You will receive:
 5. **Plan Review Status** — state + outstanding concerns from Stage 6
 6. **Design Context** — relevant design and structure context, or `N/A`
 7. **Completed Dependencies** — one-line summaries of prerequisite task outputs
+8. **Rewrite Attempt** — `0` on the initial RED pass; `1` or `2` on rewrite passes triggered by the RED_REVIEW loop
+9. **Prior RED Review Findings** — the full `qrspi-impl-red-review` response from the most recent review pass, or `None.` on the initial pass
 
 ### Process
 
@@ -51,7 +53,8 @@ You will receive:
    If the task is one of the above, return the **NO_TASK_AUTHORED_TESTS** block immediately without dispatching `build`.
 
 3. If the plan review status is `unclean-cap` and the ambiguity prevents safe test writing, return a backward loop request instead of guessing.
-4. Dispatch `build` to write the task's failing tests and run only the targeted test slice needed to prove the task is still red.
+4. **If Rewrite Attempt > 0**, operate in **rewrite mode**: use `Prior RED Review Findings` to identify exactly which tests must be addressed. Preserve all tests not mentioned in those findings. Pass rewrite context to `build` as described in the dispatch template below.
+5. Dispatch `build` to write or rewrite the task's failing tests and run only the targeted test slice needed to prove the task is still red.
 
 Use this dispatch:
 
@@ -77,13 +80,35 @@ Use this dispatch:
 === COMPLETED DEPENDENCIES ===
 [paste completed dependencies verbatim]
 
-=== INSTRUCTIONS ===
-Write the failing tests for this task only.
-Run the targeted test slice and confirm at least one test fails for the expected reason.
-Do not implement production code in this step.
-Return `### Status — PASS` when at least one test fails for the expected reason (confirming the slice is red). Return `### Status — FAIL` when tests cannot be written, all tests pass when they should fail, or the test runner cannot complete.
+=== REWRITE ATTEMPT ===
+[paste Rewrite Attempt verbatim]
 
-Test style:
+=== PRIOR RED REVIEW FINDINGS ===
+[paste Prior RED Review Findings verbatim, or `None.`]
+
+=== INSTRUCTIONS ===
+If `=== REWRITE ATTEMPT ===` is `0`:
+Write the failing tests for this task only.
+For each behavior in `## Test Expectations`, write at least one test that:
+- Uses the exact trigger described in the expectation.
+- Asserts the exact observable outcome described in the expectation.
+- Fails for a task-related semantic reason — not because of a missing import, syntax error, setup failure, or broken test harness.
+Run the targeted test slice and confirm at least one test fails for the intended task reason.
+Do not implement production code in this step.
+Return `### Status — PASS` when the slice is confirmed red for a task-related reason. Return `### Status — FAIL` when tests cannot be written, all authored tests pass when they should fail, or the test runner cannot complete.
+
+If `=== REWRITE ATTEMPT ===` is `1` or `2`:
+Address only the tests flagged in `=== PRIOR RED REVIEW FINDINGS ===`.
+For each flagged test:
+- If Recommendation is `REWRITE`: rewrite the test to fix the structural issue while preserving the same behavioral target.
+- If Recommendation is `DELETE`: delete the test.
+- If Recommendation is `ADD`: write a new test covering the missing behavior from `## Test Expectations`.
+Preserve all tests not mentioned in the findings.
+After all repairs, run the targeted test slice and confirm the slice is still red for task-related semantic reasons.
+Do not implement production code in this step.
+Return `### Status — PASS` when the repaired slice is confirmed red for task-related reasons. Return `### Status — FAIL` when repairs could not be completed or the test runner cannot complete.
+
+Test style (all attempts):
 - Each test exercises one concrete behavior from the task's test expectations (trigger → observable outcome).
 - Prefer real in-process collaborators. Fake only at process boundaries: network, filesystem, external services, slow or unsafe databases.
 - Do not mock functions or modules owned by the unit under test.
@@ -100,11 +125,13 @@ Forbidden test patterns — do NOT write any test that:
 - Mirrors the structure of the production code rather than describing caller-observable behavior.
 
 Return:
-### Status — PASS when the slice is confirmed red; FAIL if RED work could not be completed
+### Status — PASS when the slice is confirmed red for a task-related reason; FAIL if RED work could not be completed
 ### Tests Written — list of test files with what they test
 ### Test Files Created — list
 ### Test Files Modified — list
-### Failure Evidence — first failing test name plus why the failure is expected
+### Behavior Mapping
+| Expectation | Test File | Test Name | Trigger | Observable Assertion |
+### Failure Evidence — first failing test name plus why the failure is task-related (not setup/import/harness noise)
 ### Summary — one paragraph
 ```
 
@@ -115,6 +142,7 @@ If the task has no caller-observable runtime behavior to test (type-only, declar
 ```
 ### Status — PASS
 ### Testability — NO_TASK_AUTHORED_TESTS
+### Testability Basis — [one sentence explaining why the task has no caller-observable runtime behavior; e.g., "Task creates only TypeScript interface definitions with no runtime value."]
 ### Tests Written — None.
 ### Test Files Created — None.
 ### Test Files Modified — None.
@@ -137,7 +165,7 @@ Affected Artifact: [plan | structure | design]
 Recommendation: [what must change upstream]
 ```
 
-If `build` returns `### Status — PASS` (tests were written and at least one fails for the expected reason), map the result into:
+If `build` returns `### Status — PASS` (tests were written and at least one fails for a task-related reason), map the result into:
 
 ```
 ### Status — PASS
@@ -145,6 +173,7 @@ If `build` returns `### Status — PASS` (tests were written and at least one fa
 ### Tests Written — [from the build result]
 ### Test Files Created — [from the build result]
 ### Test Files Modified — [from the build result]
+### Behavior Mapping — [from the build result]
 ### Failure Evidence — [from the build result]
 ### Summary — [from the build result]
 ```

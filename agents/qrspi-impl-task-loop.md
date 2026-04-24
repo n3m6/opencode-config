@@ -1,9 +1,9 @@
 ---
-description: Per-task TDD recovery-loop agent. Sequences qrspi-impl-red → qrspi-impl-green → qrspi-impl-verify for a single task in fresh mode, or skips RED and dispatches qrspi-impl-green → qrspi-impl-verify in fix mode for regression remediation. After the first failed verify result, performs up to 3 local GREEN → VERIFY recovery retries before propagating unresolved local failure upward. Returns a consolidated task result to the Stage 7 orchestrator.
+description: Per-task TDD recovery-loop agent. Sequences qrspi-impl-red → qrspi-impl-red-review → qrspi-impl-green → qrspi-impl-verify for a single task in fresh mode (skipping qrspi-impl-red-review for NO_TASK_AUTHORED_TESTS tasks), or skips RED and RED_REVIEW and dispatches qrspi-impl-green → qrspi-impl-verify in fix mode for regression remediation. Performs up to 2 RED rewrite rounds when RED_REVIEW blocks before escalating. After the first failed verify result, performs up to 3 local GREEN → VERIFY recovery retries before propagating unresolved local failure upward. Returns a consolidated task result to the Stage 7 orchestrator.
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 20
+steps: 30
 permission:
   edit: deny
   bash:
@@ -11,6 +11,7 @@ permission:
   task:
     "*": deny
     "qrspi-impl-red": allow
+    "qrspi-impl-red-review": allow
     "qrspi-impl-green": allow
     "qrspi-impl-verify": allow
   webfetch: deny
@@ -29,6 +30,7 @@ You are the QRSPI per-task TDD loop agent. You sequence the red, green, and veri
 5. **PROPAGATE BACKWARD LOOPS IMMEDIATELY.** If any child agent returns a `### Backward Loop Request`, include it verbatim in your return and stop processing further phases.
 6. **MAX 3 LOCAL RECOVERY RETRIES AFTER THE FIRST FAILED VERIFY RESULT.** Retry-eligible local failures are `### Status — FAIL` with `### Review Status — NOT RUN`, `### Status — FAIL` with `### Review Status — UNRESOLVED`, and `### Status — PASS` with `### Review Status` other than `CLEAN`.
 7. **A TASK IS ONLY PASSING WHEN LOCALLY CLEAN.** Return `### Status — PASS` only when the final verify result carries `### Status — PASS`, `### Final Verification Status — PASS`, and `### Review Status — CLEAN`. A verify result that is `### Status — PASS` without `### Final Verification Status — PASS` is a task-loop contract violation — treat it as FAIL.
+8. **MAX 2 RED REWRITE ROUNDS.** After the first failed RED_REVIEW result, perform up to 2 RED rewrite rounds. This gives the task up to 3 total RED invocations. If RED_REVIEW still blocks after 2 rewrite rounds, return FAIL before GREEN with `### Review Status — NOT RUN` and the unresolved RED_REVIEW findings in `### Unresolved Findings`.
 
 ### Input
 
@@ -85,7 +87,64 @@ Handle the RED result using its explicit outcome:
 - If `qrspi-impl-red` returns a `### Backward Loop Request`, propagate it immediately (see **Return**), carrying forward any `### Test Files Created`, `### Test Files Modified`, and `### Tests Written` fields from the RED result.
 - If `qrspi-impl-red` returns `### Status — FAIL`, stop and return immediately (see **Return**), carrying forward the RED result's `### Tests Written`, `### Test Files Created`, and `### Test Files Modified` as the `### Tests Written`, `### Files Created`, and `### Files Modified` fields in the FAIL return.
 - If `qrspi-impl-red` returns `### Status — PASS` with `### Testability — NO_TASK_AUTHORED_TESTS`, continue to GREEN in **no-test mode**. Pass the full RED RESULT verbatim to GREEN so GREEN can detect and apply no-test mode.
-- If `qrspi-impl-red` returns `### Status — PASS` with `### Testability — TASK_AUTHORED_TESTS`, validate that `### Tests Written` is non-empty and `### Failure Evidence` is present; if either is missing, treat this as a RED contract violation and return FAIL with summary `RED contract violation: TASK_AUTHORED_TESTS result missing Tests Written or Failure Evidence`. Otherwise continue to GREEN in **normal mode**.
+- If `qrspi-impl-red` returns `### Status — PASS` with `### Testability — TASK_AUTHORED_TESTS`, validate that `### Tests Written` is non-empty and `### Failure Evidence` is present; if either is missing, treat this as a RED contract violation and return FAIL with summary `RED contract violation: TASK_AUTHORED_TESTS result missing Tests Written or Failure Evidence`. Otherwise dispatch `qrspi-impl-red-review` (see **RED_REVIEW Loop** below).
+
+### RED_REVIEW Loop (Fresh Mode, TASK_AUTHORED_TESTS Only)
+
+Track `rewrite_count` starting at `0`. This section runs each time RED returns `TASK_AUTHORED_TESTS` and the contract is valid.
+
+Dispatch `qrspi-impl-red-review`:
+
+```
+=== TASK ===
+[paste task spec verbatim]
+
+=== GOALS ===
+[paste goals excerpt verbatim]
+
+=== ROUTE ===
+[paste route verbatim]
+
+=== CURRENT PHASE ===
+[paste current phase verbatim]
+
+=== RED RESULT ===
+[paste the full most recent qrspi-impl-red response verbatim]
+
+=== INSTRUCTIONS ===
+Run the pre-GREEN test review gate for this task.
+```
+
+Handle the RED_REVIEW result:
+
+- If `qrspi-impl-red-review` returns a `### Backward Loop Request`, propagate it immediately (see **Return**), carrying forward `### Tests Written`, `### Test Files Created`, and `### Test Files Modified` from the most recent RED result.
+- If `qrspi-impl-red-review` returns `### Status — PASS`, continue to GREEN in **normal mode**. Pass the most recent RED result verbatim to GREEN.
+- If `qrspi-impl-red-review` returns `### Status — FAIL`:
+  - If any finding in `### RED Review Findings` has `Recommendation: BACKWARD_LOOP`, propagate the backward loop request immediately (see **Return**).
+  - Otherwise, if `rewrite_count < 2`, increment `rewrite_count` and re-dispatch `qrspi-impl-red` in **rewrite mode** using the dispatch template below. After RED returns, handle the result the same way as the initial RED result: propagate FAIL or backward loop immediately; if PASS with TASK_AUTHORED_TESTS and contract is valid, return to the top of this RED_REVIEW Loop.
+  - If `rewrite_count == 2`, stop and return FAIL immediately (see **Return** — RED_REVIEW exhaustion).
+
+For the rewrite RED dispatch, use the same template as the initial RED dispatch plus these two additional sections:
+
+```
+=== REWRITE ATTEMPT ===
+[rewrite_count: 1 or 2]
+
+=== PRIOR RED REVIEW FINDINGS ===
+[paste the full most recent qrspi-impl-red-review response verbatim]
+```
+
+And change the INSTRUCTIONS to:
+
+```
+=== INSTRUCTIONS ===
+This is a test rewrite pass. Address only the tests flagged in the Prior RED Review Findings.
+For each flagged test, apply the recommended action: REWRITE to fix structure, DELETE to remove, or ADD to cover missing spec behaviors.
+Preserve all tests not mentioned in the findings.
+Use the plan review status as a risk signal:
+- If the review state is `clean`, proceed normally.
+- If the review state is `unclean-cap` and the test expectations are too ambiguous to encode safely, request a backward loop instead of guessing.
+```
 
 Dispatch `qrspi-impl-green`:
 
@@ -315,6 +374,22 @@ On success:
 ### Review Rounds — [from final verify result]
 ### Iterations — [from the final GREEN result]
 ### Summary — [from the final verify result]
+```
+
+On RED_REVIEW exhaustion (FAIL before GREEN, after 2 rewrite rounds):
+
+```
+### Status — FAIL
+### Mode — fresh
+### Task ID — [task ID extracted from the task spec]
+### Files Modified — None.
+### Files Created — None.
+### Tests Written — [from the final RED result]
+### Review Status — NOT RUN
+### Review Rounds — 0/2
+### Iterations — None.
+### Unresolved Findings — [paste the ### RED Review Findings table from the final qrspi-impl-red-review response verbatim]
+### Summary — RED_REVIEW: blocking test-quality findings remained after exhausting the rewrite budget (2 rewrite rounds).
 ```
 
 On FAIL (without backward loop):
