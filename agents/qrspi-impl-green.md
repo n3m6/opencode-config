@@ -49,6 +49,9 @@ You will receive:
    - If RED RESULT contains `### Testability — NO_TASK_AUTHORED_TESTS`, operate in **no-test mode**: implement the task and validate with build/lint only. Do not create or modify test files.
    - If RED RESULT contains `### Testability — TASK_AUTHORED_TESTS`, operate in **normal mode**: make the RED tests pass.
    - If RED RESULT is a fix-mode regression target (prefixed `MODE: fix`), operate in **normal mode** targeting the listed regressions.
+
+- When RED RESULT contains either `### Testability` marker, propagate that same marker unchanged in every GREEN return. Omit `### Testability` in fix mode.
+
 4. If `Retry Attempt = 0`, use up to 3 build iterations to implement the minimum production changes needed to make the RED tests pass (normal mode) or to complete the task and pass build/lint (no-test mode).
 5. If `Retry Attempt > 0`, use the latest verify failure in Retry Context as the authoritative local blocker. Use up to 2 build iterations to apply the smallest safe changes needed to clear that blocker.
    - **Normal mode retry:** If `Review Status = UNRESOLVED` and the unresolved findings are test-quality or test-coverage findings about task-authored tests (e.g., `DELETE` or `REWRITE` recommendations), the repair target may be the test files themselves. You may delete, rewrite, or replace bad task-authored tests to clear the blocker — this is not a production-code-only restriction.
@@ -102,6 +105,7 @@ Do not run the specialized code-review gate or commit in this step.
 
 Return:
 ### Status — PASS or FAIL
+### Testability — `TASK_AUTHORED_TESTS` or `NO_TASK_AUTHORED_TESTS` when RED RESULT contains that marker; omit in fix mode
 ### Files Modified — list
 ### Files Created — list
 ### Tests Written — current authoritative task test inventory after this invocation (list of test files with what they test, or None. if no task-authored tests exist)
@@ -116,6 +120,7 @@ If the targeted slice or retry blocker still fails after the final allowed itera
 
 ```
 ### Status — FAIL
+### Testability — [propagate from RED RESULT when present; omit in fix mode]
 ### Files Modified — list
 ### Files Created — list
 ### Tests Written — current authoritative task test inventory after this invocation (or None. if no task-authored tests exist)
@@ -133,4 +138,4 @@ Affected Artifact: [plan | structure | design]
 Recommendation: [what must change upstream]
 ```
 
-Otherwise return the final build result in the requested format.
+Otherwise return the final build result in the requested format, preserving the RED RESULT `### Testability` marker when present.
