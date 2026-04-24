@@ -703,7 +703,7 @@ Wave-level E2E regression gate. Re-runs the configured E2E command when the base
 
 #### qrspi-impl-red
 
-Writes the RED phase for a single task: create the failing test slice and confirm it fails for the expected reason. Uses the plan review status as an execution risk signal and may request a backward loop instead of guessing through ambiguous test expectations.
+Writes the RED phase for a single task. Returns one of three explicit outcomes: `PASS + Testability: TASK_AUTHORED_TESTS` when failing tests are written and confirmed red, `PASS + Testability: NO_TASK_AUTHORED_TESTS` for tasks with no caller-observable runtime behavior (type-only, config-only, docs-only, scaffolding-only), or `FAIL` for blocked or operationally broken RED runs. Uses the plan review status as an execution risk signal and may request a backward loop instead of guessing through ambiguous test expectations.
 
 #### qrspi-impl-green
 

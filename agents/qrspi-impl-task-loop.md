@@ -80,11 +80,14 @@ Use the plan review status as a risk signal:
 - If the review state is `unclean-cap` and the test expectations are too ambiguous to encode safely, request a backward loop instead of guessing.
 ```
 
-If `qrspi-impl-red` returns `### Status — FAIL` or a `### Backward Loop Request`, stop and return immediately (see **Return**).
+Handle the RED result using its explicit outcome:
 
-If `qrspi-impl-red` returns `### Status — PASS` with `### Testability — NO_TASK_AUTHORED_TESTS`, continue to GREEN in **no-test mode** — this is a successful RED result, not a failure. Pass the full RED RESULT verbatim to GREEN so GREEN can detect and apply no-test mode.
+- If `qrspi-impl-red` returns a `### Backward Loop Request`, propagate it immediately (see **Return**), carrying forward any `### Test Files Created`, `### Test Files Modified`, and `### Tests Written` fields from the RED result.
+- If `qrspi-impl-red` returns `### Status — FAIL`, stop and return immediately (see **Return**), carrying forward the RED result's `### Tests Written`, `### Test Files Created`, and `### Test Files Modified` as the `### Tests Written`, `### Files Created`, and `### Files Modified` fields in the FAIL return.
+- If `qrspi-impl-red` returns `### Status — PASS` with `### Testability — NO_TASK_AUTHORED_TESTS`, continue to GREEN in **no-test mode**. Pass the full RED RESULT verbatim to GREEN so GREEN can detect and apply no-test mode.
+- If `qrspi-impl-red` returns `### Status — PASS` with `### Testability — TASK_AUTHORED_TESTS`, validate that `### Tests Written` is non-empty and `### Failure Evidence` is present; if either is missing, treat this as a RED contract violation and return FAIL with summary `RED contract violation: TASK_AUTHORED_TESTS result missing Tests Written or Failure Evidence`. Otherwise continue to GREEN in **normal mode**.
 
-Otherwise dispatch `qrspi-impl-green`:
+Dispatch `qrspi-impl-green`:
 
 ```
 === TASK ===
@@ -320,14 +323,14 @@ On FAIL (without backward loop):
 ### Status — FAIL
 ### Mode — fresh or fix
 ### Task ID — [task ID extracted from the task spec]
-### Files Modified — [list or None.]
-### Files Created — [list or None.]
-### Tests Written — [list or None.]
+### Files Modified — [from the most recent agent result (RED, GREEN, or VERIFY), or None.]
+### Files Created — [from the most recent agent result (RED, GREEN, or VERIFY), or None.]
+### Tests Written — [from the most recent agent result (RED, GREEN, or VERIFY), or None.]
 ### Review Status — UNRESOLVED or NOT RUN
 ### Review Rounds — [from final verify result, or 0/2 or 0/1 if review did not run]
 ### Iterations — [from the most recent GREEN result, or None. if GREEN did not run]
 ### Unresolved Findings — [include when provided by the final verify result]
-### Summary — [from the final verify result, or `task-loop contract violation: verify returned PASS without CLEAN review status after exhausting local retries.`]
+### Summary — [from the most recent agent result, or `task-loop contract violation: verify returned PASS without CLEAN review status after exhausting local retries.`]
 ```
 
 If any child agent returned a backward loop request, propagate it:
@@ -336,9 +339,9 @@ If any child agent returned a backward loop request, propagate it:
 ### Status — FAIL
 ### Mode — fresh or fix
 ### Task ID — [task ID]
-### Files Modified — [list or None.]
-### Files Created — [list or None.]
-### Tests Written — [list or None.]
+### Files Modified — [from the most recent agent result (RED, GREEN, or VERIFY), or None.]
+### Files Created — [from the most recent agent result (RED, GREEN, or VERIFY), or None.]
+### Tests Written — [from the most recent agent result (RED, GREEN, or VERIFY), or None.]
 ### Review Status — NOT RUN
 ### Review Rounds — 0/2
 ### Iterations — [from the most recent GREEN result, or None. if GREEN did not run]

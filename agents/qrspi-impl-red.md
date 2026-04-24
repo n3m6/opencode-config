@@ -1,5 +1,5 @@
 ---
-description: Writes the failing-test RED phase for a single task. Determines whether the task requires task-authored tests before dispatching build. Returns NO_TASK_AUTHORED_TESTS for type-only, declaration-only, config-only, docs-only, or scaffolding-only tasks. Can request a backward loop if the task spec is too ambiguous to encode safely.
+description: Writes the failing-test RED phase for a single task. Returns one of three explicit outcomes — PASS + TASK_AUTHORED_TESTS when failing tests are written and confirmed red, PASS + NO_TASK_AUTHORED_TESTS for type-only, declaration-only, config-only, docs-only, or scaffolding-only tasks, or FAIL for blocked or operationally broken RED runs. Can request a backward loop if the task spec is too ambiguous to encode safely.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -81,6 +81,7 @@ Use this dispatch:
 Write the failing tests for this task only.
 Run the targeted test slice and confirm at least one test fails for the expected reason.
 Do not implement production code in this step.
+Return `### Status — PASS` when at least one test fails for the expected reason (confirming the slice is red). Return `### Status — FAIL` when tests cannot be written, all tests pass when they should fail, or the test runner cannot complete.
 
 Test style:
 - Each test exercises one concrete behavior from the task's test expectations (trigger → observable outcome).
@@ -99,7 +100,7 @@ Forbidden test patterns — do NOT write any test that:
 - Mirrors the structure of the production code rather than describing caller-observable behavior.
 
 Return:
-### Status — PASS or FAIL
+### Status — PASS when the slice is confirmed red; FAIL if RED work could not be completed
 ### Tests Written — list of test files with what they test
 ### Test Files Created — list
 ### Test Files Modified — list
@@ -136,4 +137,27 @@ Affected Artifact: [plan | structure | design]
 Recommendation: [what must change upstream]
 ```
 
-Otherwise return the `build` result verbatim in the requested format.
+If `build` returns `### Status — PASS` (tests were written and at least one fails for the expected reason), map the result into:
+
+```
+### Status — PASS
+### Testability — TASK_AUTHORED_TESTS
+### Tests Written — [from the build result]
+### Test Files Created — [from the build result]
+### Test Files Modified — [from the build result]
+### Failure Evidence — [from the build result]
+### Summary — [from the build result]
+```
+
+If `build` returns `### Status — FAIL` (RED work could not be completed), return:
+
+```
+### Status — FAIL
+### Tests Written — [from the build result, or None.]
+### Test Files Created — [from the build result, or None.]
+### Test Files Modified — [from the build result, or None.]
+### Failure Evidence — [from the build result, or None.]
+### Summary — [from the build result]
+```
+
+Do not include `### Backward Loop Request` in an operational RED FAIL unless the failure reveals a fundamental upstream problem in the task spec, structure, or design.

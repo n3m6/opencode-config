@@ -47,7 +47,8 @@ You will receive:
 2. Treat `unclean-cap` as unresolved planning risk. If the task is ambiguous or structurally unsafe, request a backward loop instead of guessing.
 3. **Determine mode from RED RESULT:**
    - If RED RESULT contains `### Testability — NO_TASK_AUTHORED_TESTS`, operate in **no-test mode**: implement the task and validate with build/lint only. Do not create or modify test files.
-   - Otherwise operate in **normal mode**: make the RED tests pass.
+   - If RED RESULT contains `### Testability — TASK_AUTHORED_TESTS`, operate in **normal mode**: make the RED tests pass.
+   - If RED RESULT is a fix-mode regression target (prefixed `MODE: fix`), operate in **normal mode** targeting the listed regressions.
 4. If `Retry Attempt = 0`, use up to 3 build iterations to implement the minimum production changes needed to make the RED tests pass (normal mode) or to complete the task and pass build/lint (no-test mode).
 5. If `Retry Attempt > 0`, use the latest verify failure in Retry Context as the authoritative local blocker. Use up to 2 build iterations to apply the smallest safe changes needed to clear that blocker.
    - **Normal mode retry:** If `Review Status = UNRESOLVED` and the unresolved findings are test-quality or test-coverage findings about task-authored tests (e.g., `DELETE` or `REWRITE` recommendations), the repair target may be the test files themselves. You may delete, rewrite, or replace bad task-authored tests to clear the blocker — this is not a production-code-only restriction.

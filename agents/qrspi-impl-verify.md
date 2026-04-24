@@ -50,7 +50,10 @@ You will receive:
 ### Process
 
 1. Determine the local review budget for this invocation: 2 review rounds when `Retry Attempt = 0`, or 1 review round when `Retry Attempt > 0`.
-2. Run the task's final verification with `build`. If GREEN RESULT contains `### Testability — NO_TASK_AUTHORED_TESTS` (propagated from RED RESULT), skip test-file verification expectations — only build/lint must pass.
+2. Run the task's final verification with `build`.
+   - If GREEN RESULT contains `### Testability — NO_TASK_AUTHORED_TESTS` (propagated from RED RESULT), skip test-file verification expectations — only build/lint must pass.
+   - If GREEN RESULT contains `### Testability — TASK_AUTHORED_TESTS` (propagated from RED RESULT), verify that all task-authored tests listed in `### Tests Written` pass.
+   - For fix-mode GREEN results (RED RESULT prefixed `MODE: fix`), verify that the regression targets listed in the RED RESULT pass.
    - **Hard stop: if `Verification Status = FAIL`, stop immediately. Do not dispatch `qrspi-code-review`. Return `### Status — FAIL` with `### Final Verification Status — FAIL` and `### Review Status — NOT RUN`. See the corresponding return template.**
 3. Build the current-task file inventory using the **latest authoritative state**, not a union of all prior inventories:
    - Start from the GREEN RESULT `Files Modified` and `Files Created`.
