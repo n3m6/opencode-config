@@ -75,6 +75,12 @@ Dispatch `qrspi-impl-red`:
 === COMPLETED DEPENDENCIES ===
 [paste completed dependencies verbatim]
 
+=== REWRITE ATTEMPT ===
+0
+
+=== PRIOR RED REVIEW FINDINGS ===
+None.
+
 === INSTRUCTIONS ===
 Write the failing tests for this task only.
 Use the plan review status as a risk signal:
@@ -382,8 +388,8 @@ On RED_REVIEW exhaustion (FAIL before GREEN, after 2 rewrite rounds):
 ### Status — FAIL
 ### Mode — fresh
 ### Task ID — [task ID extracted from the task spec]
-### Files Modified — None.
-### Files Created — None.
+### Files Modified — [from the final RED result, or None. if no test files were written]
+### Files Created — [from the final RED result, or None. if no test files were written]
 ### Tests Written — [from the final RED result]
 ### Review Status — NOT RUN
 ### Review Rounds — 0/2
