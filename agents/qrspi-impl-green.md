@@ -3,7 +3,7 @@ description: Implements the GREEN phase for a single task. Uses build to satisfy
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 20
+steps: 75
 permission:
   edit: deny
   bash:

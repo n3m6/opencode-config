@@ -3,7 +3,7 @@ description: Verifies one implemented task, dispatches the specialized code-revi
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 25
+steps: 45
 permission:
   edit: deny
   bash:

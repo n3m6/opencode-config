@@ -3,7 +3,7 @@ description: Writes the failing-test RED phase for a single task. Returns one of
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 15
+steps: 45
 permission:
   edit: deny
   bash:
