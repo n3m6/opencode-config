@@ -187,7 +187,7 @@ When `qrspi-plan-writer` completes:
 
 #### Step C.2 — Generate Task Specs
 
-For each active `tasks/outlines/task-NN.outline` file (in task-number order), invoke `qrspi-task-spec-writer` as a subagent:
+For each active `tasks/outlines/task-NN.outline` file (in task-number order), extract `NN` and invoke `qrspi-task-spec-writer` as a subagent:
 
 ```
 === RUN ID ===
@@ -196,45 +196,22 @@ For each active `tasks/outlines/task-NN.outline` file (in task-number order), in
 === ROUTE ===
 [full or quick-fix]
 
-=== GOALS ===
-[paste contents of goals.md verbatim]
-
-=== REQUIREMENTS ===
-[paste contents of requirements.md verbatim]
-
-=== RESEARCH SUMMARY ===
-[paste contents of research/summary.md verbatim]
-
-=== PHASE MANIFEST ===
-[paste contents of phase-manifest.md verbatim]
-
-=== PLAN OVERVIEW ===
-[paste contents of plan.md verbatim]
-
-=== TASK OUTLINE ===
-[paste contents of tasks/outlines/task-NN.outline verbatim]
-
-=== DESIGN CONTEXT ===
-[For full route: N/A — task-spec-writer reads design.md from disk via the Run ID above]
-[For quick-fix: N/A]
-
-=== STRUCTURE CONTEXT ===
-[For full route: N/A — task-spec-writer reads structure.md from disk via the Run ID above]
-[For quick-fix: N/A]
+=== TASK NUMBER ===
+[NN]
 
 === AGENTS GUIDANCE ===
 [paste contents of repository-root AGENTS.md verbatim, or `None.`]
 
 === INSTRUCTIONS ===
-Write exactly one self-contained task spec for this outline.
-For full-route tasks, read plan.md, design.md, structure.md, and requirements.md from disk using the Run ID before writing the spec.
+Read `.pipeline/<run-id>/tasks/outlines/task-NN.outline` and the required upstream artifacts from disk using the Run ID, Route, and Task Number.
+Write exactly one self-contained task spec to `.pipeline/<run-id>/tasks/task-NN.md`.
 Include a ## Source Traceability section citing the goals acceptance-criteria labels, plan task/phase, design slice name, and structure slice/files.
 ```
 
 When `qrspi-task-spec-writer` returns:
 
-- If the writer returns a FAIL block, stop immediately and return a Stage 6 FAIL with the failing task number and reason.
-- Otherwise, write the `### task-NN.md` section to `.pipeline/<run-id>/tasks/task-NN.md` using the edit tool.
+- If the writer returns `### Status — FAIL`, stop immediately and return a Stage 6 FAIL with the failing task number and reason.
+- Otherwise, treat the reported `.pipeline/<run-id>/tasks/task-NN.md` path as authoritative. Do not rewrite the task file in the orchestrator.
 
 Repeat for every task outline. Once all task specs are written, proceed to Step C.3.
 
@@ -270,9 +247,6 @@ After all active task specs are written, run a per-task review loop so each revi
 === STRUCTURE ===
 [paste contents of structure.md verbatim, or N/A for quick-fix]
 
-=== ALL CURRENT TASK SPECS ===
-[paste contents of all active tasks/task-NN.md files verbatim]
-
 === AGENTS GUIDANCE ===
 [paste contents of repository-root AGENTS.md verbatim, or `None.`]
 
@@ -280,7 +254,8 @@ After all active task specs are written, run a per-task review loop so each revi
 [task_spec_round]
 
 === INSTRUCTIONS ===
-Review this task spec against its outline and all sibling task specs.
+Review this task spec against its outline and the sibling task specs for the current run.
+Load sibling task specs from `.pipeline/<run-id>/tasks/` and ignore archived inactive specs.
 Repair the current task file in place if defects are found.
 Do not edit any sibling task file, plan.md, phase-manifest.md, or project source code.
 ```
@@ -301,10 +276,13 @@ Do not edit any sibling task file, plan.md, phase-manifest.md, or project source
 After writing the draft artifacts, run an internal review loop before baseline capture.
 
 1. Set an internal counter: `review_round = 1`
-2. For each review round, read the current plan and all task files.
+2. For each review round, ensure the reviewer reads the current plan and all active task files from disk.
 3. On review round 1, dispatch `qrspi-plan-reviewer` as a subagent with the full upstream artifact set:
 
 ```
+=== RUN ID ===
+[paste the current run ID]
+
 === GOALS ===
 [paste contents of goals.md verbatim]
 
@@ -335,16 +313,8 @@ After writing the draft artifacts, run an internal review loop before baseline c
 === FAILURE CONTEXT ===
 [paste the provided failure context verbatim, or `None.`]
 
-=== PLAN ===
-[paste contents of plan.md verbatim]
-
-=== PHASE MANIFEST ===
-[paste contents of phase-manifest.md verbatim]
-
-=== TASK SPECS ===
-[paste contents of all active tasks/task-NN.md files verbatim]
-
 === INSTRUCTIONS ===
+Read the current `plan.md`, `phase-manifest.md`, and all active `tasks/task-NN.md` files from `.pipeline/<run-id>/` before reviewing.
 Review this plan draft for AGENTS guidance compliance, goals coverage, dependency correctness, phase and wave coherence,
 NFR coverage, phase cohesion, cross-phase coupling, task self-containment, source traceability, file specificity,
 acceptance traceability, test expectation specificity, test strategy depth, replan gate traceability,
@@ -355,6 +325,9 @@ missing coverage, overview/task mismatches, missing or invalid source traceabili
 On review rounds 2 and later, dispatch `qrspi-plan-reviewer` as a subagent with the current artifacts plus design, structure, and the latest review baseline:
 
 ```
+=== RUN ID ===
+[paste the current run ID]
+
 === GOALS ===
 [paste contents of goals.md verbatim]
 
@@ -382,19 +355,11 @@ On review rounds 2 and later, dispatch `qrspi-plan-reviewer` as a subagent with 
 === FAILURE CONTEXT ===
 [paste the provided failure context verbatim, or `None.`]
 
-=== PLAN ===
-[paste contents of plan.md verbatim]
-
-=== PHASE MANIFEST ===
-[paste contents of phase-manifest.md verbatim]
-
-=== TASK SPECS ===
-[paste contents of all active tasks/task-NN.md files verbatim]
-
 === REVIEW BASELINE ===
 [paste the most recent reviewer output verbatim]
 
 === INSTRUCTIONS ===
+Read the current `plan.md`, `phase-manifest.md`, and all active `tasks/task-NN.md` files from `.pipeline/<run-id>/` before reviewing.
 Review the current plan draft for AGENTS guidance compliance, goals coverage, dependency correctness, phase and wave coherence,
 NFR coverage, phase cohesion, cross-phase coupling, task self-containment, source traceability, file specificity,
 acceptance traceability, test expectation specificity, test strategy depth, replan gate traceability,

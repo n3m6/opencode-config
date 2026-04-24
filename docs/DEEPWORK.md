@@ -447,7 +447,7 @@ Terminal review states:
 
 Stage 3 (Research) differs: if the review loop reaches the 10-round cap with unresolved material issues, the stage returns `FAIL` rather than proceeding with weak research.
 
-Stage 6 (Plan) runs two review layers: a per-task review loop (max 3 rounds) where `qrspi-task-spec-reviewer` repairs each task spec in place and records unresolved cross-task conflicts, followed by a plan-level review loop (min 5 / max 10 rounds). After both loops complete, Stage 6 appends a final review status block to every `tasks/task-NN.md` recording both the task-spec review state and the plan-level review state, so Stage 7 implementers can treat outstanding concerns as an execution risk signal.
+Stage 6 (Plan) runs two review layers: a per-task review loop (max 3 rounds) where `qrspi-task-spec-reviewer` repairs each task spec in place and loads sibling task specs from the canonical top-level `tasks/` directory for cross-task checks, followed by a plan-level review loop (min 5 / max 10 rounds) where `qrspi-plan-reviewer` reads the current plan artifacts from the pipeline run directory. After both loops complete, Stage 6 appends a final review status block to every `tasks/task-NN.md` recording both the task-spec review state and the plan-level review state, so Stage 7 implementers can treat outstanding concerns as an execution risk signal.
 
 ---
 
@@ -678,15 +678,15 @@ Writes ordered task outlines with task metadata, dependencies, phase assignments
 
 #### qrspi-task-spec-writer
 
-Expands a single task outline into a self-contained `task-NN.md` spec. Reads `plan.md`, `design.md`, `structure.md`, and `requirements.md` from the pipeline run directory for full-route tasks. Produces concrete file paths, descriptions, test expectations, dependency explanations, traceability metadata, and a `## Source Traceability` section citing upstream artifact sections. Read-only.
+Loads the persisted `task-NN.outline` plus upstream artifacts from the pipeline run directory, expands that outline into a self-contained `task-NN.md` spec, and writes the task file directly into the current run's `tasks/` directory. Uses the canonical outline path under `tasks/outlines/` plus `goals.md`, `requirements.md`, `research/summary.md`, `plan.md`, and `phase-manifest.md` for all routes, and also reads `design.md` and `structure.md` for full-route tasks. Produces concrete file paths, descriptions, test expectations, dependency explanations, traceability metadata, and a `## Source Traceability` section citing upstream artifact sections.
 
 #### qrspi-task-spec-reviewer
 
-Per-task mutating reviewer. Reads the current task outline, task spec, full plan, design, structure, and all sibling task specs to check outline-to-spec fidelity, structure-slice fidelity, source-traceability completeness, dependency correctness, self-containment, and cross-task consistency. Repairs only the current `task-NN.md` file in place. Records unresolved cross-task conflicts it could not fix locally.
+Per-task mutating reviewer. Reads the current task outline, current task spec, full plan, design, and structure, then loads active sibling task specs from the canonical top-level `tasks/` directory to check outline-to-spec fidelity, structure-slice fidelity, source-traceability completeness, dependency correctness, self-containment, and cross-task consistency. Repairs only the current `task-NN.md` file in place. Records unresolved cross-task conflicts it could not fix locally.
 
 #### qrspi-plan-reviewer
 
-Reviews the plan for AGENTS guidance compliance, goals coverage, dependency correctness, phase and wave coherence, task self-containment, source traceability, file specificity, test expectation specificity, and placeholder-free quality. Flags forward dependencies, vague files, vague tests, missing coverage, invalid source traceability citations, conflicts with `AGENTS.md`, or overview/task mismatches. Read-only.
+Reads the current `plan.md`, `phase-manifest.md`, and active `tasks/task-NN.md` files from the pipeline run directory, then reviews the plan for AGENTS guidance compliance, goals coverage, dependency correctness, phase and wave coherence, task self-containment, source traceability, file specificity, test expectation specificity, and placeholder-free quality. Flags forward dependencies, vague files, vague tests, missing coverage, invalid source traceability citations, conflicts with `AGENTS.md`, or overview/task mismatches. Read-only.
 
 #### qrspi-baseline-checker
 
