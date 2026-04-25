@@ -129,7 +129,7 @@ Every stage subagent returns:
 ### Telemetry — {"key": value, ...}  (single-line JSON; see protocol/telemetry-protocol.md §6)
 ```
 
-Parse `### Telemetry` as a single-line JSON object to extract stage-specific metrics for the `context` payload of the corresponding `stage.completed` event. If a stage does not return `### Telemetry`, emit the event with an empty `context`. The absence of `### Telemetry` is never an error.
+Parse `### Telemetry` as a single-line JSON object to extract stage-specific metrics for the `context` payload of the corresponding `stage.completed` or `stage.failed` event. If a stage does not return `### Telemetry`, emit the event with an empty `context`. The absence of `### Telemetry` is never an error.
 
 ### Telemetry
 
@@ -139,6 +139,8 @@ Event schema and write ownership are specified in `protocol/telemetry-protocol.m
 
 **Sequence counter:** Maintain a `telemetry_seq` integer in context. Start at `1` for fresh runs. On resume, `cat .pipeline/<run-id>/telemetry/events.jsonl`, count lines, and set `telemetry_seq = count + 1`.
 
+**Stage attempt counter:** Maintain a `stage_instance` integer per `(stage, phase)` in context. Use `1` for the first dispatch into a stage (or stage/phase pair). On retry, resume re-entry, or backward-loop re-entry into the same stage, increment `stage_instance` before emitting the new `stage.started` event.
+
 **Emitting an event:**
 
 1. Run `date -u +%Y-%m-%dT%H:%M:%SZ` to capture the current UTC timestamp.
@@ -147,9 +149,9 @@ Event schema and write ownership are specified in `protocol/telemetry-protocol.m
 4. Overwrite `.pipeline/<run-id>/telemetry/events.jsonl` with the previous content plus the new JSON line appended (no trailing blank lines).
 5. Increment `telemetry_seq`.
 
-**`stage.started` / `stage.completed` pairs:** Capture `started_at` timestamp before dispatch. Capture `ended_at` after receiving the stage return. Parse `### Telemetry` from the stage return to populate the event's `context` payload.
+**`stage.started` / terminal `stage.*` events:** Capture `started_at` timestamp before dispatch. Capture `ended_at` after receiving the stage return or deciding to skip. Use the current `stage_instance` on `stage.started` and the corresponding terminal `stage.*` event for that attempt. Parse `### Telemetry` from the stage return to populate the event's `context` payload for `stage.completed` or `stage.failed`. For `stage.skipped`, use the skip-decision time for both `started_at` and `ended_at`.
 
-**Gate events:** When a stage orchestrator runs a human gate and the gate details flow back through the stage's `### Telemetry` context, emit the corresponding `gate.presented`, `gate.approved`, or `gate.rejected` events in deepwork after receiving the stage return.
+**Gate events:** When a stage orchestrator runs a human gate and the gate details flow back through the stage's `### Telemetry` context, deepwork synthesizes the full `gate.*` sequence after receiving the stage return. If `gate_status` is `approved` and `gate_rounds = N`, emit `N + 1` `gate.presented` events, `N` `gate.rejected` events, then one `gate.approved` event. If `gate_status` is `rejected`, emit `max(gate_rounds, 1)` `gate.presented` / `gate.rejected` pairs. If `gate_status` is `none`, emit no gate events. Include artifact paths and decision details when the stage return provides them; otherwise omit those payload objects. Unless the stage return provides per-round timestamps, stamp synthesized gate events with the stage's `ended_at` time and rely on sequence ordering to preserve round order.
 
 **Regenerating `run-log.md`:** After each stage boundary, after backward-loop decisions, and on abort/resume, overwrite `telemetry/run-log.md` with the following 6-section layout derived from `events.jsonl`:
 
@@ -211,7 +213,7 @@ _(Empty when no failures or loops have occurred.)_
 
 Generation rules: partial runs — show "pending" in Active Phase Snapshot. Aborted runs — add "Run aborted at stage X" to Current Status and mark the final event. Resumed runs — add a `run.resumed` Timeline row and increment Resume count. Backward-loop paths — add entries to Failure and Loop Index and show `backward_loop.*` events inline in Timeline.
 
-**Generating `metrics-summary.md`:** At Stage 10 completion and on run abort, derive aggregate metrics from `events.jsonl` and write `telemetry/metrics-summary.md`. Emit a `metrics.generated` event after writing. Use the following layout:
+**Generating `metrics-summary.md`:** At Stage 10 completion and on run abort, derive aggregate metrics from `events.jsonl` plus the terminal outcome currently in hand and write `telemetry/metrics-summary.md`. If `run.completed` or `run.aborted` has not yet been appended, use the current controller outcome as the source of truth for `Final status` and `Total duration`. Emit a `metrics.generated` event after writing. Use the following layout:
 
 ```markdown
 # Metrics Summary — <run-id>
@@ -219,7 +221,7 @@ Generation rules: partial runs — show "pending" in Active Phase Snapshot. Abor
 ## Run
 
 - **Route:** full | quick-fix
-- **Final status:** completed-pass | completed-fail | aborted
+- **Final status:** completed-pass | completed-partial | completed-fail | aborted
 - **Total duration:** <duration_s> s
 - **Stages completed:** <N> of <total>
 - **Resume count:** <N>
@@ -282,7 +284,7 @@ If the user provides a run ID, asks to resume, or points at an existing `.pipeli
 1. Read `protocol/deepwork-resume-protocol.md` with `cat`.
 2. Follow that protocol exactly to recover the route, phase cursor, next stage, refreshed `state.md`, and rebuilt visible checklist.
 3. If the protocol concludes the run is already complete, present the preserved report path and stop.
-4. After recovery, initialize `telemetry_seq` from the existing `events.jsonl` line count and emit a `run.resumed` event with `route`, `stage` (the recovered next stage), and `context.resume_source`.
+4. After recovery, initialize `telemetry_seq` from the existing `events.jsonl` line count and emit a `run.resumed` event with `route`, `stage` (the recovered next stage), and `context.resume_source`. Treat the next dispatch into that recovered stage as a re-entry: increment that stage's `stage_instance` before its new `stage.started` event. Then regenerate `telemetry/run-log.md` so the resumed state is visible immediately.
 
 ### `state.md` Contract
 
@@ -496,7 +498,7 @@ Stage 10 — Report
 
 ### Stage 1 — Goals
 
-**Telemetry:** Emit `stage.started` (`stage: "goals"`, `stage_instance: 1`) and record `started_at` before dispatch.
+**Telemetry:** Emit `stage.started` (`stage: "goals"`, `stage_instance: <current stage instance>`; use `1` on first entry) and record `started_at` before dispatch.
 
 Invoke `qrspi-goals` as a subagent:
 
@@ -514,14 +516,14 @@ When `qrspi-goals` completes:
 - Parse `### Route` to determine the pipeline route (`full` or `quick-fix`). Store this for subsequent stage dispatch decisions.
 - Mark Stage 1 as complete in `todowrite`.
 - Overwrite `state.md` with `route`, `last_completed_stage: goals`, `next_stage: questions`, `current_phase: 1`, and updated `stages_completed` / `phase_history`.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit `gate.presented` and `gate.approved` or `gate.rejected` for the human gate (use `gate_status` and `gate_rounds` from the telemetry context). Emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
+- **Telemetry:** Parse `### Telemetry` from the return. Emit synthesized `gate.*` events for the human gate using `gate_status` and `gate_rounds` from the telemetry context, then emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 1 goals complete`.
 - Regenerate `telemetry/run-log.md`.
 - Proceed to **Stage 2**.
 
 ### Stage 2 — Questions
 
-**Telemetry:** Emit `stage.started` (`stage: "questions"`, `stage_instance: 1`) and record `started_at` before dispatch.
+**Telemetry:** Emit `stage.started` (`stage: "questions"`, `stage_instance: <current stage instance>`; use `1` on first entry) and record `started_at` before dispatch.
 
 Invoke `qrspi-questions` as a subagent:
 
@@ -535,14 +537,14 @@ When `qrspi-questions` completes:
 - Parse `### Status`. If FAIL, follow **Error Handling**.
 - Mark Stage 2 as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: questions` and `next_stage: research`.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit `gate.presented` and `gate.approved` or `gate.rejected` for the human gate. Emit `stage.completed` with `context` from the `### Telemetry` JSON. Emit `checkpoint.created` after the git commit.
+- **Telemetry:** Parse `### Telemetry` from the return. Emit synthesized `gate.*` events for the human gate using `gate_status` and `gate_rounds` from the telemetry context, then emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 2 questions complete`.
 - Regenerate `telemetry/run-log.md`.
 - Proceed to **Stage 3**.
 
 ### Stage 3 — Research
 
-**Telemetry:** Emit `stage.started` (`stage: "research"`, `stage_instance: 1`) and record `started_at` before dispatch.
+**Telemetry:** Emit `stage.started` (`stage: "research"`, `stage_instance: <current stage instance>`; use `1` on first entry) and record `started_at` before dispatch.
 
 Invoke `qrspi-research` as a subagent:
 
@@ -556,16 +558,16 @@ When `qrspi-research` completes:
 - Parse `### Status`. If FAIL, follow **Error Handling**.
 - Mark Stage 3 as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: research` and `next_stage: design` or `plan` for quick-fix.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `context` from the `### Telemetry` JSON. Emit `checkpoint.created` after the git commit.
+- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 3 research complete`.
 - Regenerate `telemetry/run-log.md`.
 - Proceed to **Stage 4**.
 
 ### Stage 4 — Design (SKIP on Quick-Fix)
 
-If the route is `quick-fix`, skip this stage entirely. Mark Stage 4 as complete in `todowrite` with note "Skipped (quick-fix route)". Overwrite `state.md` with `last_completed_stage: design-skipped` and `next_stage: structure`. **Telemetry:** Emit `stage.skipped` (`stage: "design"`, `summary: "Skipped (quick-fix route)."`) and `checkpoint.created`. Create the stage-boundary git checkpoint with message `qrspi: stage 4 design skipped`. Regenerate `telemetry/run-log.md`. Proceed to **Stage 5** (which will also skip).
+If the route is `quick-fix`, skip this stage entirely. Mark Stage 4 as complete in `todowrite` with note "Skipped (quick-fix route)". Overwrite `state.md` with `last_completed_stage: design-skipped` and `next_stage: structure`. **Telemetry:** Emit `stage.skipped` (`stage: "design"`, `summary: "Skipped (quick-fix route)."`, `timing` with identical `started_at` and `ended_at` captured at the skip decision) and `checkpoint.created`. Create the stage-boundary git checkpoint with message `qrspi: stage 4 design skipped`. Regenerate `telemetry/run-log.md`. Proceed to **Stage 5** (which will also skip).
 
-**Telemetry:** Emit `stage.started` (`stage: "design"`, `stage_instance: 1`) and record `started_at` before dispatch.
+**Telemetry:** Emit `stage.started` (`stage: "design"`, `stage_instance: <current stage instance>`; use `1` on first entry) and record `started_at` before dispatch.
 
 Invoke `qrspi-design` as a subagent:
 
@@ -579,16 +581,16 @@ When `qrspi-design` completes:
 - Parse `### Status`. If FAIL, follow **Error Handling**.
 - Mark Stage 4 as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: design` and `next_stage: structure`.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit `gate.presented` and `gate.approved` or `gate.rejected` for the human gate. Emit `stage.completed` with `context` from the `### Telemetry` JSON. Emit `checkpoint.created` after the git commit.
+- **Telemetry:** Parse `### Telemetry` from the return. Emit synthesized `gate.*` events for the human gate using `gate_status` and `gate_rounds` from the telemetry context, then emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 4 design complete`.
 - Regenerate `telemetry/run-log.md`.
 - Proceed to **Stage 5**.
 
 ### Stage 5 — Structure (SKIP on Quick-Fix)
 
-If the route is `quick-fix`, skip this stage entirely. Mark Stage 5 as complete in `todowrite` with note "Skipped (quick-fix route)". Overwrite `state.md` with `last_completed_stage: structure-skipped` and `next_stage: plan`. **Telemetry:** Emit `stage.skipped` (`stage: "structure"`, `summary: "Skipped (quick-fix route)."`) and `checkpoint.created`. Create the stage-boundary git checkpoint with message `qrspi: stage 5 structure skipped`. Regenerate `telemetry/run-log.md`. Proceed to **Stage 6**.
+If the route is `quick-fix`, skip this stage entirely. Mark Stage 5 as complete in `todowrite` with note "Skipped (quick-fix route)". Overwrite `state.md` with `last_completed_stage: structure-skipped` and `next_stage: plan`. **Telemetry:** Emit `stage.skipped` (`stage: "structure"`, `summary: "Skipped (quick-fix route)."`, `timing` with identical `started_at` and `ended_at` captured at the skip decision) and `checkpoint.created`. Create the stage-boundary git checkpoint with message `qrspi: stage 5 structure skipped`. Regenerate `telemetry/run-log.md`. Proceed to **Stage 6**.
 
-**Telemetry:** Emit `stage.started` (`stage: "structure"`, `stage_instance: 1`) and record `started_at` before dispatch.
+**Telemetry:** Emit `stage.started` (`stage: "structure"`, `stage_instance: <current stage instance>`; use `1` on first entry) and record `started_at` before dispatch.
 
 Invoke `qrspi-structure` as a subagent:
 
@@ -602,14 +604,14 @@ When `qrspi-structure` completes:
 - Parse `### Status`. If FAIL, follow **Error Handling**.
 - Mark Stage 5 as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: structure` and `next_stage: plan`.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit `gate.presented` and `gate.approved` or `gate.rejected` for the human gate. Emit `stage.completed` with `context` from the `### Telemetry` JSON. Emit `checkpoint.created` after the git commit.
+- **Telemetry:** Parse `### Telemetry` from the return. Emit synthesized `gate.*` events for the human gate using `gate_status` and `gate_rounds` from the telemetry context, then emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 5 structure complete`.
 - Regenerate `telemetry/run-log.md`.
 - Proceed to **Stage 6**.
 
 ### Stage 6 — Plan
 
-**Telemetry:** Emit `stage.started` (`stage: "plan"`, `stage_instance: 1`) and record `started_at` before dispatch.
+**Telemetry:** Emit `stage.started` (`stage: "plan"`, `stage_instance: <current stage instance>`; use `1` on first entry) and record `started_at` before dispatch.
 
 Invoke `qrspi-plan` as a subagent:
 
@@ -644,7 +646,7 @@ When `qrspi-plan` completes:
 - Create `.pipeline/<run-id>/phases/phase-NN/` for `next_remaining_phase` and create that phase's task symlink by running `ln -s ../../tasks .pipeline/<run-id>/phases/phase-NN/tasks`.
 - If the route is full and `phase-manifest.md` declares more than one remaining phase, create empty phase directories for each planned remaining future phase starting at `next_remaining_phase`, preserving any already-completed prior phase directories, and rebuild `todowrite` so every remaining planned phase gets its own Implement and Acceptance test entry.
 - Overwrite `state.md` with `last_completed_stage: plan`, `next_stage: implement`, `current_phase: next_remaining_phase`, and `total_phases` from `phase-manifest.md`.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `context` from the `### Telemetry` JSON. Emit `checkpoint.created` after the git commit.
+- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 6 plan complete`.
 - **Route is now locked.** No more route changes allowed.
 - Regenerate `telemetry/run-log.md`.
@@ -652,7 +654,7 @@ When `qrspi-plan` completes:
 
 ### Stage 7 — Implement
 
-**Telemetry:** Emit `stage.started` (`stage: "implement"`, `phase: <current phase>`, `stage_instance: 1` for the first entry of this phase) and record `started_at` before dispatch.
+**Telemetry:** Emit `stage.started` (`stage: "implement"`, `phase: <current phase>`, `stage_instance: <current stage instance>`; use `1` on the first entry of this phase) and record `started_at` before dispatch.
 
 Invoke `qrspi-implement` as a subagent:
 
@@ -682,18 +684,19 @@ phases/phase-01
 
 When `qrspi-implement` completes:
 
-- Parse `### Status`. If FAIL, follow **Error Handling**.
+- Parse `### Status`.
 - Check for `### Backward Loop Request`. If present, follow the **Backward Loop Protocol**.
+- If `### Status` is FAIL and no backward loop was requested, follow **Error Handling**.
 - Mark the current phase's Implement entry as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: implement`, `next_stage: accept`, the current phase number, and updated `phase_history` for that phase.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` (or `stage.failed` on FAIL) with `phase`, `context` from `### Telemetry`, and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
+- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `phase`, `context` from `### Telemetry`, and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 7 implement complete`.
 - Regenerate `telemetry/run-log.md`.
 - Proceed to **Stage 8**.
 
 ### Stage 8 — Acceptance Test
 
-**Telemetry:** Emit `stage.started` (`stage: "accept"`, `phase: <current phase>`) and record `started_at` before dispatch.
+**Telemetry:** Emit `stage.started` (`stage: "accept"`, `phase: <current phase>`, `stage_instance: <current stage instance>`; use `1` on the first entry of this phase) and record `started_at` before dispatch.
 
 Invoke `qrspi-accept` as a subagent:
 
@@ -720,11 +723,12 @@ phases/phase-01
 
 When `qrspi-accept` completes:
 
-- Parse `### Status`. If FAIL (without backward loop), follow **Error Handling**.
+- Parse `### Status`.
 - Check for `### Backward Loop Request`. If present, follow the **Backward Loop Protocol**.
+- If `### Status` is FAIL and no backward loop was requested, follow **Error Handling**.
 - Mark the current phase's Acceptance test entry as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: accept`, `current_phase`, a provisional `next_stage`, and updated `phase_history` for that phase.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` (or `stage.failed`) with `phase`, `context` from `### Telemetry`, and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
+- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `phase`, `context` from `### Telemetry`, and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 8 accept complete`.
 - Regenerate `telemetry/run-log.md`.
 - If the route is quick-fix, or `total_phases` is `1`, or the current phase is the final phase, set `next_stage: verify` and proceed to **Stage 9**.
@@ -738,7 +742,7 @@ Skip this stage entirely when any of the following is true:
 - `total_phases` is `1`
 - the current phase is already the final phase
 
-**Telemetry:** Emit `stage.started` (`stage: "replan"`, `phase: <completed phase>`) and record `started_at` before dispatch.
+**Telemetry:** Emit `stage.started` (`stage: "replan"`, `phase: <completed phase>`, `stage_instance: <current stage instance>`; use `1` on the first entry of this phase) and record `started_at` before dispatch.
 
 Invoke `qrspi-replan` as a subagent:
 
@@ -761,21 +765,22 @@ phases/phase-[NN+1]
 
 When `qrspi-replan` completes:
 
-- Parse `### Status`. If FAIL, follow **Error Handling**.
+- Parse `### Status`.
 - Check for `### Backward Loop Request`. If present, follow the **Backward Loop Protocol**.
+- If `### Status` is FAIL and no backward loop was requested, follow **Error Handling**.
 - Re-read the updated `phase-manifest.md` with `cat` and recompute `total_phases` from the refreshed remaining-work plan.
 - Archive any unstarted future phase directories that are no longer active by moving them under `.pipeline/<run-id>/phases/archive/` with `mv`.
 - Rebuild `todowrite` from the refreshed manifest so stale unstarted phases are removed and newly-added phases appear.
 - If the refreshed manifest still has another implementation phase after the completed phase, increment `current_phase`, ensure the next phase directory exists, and overwrite `state.md` with `last_completed_stage: replan`, `next_stage: implement`, the incremented phase number, refreshed `total_phases`, and updated `phase_history`.
 - If the refreshed manifest no longer has remaining implementation phases, overwrite `state.md` with `last_completed_stage: replan`, `next_stage: verify`, the completed phase number, refreshed `total_phases`, and updated `phase_history`.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` (or `backward_loop.requested` if a loop was requested) with `phase`, `context` from `### Telemetry`. Emit `checkpoint.created` after the git commit.
+- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `phase`, `context` from `### Telemetry`, and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 8.5 replan complete`.
 - Regenerate `telemetry/run-log.md`.
 - Re-enter the pipeline at **Stage 7** for the next phase, or proceed to **Stage 9** when Replan closes out the remaining phase plan.
 
 ### Stage 9 — Verify
 
-**Telemetry:** Emit `stage.started` (`stage: "verify"`) and record `started_at` before dispatch.
+**Telemetry:** Emit `stage.started` (`stage: "verify"`, `stage_instance: <current stage instance>`; use `1` on first entry) and record `started_at` before dispatch.
 
 Invoke `qrspi-verify` as a subagent:
 
@@ -789,14 +794,14 @@ When `qrspi-verify` completes:
 - Parse `### Status` (PASS, PARTIAL, or FAIL).
 - Mark Stage 9 as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: verify` and `next_stage: report`.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `context` from `### Telemetry`. Emit `checkpoint.created` after the git commit.
+- **Telemetry:** Parse `### Telemetry` from the return and add `verify_status` from `### Status` into the emitted `context`. Emit `stage.completed` for `PASS`, emit `stage.completed` with warning status for `PARTIAL`, and emit `stage.failed` for `FAIL`. Include `artifacts` from `### Files Written` in all cases. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 9 verify complete`.
 - Regenerate `telemetry/run-log.md`.
-- Proceed to **Stage 10**.
+- Proceed to **Stage 10** in all cases so the final report captures the verification outcome.
 
 ### Stage 10 — Report
 
-**Telemetry:** Emit `stage.started` (`stage: "report"`) and record `started_at` before dispatch.
+**Telemetry:** Emit `stage.started` (`stage: "report"`, `stage_instance: <current stage instance>`; use `1` on first entry) and record `started_at` before dispatch.
 
 Invoke `qrspi-report` as a subagent:
 
@@ -810,7 +815,7 @@ When `qrspi-report` completes:
 - Parse `### Report Content` from the return and present it to the user verbatim. Do not modify it.
 - Mark Stage 10 as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: report` and `next_stage: done`.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `context` from `### Telemetry`. Emit `checkpoint.created` after the git commit. Generate `telemetry/metrics-summary.md` from events and emit `metrics.generated`. Emit `run.completed` with `route`, `timing` (started_at from `run.started`, ended_at now).
+- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `context` from `### Telemetry` and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit. Generate `telemetry/metrics-summary.md` from current events plus the terminal outcome now in hand, including the Stage 9 verify result, and emit `metrics.generated`. Emit `run.completed` with `route`, `timing` (started_at from `run.started`, ended_at now), and final status derived from Verify: `pass` for PASS, `warn` for PARTIAL, `fail` for FAIL.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 10 report complete`.
 - Regenerate `telemetry/run-log.md` (final version).
 - Proceed to **Post-Pipeline Cleanup**.
@@ -819,24 +824,27 @@ When `qrspi-report` completes:
 
 When a stage subagent (`qrspi-implement`, `qrspi-accept`, or `qrspi-replan`) includes a `### Backward Loop Request` section in its return:
 
-1. **Telemetry:** Emit `backward_loop.requested` with `stage`, `phase`, and `context` containing the request details.
-2. Read `protocol/deepwork-backward-loop-protocol.md` with `cat`.
-3. Follow that protocol exactly using the current route, current phase, and returned backward-loop request details.
-4. **Telemetry:** After the user decides, emit `backward_loop.decided` (or `backward_loop.deferred` for option D, or `backward_loop.reset` for option G) with `decision.choice`, `decision.reason`, and for loop-back decisions `context.loop_target`, `context.deleted_artifacts`, `context.archived_artifacts`. Regenerate `telemetry/run-log.md`.
+1. **Telemetry:** Emit `stage.failed` with `stage`, `phase`, `summary` from the stage return, `timing` from the active stage attempt, `context` from `### Telemetry`, and `artifacts` from `### Files Written` when available.
+2. **Telemetry:** Emit `backward_loop.requested` with `stage`, `phase`, and `context` containing the request details.
+3. Regenerate `telemetry/run-log.md`.
+4. Read `protocol/deepwork-backward-loop-protocol.md` with `cat`.
+5. Follow that protocol exactly using the current route, current phase, and returned backward-loop request details.
+6. **Telemetry:** After the user decides, emit `backward_loop.decided` (or `backward_loop.deferred` for option D, or `backward_loop.reset` for option G) with `decision.choice`, `decision.reason`, and for loop-back decisions `context.loop_target`, `context.deleted_artifacts`, `context.archived_artifacts`. If the decision re-enters a previously attempted stage, increment that stage's `stage_instance` before its next `stage.started` event. Regenerate `telemetry/run-log.md`.
 
 ### Error Handling
 
-If any stage returns `### Status — FAIL`:
+If any stage returns `### Status — FAIL` and no backward loop request is being handled:
 
 1. Do NOT proceed to the next stage.
-2. Surface the error to the user via `question`, including:
+2. **Telemetry:** Emit `stage.failed` with `stage`, `phase` if applicable, `summary` from the stage's return, `timing` from the active stage attempt, `context` from `### Telemetry`, and `artifacts` from `### Files Written` when available. Regenerate `telemetry/run-log.md`.
+3. Surface the error to the user via `question`, including:
 
 - Which stage failed
 - The `### Summary` from the stage's return (the specific error or issue)
 - Ask whether to retry the stage or abort the pipeline
 
-3. If the user says retry, emit `stage.retried` with `stage`, `attempt` (increment each retry), and `phase` if applicable. Re-invoke the same stage subagent with the same inputs.
-4. If the user says abort, emit `run.aborted` with `summary` (which stage failed and why) and `timing.ended_at`. Generate `telemetry/metrics-summary.md` from current events and emit `metrics.generated`. Regenerate `telemetry/run-log.md`. Keep the `.pipeline/qrspi-<run-id>/` directory intact. Summarize what was completed and log: "Pipeline aborted — partial audit trail at `.pipeline/qrspi-<run-id>/`"
+4. If the user says retry, emit `stage.retried` with `stage`, `attempt` (increment each retry), and `phase` if applicable. Then increment that stage's `stage_instance`, emit a fresh `stage.started` for the new attempt with a new `started_at` timestamp, regenerate `telemetry/run-log.md`, and re-invoke the same stage subagent with the same inputs.
+5. If the user says abort, generate `telemetry/metrics-summary.md` from current events plus the pending abort outcome and emit `metrics.generated`. Emit `run.aborted` with `summary` (which stage failed and why) and `timing.ended_at`. Regenerate `telemetry/run-log.md`. Keep the `.pipeline/qrspi-<run-id>/` directory intact. Summarize what was completed and log: "Pipeline aborted — partial audit trail at `.pipeline/qrspi-<run-id>/`"
 
 When retrying, do not overwrite or remove prior artifacts unless the retry path explicitly requires it. Keep `state.md` aligned with the retried stage as the next stage.
 
