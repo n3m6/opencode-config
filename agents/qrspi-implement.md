@@ -382,6 +382,7 @@ If all tasks passed, integration passed, and no regressions remain:
 ### Phase — [current phase number]
 ### Files Written — <phase-dir>/execution-manifest.md, <phase-dir>/e2e-regression-results.md, <phase-dir>/stage7-summary.md, <phase-dir>/integration-results.md, <phase-dir>/regression-results.md, <phase-dir>/stage7-integration-summary.md
 ### Summary — Phase [N]: all tasks implemented. Wave E2E gates: PASS. Integration: PASS. Regressions: none.
+### Telemetry — {"wave_count": <N>, "task_count": <N>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>}
 ```
 
 If a backward loop was requested (from any task-loop, integration-checker, or remediation-cap exhaustion):
@@ -392,6 +393,7 @@ If a backward loop was requested (from any task-loop, integration-checker, or re
 ### Files Written — <phase-dir>/execution-manifest.md, <phase-dir>/e2e-regression-results.md, <phase-dir>/stage7-summary.md, [integration and regression files if written]
 ### Backward Loop Request — [paste the backward loop request details verbatim]
 ### Summary — Phase [N]: backward loop requested: [brief description].
+### Telemetry — {"wave_count": <N>, "task_count": <N>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "backward_loop_requested": true}
 ```
 
 For remediation-cap exhaustion specifically, construct the backward loop request as:
@@ -410,4 +412,5 @@ If any step fails unrecoverably (not a backward loop):
 ### Phase — [current phase number]
 ### Files Written — [list any files written before failure]
 ### Summary — Phase [N]: [description of what went wrong]
+### Telemetry — {"wave_count": <N completed>, "task_count": <N attempted>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>}
 ```

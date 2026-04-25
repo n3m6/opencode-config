@@ -204,6 +204,7 @@ Reply **approve** to proceed, or provide your feedback for revision.
 ### Status — PASS
 ### Files Written — design.md, reviews/design-review-round-{NN}.md
 ### Summary — Design approved. Approach: [chosen approach name]. Final review state: [clean|unclean-cap].
+### Telemetry — {"review_rounds": <N>, "gate_status": "approved", "gate_rounds": <rejections before approval>}
 ```
 
 If any step fails unrecoverably, return:
@@ -212,6 +213,7 @@ If any step fails unrecoverably, return:
 ### Status — FAIL
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong]
+### Telemetry — {"review_rounds": <N completed>, "gate_status": "none"}
 ```
 
 ### Red Flags — STOP

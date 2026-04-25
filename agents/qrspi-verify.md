@@ -94,6 +94,7 @@ When `qrspi-verifier` completes:
 ### Status — [PASS/PARTIAL/FAIL, from verifier's Overall Status]
 ### Files Written — stage9-summary.md
 ### Summary — Verification: [PASS/PARTIAL/FAIL]. [one-line details from verifier].
+### Telemetry — {"verify_rounds": <N>, "overall_status": "PASS|PARTIAL|FAIL"}
 ```
 
 If any step fails unrecoverably:
@@ -102,4 +103,5 @@ If any step fails unrecoverably:
 ### Status — FAIL
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong]
+### Telemetry — {"verify_rounds": <N completed>}
 ```

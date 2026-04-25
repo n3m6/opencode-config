@@ -80,8 +80,20 @@ d. Continue the current stage as non-blocking. The next Replan stage must read a
 7. **If the user chooses G** (full reset to Goals):
 a. Create the feedback directory if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback`
 b. Write `.pipeline/qrspi-<run-id>/feedback/goals-reset-context.md` containing the backward-loop request, current phase, and a concise summary of what was learned before the reset.
-c. Delete every pipeline artifact except `feedback/`, including all active and archived `phases/` directories.
+c. Delete every pipeline artifact except `feedback/`, including all active and archived `phases/` directories. Do NOT delete the `telemetry/` directory — preserve it as a diagnostic record of the failed run state.
 d. Recreate `state.md` with `route: unknown`, `current_phase: 1`, `total_phases: 0`, `last_completed_stage: none`, `next_stage: goals`, incremented `backward_loops`, and `resume_source: state`.
 e. Reset the visible checklist to the initial pre-plan state.
 f. Re-enter the pipeline at **Stage 1** and include the contents of `feedback/goals-reset-context.md` as `=== PRIOR RUN LEARNINGS ===` in the Goals dispatch.
+
+### Telemetry Integration
+
+Telemetry events are emitted by deepwork around the protocol steps above:
+
+- **Before presenting the decision to the user:** Emit `backward_loop.requested` with `stage`, `phase`, and `context` containing the loop request details.
+- **After the user decides:**
+  - Options A, B, C (loop-back): Emit `backward_loop.decided` with `decision.choice` (A/B/C), `decision.reason` (user input or inferred), `context.loop_target` (design/structure/plan), `context.deleted_artifacts` (list of deleted top-level artifacts), and `context.archived_artifacts` (list of archived phase directories).
+  - Option D (defer): Emit `backward_loop.deferred` with `decision.choice: "D"` and `decision.reason`.
+  - Options E, F (local fix / continue): Emit `backward_loop.decided` with `decision.choice: "E"` or `"F"` and the reason.
+  - Option G (full reset): Emit `backward_loop.reset` with `summary` (brief learnings summary) and `context.artifacts_deleted` (all deleted artifact paths). Note: telemetry files are NOT included in the deleted list.
+- **After emitting the event:** Regenerate `telemetry/run-log.md`.
 ```

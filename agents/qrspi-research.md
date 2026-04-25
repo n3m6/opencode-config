@@ -279,6 +279,7 @@ Caching is the best next step because the middleware appears optimized.
 ### Status — PASS
 ### Files Written — research/q-01.md, ..., research/q-NN.md, research/summary.md, reviews/research-review-round-01.md, ..., reviews/research-review-round-NN.md
 ### Summary — Researched [N] questions ([codebase count] codebase, [web count] web, [hybrid count] hybrid). Reviews passed clean in round [NN].
+### Telemetry — {"question_count": <N>, "codebase_count": <N>, "web_count": <N>, "hybrid_count": <N>, "review_rounds": <N>}
 ```
 
 If automated reviews reach the 10-round cap with unresolved issues, return:
@@ -287,6 +288,7 @@ If automated reviews reach the 10-round cap with unresolved issues, return:
 ### Status — FAIL
 ### Files Written — research/q-01.md, ..., research/q-NN.md, research/summary.md, reviews/research-review-round-01.md, ..., reviews/research-review-round-10.md
 ### Summary — Automated research reviews reached the 10-round cap with unresolved issues. See reviews/research-review-round-10.md.
+### Telemetry — {"question_count": <N>, "codebase_count": <N>, "web_count": <N>, "hybrid_count": <N>, "review_rounds": 10}
 ```
 
 If any step fails unrecoverably, return:
@@ -295,4 +297,5 @@ If any step fails unrecoverably, return:
 ### Status — FAIL
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong]
+### Telemetry — {"question_count": <N completed>, "review_rounds": <N completed>}
 ```

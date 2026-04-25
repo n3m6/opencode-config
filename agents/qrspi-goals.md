@@ -229,6 +229,7 @@ After the user approves the goals, read `config.md` to extract the route. Return
 ### Files Written — requirements.md, goals.md, config.md
 ### Route — [full or quick-fix, from config.md]
 ### Summary — Goals captured and approved. Route: [route].
+### Telemetry — {"review_rounds": <N>, "gate_status": "approved", "gate_rounds": <rejections before approval>}
 ```
 
 If any step fails unrecoverably, return:
@@ -237,4 +238,5 @@ If any step fails unrecoverably, return:
 ### Status — FAIL
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong]
+### Telemetry — {"review_rounds": <N completed>, "gate_status": "none"}
 ```

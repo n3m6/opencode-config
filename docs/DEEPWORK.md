@@ -364,12 +364,56 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 | `phases/phase-NN/backward-loop-analysis.md`     | Stage 8    | Per-phase backward-loop classification output when needed                     |
 | `phases/phase-NN/stage8-summary.md`             | Stage 8    | Per-phase acceptance summary                                                  |
 | `phases/phase-NN/replan/phase-NN-replan.md`     | Stage 8.5  | Replan note describing the delta after that completed phase                   |
+| `telemetry/events.jsonl`                        | Deepwork   | Canonical append-only event stream (JSONL); never read by resume or recovery  |
+| `telemetry/run-log.md`                          | Deepwork   | Derived chronological human timeline; regenerated at each stage boundary      |
+| `telemetry/metrics-summary.md`                  | Deepwork   | Derived end-of-run aggregate metrics; generated at Stage 10 and on abort      |
 
 Rules:
 
 - Phase-local execution artifacts are the authoritative audit trail for multi-phase runs.
 - Active execution ignores anything under `phases/archive/`; archived phase directories are kept only for audit.
 - Phase 2 and later receive real task copies in their phase directory. Replan does not rely on shared top-level cumulative execution or acceptance files.
+- `telemetry/` files are diagnostic only. The resume recovery algorithm and backward-loop artifact deletion rules never read or delete them.
+
+---
+
+## Telemetry
+
+The pipeline emits structured telemetry to three files under `telemetry/` on every run. This layer answers operational questions (how long did each stage take? how many review rounds fired? which phase triggered a backward loop?) without replacing the stage-artifact audit trail.
+
+### Artifacts
+
+| File                           | Format              | Produced by                     | Notes                                                                 |
+| ------------------------------ | ------------------- | ------------------------------- | --------------------------------------------------------------------- |
+| `telemetry/events.jsonl`       | JSONL (append-only) | Deepwork + nested orchestrators | Source of truth; one JSON object per line                             |
+| `telemetry/run-log.md`         | Markdown            | Deepwork                        | Derived; regenerated at every stage boundary and on abort/resume/loop |
+| `telemetry/metrics-summary.md` | Markdown            | Deepwork                        | Derived; generated at Stage 10 completion and on run abort            |
+
+### Write Ownership
+
+Only the currently active orchestrator appends to `events.jsonl`. Parallel-dispatch stages (Research, Plan, Implement, Accept-Test, Replan) write their own `child.*` and `phase.*` events; they never race on the shared stream because only one stage runs at a time at the deepwork level.
+
+Leaf agents (every agent not listed as an orchestrator) never write `events.jsonl`. They return a `### Telemetry` JSON section upward; their parent serializes the data into events.
+
+### Event Classes
+
+| Class             | Written by           | Representative events                                                                               |
+| ----------------- | -------------------- | --------------------------------------------------------------------------------------------------- |
+| `run.*`           | deepwork             | `run.started`, `run.resumed`, `run.completed`, `run.aborted`                                        |
+| `stage.*`         | deepwork             | `stage.started`, `stage.completed`, `stage.failed`, `stage.skipped`, `stage.retried`                |
+| `phase.*`         | qrspi-implement      | `phase.started`, `phase.completed`                                                                  |
+| `gate.*`          | deepwork             | `gate.presented`, `gate.approved`, `gate.rejected`                                                  |
+| `child.*`         | nested orchestrators | `child.dispatched`, `child.returned`                                                                |
+| `review.*`        | nested orchestrators | `review.round_started`, `review.round_completed`                                                    |
+| `backward_loop.*` | deepwork             | `backward_loop.requested`, `backward_loop.decided`, `backward_loop.deferred`, `backward_loop.reset` |
+| `checkpoint.*`    | deepwork             | `checkpoint.created`                                                                                |
+| `metrics.*`       | deepwork             | `metrics.generated`                                                                                 |
+
+### Non-Interference Guarantee
+
+The resume recovery algorithm (see **State Management and Resume** below) never reads any file under `telemetry/`. The backward-loop artifact deletion rules never delete telemetry files. Telemetry can be safely deleted or ignored without affecting pipeline correctness.
+
+Full schema, event taxonomy, and per-event minimum contracts are documented in `protocol/telemetry-protocol.md`. Derived artifact formats (`run-log.md`, `metrics-summary.md`) are specified in `agents/deepwork.md`.
 
 ---
 

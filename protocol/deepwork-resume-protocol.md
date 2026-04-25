@@ -44,3 +44,9 @@ If the user provides a run ID, asks to resume, or points at an existing `.pipeli
 7. Reconstruct the visible todo checklist from the recovered route and the refreshed `phase-manifest.md`, ignoring archived future phases.
 
 If both `state.md` and the artifact set imply the run is already complete, present the preserved report path and stop.
+
+### Telemetry Non-Interference
+
+The recovery algorithm above never reads any file under `telemetry/`. The existence or absence of `telemetry/events.jsonl`, `telemetry/run-log.md`, or `telemetry/metrics-summary.md` has no effect on which stage is recovered or which artifacts are considered authoritative. Telemetry files may be missing, partial, or stale without affecting resume correctness.
+
+After recovery completes and `state.md` is refreshed, initialize the telemetry sequence counter from the existing `events.jsonl` line count (0 if missing) and emit a `run.resumed` event before re-dispatching the recovered next stage.

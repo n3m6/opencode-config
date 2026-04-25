@@ -255,6 +255,7 @@ f. When the generator returns, overwrite `questions.md`, reset `review_round = 1
 ### Status — PASS
 ### Files Written — questions.md, question-leakage-review.md, question-quality-review.md
 ### Summary — Questions generated, reviewed, and approved. Final review state: [clean|fixed-unverified|unclean-cap].
+### Telemetry — {"review_rounds": <N>, "gate_status": "approved", "gate_rounds": <rejections before approval>}
 ```
 
 If any step fails unrecoverably, return:
@@ -263,4 +264,5 @@ If any step fails unrecoverably, return:
 ### Status — FAIL
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong]
+### Telemetry — {"review_rounds": <N completed>, "gate_status": "none"}
 ```

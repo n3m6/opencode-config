@@ -489,6 +489,7 @@ When `qrspi-baseline-checker` completes:
 ### Status — PASS
 ### Files Written — plan.md, phase-manifest.md, tasks/task-01.md, ..., tasks/task-NN.md, reviews/plan-review-round-{NN}.md, baseline-results.md
 ### Summary — Plan written with [N] tasks. Final review state: [clean|unclean-cap]. Baseline: [CLEAN/DIRTY].
+### Telemetry — {"task_count": <N>, "review_rounds": <N>, "task_spec_review_rounds": <total rounds across all task specs>}
 ```
 
 If any step fails unrecoverably, return:
@@ -497,6 +498,7 @@ If any step fails unrecoverably, return:
 ### Status — FAIL
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong]
+### Telemetry — {"task_count": <N attempted>, "review_rounds": <N completed>}
 ```
 
 ### Red Flags — STOP

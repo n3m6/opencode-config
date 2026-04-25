@@ -140,6 +140,7 @@ When `qrspi-reporter` completes:
 ### Report Content
 [paste the reporter's full output verbatim — deepwork will present this to the user]
 ### Summary — Final report generated.
+### Telemetry — {}
 ```
 
 If any step fails unrecoverably:
@@ -148,4 +149,5 @@ If any step fails unrecoverably:
 ### Status — FAIL
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong]
+### Telemetry — {}
 ```

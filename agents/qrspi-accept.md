@@ -219,6 +219,7 @@ If all criteria passed:
 ### Phase — [current phase number]
 ### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/stage8-summary.md
 ### Summary — Phase [N]: all assigned acceptance criteria passed.
+### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": false}
 ```
 
 If persistent failures remain and the backward-loop detector recommends anything other than `NO_LOOP`:
@@ -229,6 +230,7 @@ If persistent failures remain and the backward-loop detector recommends anything
 ### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/backward-loop-analysis.md, <phase-dir>/stage8-summary.md
 ### Backward Loop Request — [paste the backward loop request details verbatim]
 ### Summary — Phase [N]: follow-up routing requested: [brief description].
+### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": true}
 ```
 
 If persistent failures remain and the backward-loop detector recommends `NO_LOOP`:
@@ -238,6 +240,7 @@ If persistent failures remain and the backward-loop detector recommends `NO_LOOP
 ### Phase — [current phase number]
 ### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/backward-loop-analysis.md, <phase-dir>/stage8-summary.md
 ### Summary — Phase [N]: [N] of [M] acceptance criteria still failed after the acceptance loop; no structural backward loop was recommended.
+### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": false}
 ```
 
 If any step fails unrecoverably:
@@ -247,4 +250,5 @@ If any step fails unrecoverably:
 ### Phase — [current phase number]
 ### Files Written — [list any files written before failure]
 ### Summary — Phase [N]: [description of what went wrong]
+### Telemetry — {"acceptance_loop_rounds": <N completed>, "criteria_count": <N>, "criteria_passed": <N>}
 ```

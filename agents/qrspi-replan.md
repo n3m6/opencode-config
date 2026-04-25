@@ -307,6 +307,7 @@ If the writer determines that Goals or Design must change:
 ### Files Written — None.
 ### Backward Loop Request — [paste the backward loop request details verbatim]
 ### Summary — Phase [N]: backward loop requested during replan: [brief description].
+### Telemetry — {"review_rounds": 0, "backward_loop_requested": true}
 ```
 
 If the replan succeeds:
@@ -316,6 +317,7 @@ If the replan succeeds:
 ### Phase — [completed phase number]
 ### Files Written — plan.md, phase-manifest.md, <next-phase-dir>/tasks/task-NN.md, reviews/replan-review-round-{NN}.md, <completed-phase-dir>/replan/phase-[PP]-replan.md
 ### Summary — Replan completed after phase [N]. Remaining work updated for the next phase. Final review state: [clean|unclean-cap].
+### Telemetry — {"review_rounds": <N>, "backward_loop_requested": false}
 ```
 
 If any step fails unrecoverably:
@@ -325,4 +327,5 @@ If any step fails unrecoverably:
 ### Phase — [completed phase number]
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong]
+### Telemetry — {"review_rounds": <N completed>, "backward_loop_requested": false}
 ```

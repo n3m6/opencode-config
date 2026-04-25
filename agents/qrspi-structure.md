@@ -182,6 +182,8 @@ f. When the mapper returns, overwrite `structure.md`, reset `review_round = 1`, 
 
 ### Summary — Structure approved. Final review state: [clean|unclean-cap].
 
+### Telemetry — {"review_rounds": <N>, "gate_status": "approved", "gate_rounds": <rejections before approval>}
+
 ```
 
 If any step fails unrecoverably, return:
@@ -193,6 +195,8 @@ If any step fails unrecoverably, return:
 ### Files Written — [list any files written before failure]
 
 ### Summary — [description of what went wrong]
+
+### Telemetry — {"review_rounds": <N completed>, "gate_status": "none"}
 
 ```
 
