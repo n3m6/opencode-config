@@ -56,7 +56,7 @@ Every event is one JSON object on one line (no trailing comma, no blank lines). 
 | Class             | Events (status)                                                                                                                    | Writer             |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
 | `run.*`           | `run.started` (info) · `run.resumed` (info) · `run.completed` (pass\|warn\|fail) · `run.aborted` (fail)                            | deepwork           |
-| `stage.*`         | `stage.started` (info) · `stage.completed` (pass\|warn) · `stage.failed` (fail) · `stage.skipped` (skip) · `stage.retried` (info) | deepwork           |
+| `stage.*`         | `stage.started` (info) · `stage.completed` (pass\|warn) · `stage.failed` (fail) · `stage.skipped` (skip) · `stage.retried` (info)  | deepwork           |
 | `phase.*`         | `phase.started` (info) · `phase.completed` (pass)                                                                                  | qrspi-implement    |
 | `gate.*`          | `gate.presented` (info) · `gate.approved` (pass) · `gate.rejected` (warn)                                                          | deepwork           |
 | `child.*`         | `child.dispatched` (info) · `child.returned` (pass\|fail)                                                                          | stage orchestrator |
