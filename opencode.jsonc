@@ -13,5 +13,11 @@
       "description": "Run all tests and fix all issues",
       "agent": "build"
     }
+  },
+  "permission": {
+    "external_directory": {
+      "~/.config/opencode/**": "allow",
+      "/tmp/**": "allow"
+    }
   }
 }
