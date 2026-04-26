@@ -61,7 +61,13 @@ Track each branch as **unresolved** or **resolved**. A branch is resolved when y
 | Testing expectations               | Unit, integration, E2E, or manual test expectations and existing test patterns   |
 | Route and size                     | Whether the change is a quick-fix (1–3 files, no design) or full route           |
 
-#### Step A1 — Repo orientation (internal scratchpad only; not shown to user)
+#### Step A1 — Pre-resolve from the User Task (internal scratchpad only; not shown to user)
+
+Before exploring or asking anything, parse the original User Task itself. If the task already clearly supplies a branch, record it as `user-answer` and mark that branch resolved immediately. Detailed PRDs may already resolve **Problem and motivation**, **Constraints**, **Non-goals**, **Acceptance criteria**, **Testing expectations**, or **Route and size**. Do not ask a question just to restate information the user already provided.
+
+If the User Task already resolves **Problem and motivation**, skip the initial problem-statement question after repo orientation and continue to the next highest-value unresolved branch. If the User Task names likely owning files, subsystems, or existing behavior, use those to seed **Current behavior / owning surfaces** before further exploration.
+
+#### Step A2 — Repo orientation (internal scratchpad only; not shown to user)
 
 Run a bounded set of read-only shell commands to ground the interview in the actual codebase. Limit to at most 5 keyword searches.
 
@@ -73,9 +79,9 @@ Run a bounded set of read-only shell commands to ground the interview in the act
 
 Record findings as a scratchpad: key files, owning modules, test patterns, existing constraints or signals in config files. Tag each finding as `repo-finding`. Do not emit this step to the user.
 
-#### Step A2 — Initial question
+#### Step A3 — Initial question when Problem and motivation is unresolved
 
-After the repo orientation, ask the first question to capture problem and motivation. Include a relevant repo finding if one exists:
+If **Problem and motivation** is still unresolved after the User Task pre-resolution and repo orientation, ask the first question to capture it. Include a relevant repo finding if one exists:
 
 ```
 [If a relevant repo finding exists: "I looked at the codebase and [1–2 sentence finding]. " Otherwise omit.]
@@ -86,9 +92,9 @@ Describe the change plus the problem it solves or the value it adds.
 **Recommended:** [your best-guess answer based on codebase context, or omit if no meaningful guess is possible]
 ```
 
-Record the user's answer as a `user-answer`. Mark **Problem and motivation** resolved and update **Current behavior / owning surfaces** with any concrete file or module names the user mentions.
+Record the user's answer as a `user-answer`. Mark **Problem and motivation** resolved and update **Current behavior / owning surfaces** with any concrete file or module names the user mentions. If **Problem and motivation** was already resolved from the original User Task, skip this step.
 
-#### Step A3 — Adaptive loop
+#### Step A4 — Adaptive loop
 
 For each remaining unresolved branch, in dependency order (resolve what others depend on first):
 
@@ -177,14 +183,18 @@ After writing the artifacts, run an internal review loop before showing the draf
 === REQUIREMENTS ===
 [paste contents of requirements.md verbatim]
 
+=== INTERVIEW RECORD ===
+[paste the full interview record verbatim]
+
 === GOALS ===
 [paste contents of goals.md verbatim]
 
 === INSTRUCTIONS ===
-Review this goals draft against the preserved requirements for clarity, requirements fidelity,
-scope control, and testability.
+Review this goals draft against the preserved requirements and interview record for clarity, requirements fidelity,
+scope control, testability, and inference integrity.
 Flag dropped functional requirements, vague NFRs, vague constraints, subjective acceptance criteria,
-missing boundaries, or oversized scope.
+missing boundaries, oversized scope, or any content in Functional Requirements, Constraints,
+or Acceptance Criteria that is not traceable to a `user-answer` or `user-confirmed-finding`.
 ```
 
 4. Write the reviewer output to `.pipeline/<run-id>/reviews/goals-review-round-{NN}.md` using the edit tool.
@@ -258,7 +268,7 @@ e. Rebuild `.pipeline/<run-id>/requirements.md` using the edit tool so it contai
 ```
 
 Do not copy the `### Rejected Artifact` blocks into `requirements.md`.
-f. Re-dispatch `qrspi-goals-synthesizer` with the User Task, the original Interview Record, and a `=== FEEDBACK HISTORY ===` section containing all feedback files.
+f. Re-dispatch `qrspi-goals-synthesizer` with the original Run ID, User Task, original Interview Record, and a `=== FEEDBACK HISTORY ===` section containing all feedback files.
 g. When the synthesizer returns, overwrite `goals.md` and `config.md`, reset `review_round = 1`, and return to Step D so the automated review loop restarts before the next human review.
 
 ### Return
