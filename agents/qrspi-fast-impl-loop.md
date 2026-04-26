@@ -58,7 +58,9 @@ Maintain the following internal state throughout the loop. Do not return this st
 - `last_test_result`: the full most recent `qrspi-fast-impl-test` response.
 - `last_verify_result`: the full most recent `qrspi-fast-impl-verify` response.
 - `cycle_log`: a running list. After each VERIFY dispatch, append one entry:
-  `Cycle [N]: Route Hint = [value], Failure Type = [value from Route Context], File Inventory = [sorted union of all Files Modified + Files Created across code and test results for this cycle]`
+  `Cycle [N]: Failure Signature = [Route Hint + Final Verification Status + Review Status + Failure Type + Affected Files + Description from Route Context], Inventory Snapshot = [sorted union of Files Modified + Files Created from the most recent verify result]`
+
+Build each `cycle_log` entry from the latest verify result because its file inventory is authoritative and includes any verify-side local fixes.
 
 Use `cycle_log` entries for stall detection only.
 
@@ -190,6 +192,9 @@ If test result is `### Status — FAIL` or contains a `### Backward Loop Request
 === PRIOR VERIFY RESULT ===
 None.
 
+=== REGRESSION EVIDENCE ===
+None.
+
 === INSTRUCTIONS ===
 Run targeted verification, dispatch qrspi-code-review, apply safe local fixes within 2 review rounds, and commit only on CLEAN success.
 Return an explicit Route Hint.
@@ -300,7 +305,50 @@ Use a maximum of 3 test iterations.
 
 If test result is `### Status — FAIL` or contains a `### Backward Loop Request`, stop and return immediately.
 
-3. Dispatch `qrspi-fast-impl-verify` (VERIFY) — same template as fresh mode cycle 0 with `=== CYCLE === 0`, but pass `fix` context. All fields identical; just the CODE/TEST results reflect the fix-mode dispatches above.
+3. Dispatch `qrspi-fast-impl-verify` (VERIFY):
+
+```
+=== TASK ===
+[paste task spec verbatim]
+
+=== GOALS ===
+[paste goals excerpt verbatim]
+
+=== ROUTE ===
+[paste route verbatim]
+
+=== CURRENT PHASE ===
+[paste current phase verbatim]
+
+=== PLAN REVIEW STATUS ===
+[paste plan review status verbatim]
+
+=== DESIGN CONTEXT ===
+[paste design context verbatim]
+
+=== COMPLETED DEPENDENCIES ===
+[paste completed dependencies verbatim]
+
+=== CYCLE ===
+0
+
+=== CODE RESULT ===
+[paste the full qrspi-fast-impl-code response verbatim]
+
+=== TEST RESULT ===
+[paste the full qrspi-fast-impl-test response verbatim]
+
+=== PRIOR VERIFY RESULT ===
+None.
+
+=== REGRESSION EVIDENCE ===
+[paste regression evidence verbatim]
+
+=== INSTRUCTIONS ===
+Run targeted verification, including the named regression targets from REGRESSION EVIDENCE even if TEST RESULT reports `NO_TASK_AUTHORED_TESTS`.
+Dispatch qrspi-code-review, apply safe local fixes within 2 review rounds, and commit only on CLEAN success.
+Return an explicit Route Hint.
+```
 
 Update `cycle_log` with the cycle 0 entry. Check stall detection. If verify result is PASS/CLEAN, return success. Otherwise, increment `cycle` to 1 and continue to **Outer Loop**.
 
@@ -360,8 +408,12 @@ If code result is FAIL or backward loop, stop and return immediately.
 === PRIOR VERIFY RESULT ===
 [paste last_verify_result verbatim]
 
+=== REGRESSION EVIDENCE ===
+[paste regression evidence verbatim if outer mode is fix, otherwise `None.`]
+
 === INSTRUCTIONS ===
-Run targeted verification, dispatch qrspi-code-review, apply safe local fixes within 1 review round (re-entry), and commit only on CLEAN success.
+Run targeted verification. If REGRESSION EVIDENCE is not `None.`, include those named regression targets in the verify slice even when TEST RESULT reports `NO_TASK_AUTHORED_TESTS`.
+Dispatch qrspi-code-review, apply safe local fixes within 1 review round (re-entry), and commit only on CLEAN success.
 Return an explicit Route Hint.
 ```
 
@@ -414,15 +466,15 @@ If test result is FAIL or backward loop, stop and return immediately.
 
 After appending each cycle log entry, check for a stall. A stall exists when **both** of the following are true for the two most recent entries (cycle_log[-1] and cycle_log[-2]):
 
-1. `Failure Type` is identical in both entries.
-2. `File Inventory` is identical in both entries (same sorted union of all modified/created files — the task is not making progress).
+1. `Failure Signature` is identical in both entries.
+2. `Inventory Snapshot` is identical in both entries (same authoritative modified/created file set from the latest verify result — including any verify-side local fixes).
 
 **Stall action:**
 
 - If `Failure Type` = `upstream_ambiguity`: emit `### Backward Loop Request` with a summary of the repeated failure. Use the last verify result's `### Unresolved Findings` if present.
-- Otherwise: return FAIL with a summary stating the stall (same failure signature repeated, no file-inventory change).
+- Otherwise: return FAIL with a summary stating the stall (same failure signature repeated, no authoritative inventory change).
 
-Note: stall detection requires at least 2 entries in `cycle_log` (cycle >= 1 after the second VERIFY). On cycle 0 or cycle 1, stall detection cannot trigger.
+Note: stall detection requires at least 2 entries in `cycle_log`, so it can first trigger after cycle 1 (after the second VERIFY). It cannot trigger on cycle 0.
 
 ### Return
 
@@ -451,7 +503,7 @@ On FAIL (without backward loop):
 ### Files Created — [from the most recent agent result, or None.]
 ### Tests Written — [from the most recent agent result, or None.]
 ### Review Status — UNRESOLVED or NOT RUN
-### Review Rounds — [from last_verify_result ### Review Rounds, or 0/2 if verify did not run]
+### Review Rounds — [from the triggering verify result ### Review Rounds, or 0/2 on cycle 0 and 0/1 on cycle > 0 if verify did not run]
 ### Iterations — [from last_code_result ### Iterations, or None. if code did not run]
 ### Unresolved Findings — [from last_verify_result ### Unresolved Findings, if present]
 ### Summary — [from the most recent agent result]
@@ -485,7 +537,7 @@ On stall (no progress for 2 consecutive cycles):
 ### Review Status — UNRESOLVED or NOT RUN
 ### Review Rounds — [from last_verify_result ### Review Rounds]
 ### Iterations — [from last_code_result ### Iterations, or None.]
-### Summary — fast-impl-loop: stall detected at cycle [N]. Same failure signature and file inventory repeated for 2 consecutive cycles with no progress. Failure Type: [value]. Affected Files: [list].
+### Summary — fast-impl-loop: stall detected at cycle [N]. Same failure signature and authoritative inventory snapshot repeated for 2 consecutive cycles with no progress. Failure Type: [value]. Affected Files: [list].
 ```
 
 If any child agent returns a `### Backward Loop Request`, propagate it immediately:
@@ -498,7 +550,7 @@ If any child agent returns a `### Backward Loop Request`, propagate it immediate
 ### Files Created — [from the most recent agent result, or None.]
 ### Tests Written — [from the most recent agent result, or None.]
 ### Review Status — NOT RUN
-### Review Rounds — 0/2
+### Review Rounds — [from the triggering verify result ### Review Rounds when verify triggered the backward loop, or 0/2 on cycle 0 and 0/1 on cycle > 0 when verify did not run in the triggering cycle]
 ### Iterations — [from last_code_result ### Iterations, or None. if code did not run]
 ### Summary — [phase that triggered it] requested backward loop: [brief description]
 ### Backward Loop Request

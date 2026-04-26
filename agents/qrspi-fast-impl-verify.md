@@ -48,6 +48,7 @@ You will receive:
 9. **Code Result** — the full most recent `qrspi-fast-impl-code` response
 10. **Test Result** — the full most recent `qrspi-fast-impl-test` response
 11. **Prior Verify Result** — the full most recent prior `qrspi-fast-impl-verify` response from this loop, or `None.` on cycle 0
+12. **Regression Evidence** — the original regression targets from Stage 7 fix mode, or `None.` in fresh mode
 
 ### Process
 
@@ -64,8 +65,10 @@ Start from the Code Result `### Files Modified` and `### Files Created` for prod
 
 Read the Test Result:
 
-- If `### Testability — NO_TASK_AUTHORED_TESTS`: only build/lint must pass. Skip test-file verification expectations.
-- If `### Testability — TASK_AUTHORED_TESTS`: all tests listed in `### Stable Evidence` are expected to pass. Tests listed in `### Unsafe Evidence` (FLAKY, HARNESS_NOISY, AMBIGUOUS) are noted but their failure is classified as a test-owned signal, not a code-owned verification failure.
+- If `Regression Evidence` is not `None.`, the named regression targets are authoritative and must be rerun on every verify invocation for this task, even when Test Result reports `### Testability — NO_TASK_AUTHORED_TESTS`.
+- If `### Testability — NO_TASK_AUTHORED_TESTS` and `Regression Evidence` is `None.`: only build/lint must pass. Skip test-file verification expectations.
+- If `### Testability — TASK_AUTHORED_TESTS`: all tests listed in `### Stable Evidence` are expected to pass. If `Regression Evidence` is not `None.`, rerun those regression targets in addition to the stable evidence.
+- Tests listed in `### Unsafe Evidence` (FLAKY, HARNESS_NOISY, AMBIGUOUS) are noted but their failure is classified as a test-owned signal, not a code-owned verification failure.
 
 **Step 4 — Run targeted verification via `build`.**
 
@@ -105,8 +108,12 @@ Use this dispatch:
 === PRIOR VERIFY RESULT ===
 [paste prior verify result verbatim, or `None.`]
 
+=== REGRESSION EVIDENCE ===
+[paste regression evidence verbatim, or `None.`]
+
 === INSTRUCTIONS ===
 Run the targeted verification for this task.
+If REGRESSION EVIDENCE is not `None.`, rerun those named regression targets even when TEST RESULT reports `### Testability — NO_TASK_AUTHORED_TESTS`.
 For each failing test, note its name so it can be cross-referenced against the Evidence Classification.
 Do not commit in this step.
 
@@ -124,10 +131,12 @@ Return:
 
 Cross-reference every failing test against `### Evidence Classification` in the Test Result:
 
-- If ALL failing tests are classified as DETERMINISTIC (or the failure is a build/lint error, not a test failure): the failure is **code-owned**. Route Hint = `CODE_REPAIR`.
+- If the failure reveals a structural mismatch (missing interface, contradictory plan constraint, undefined contract from a dependency): Route Hint = `BACKWARD_LOOP`.
+- If the failure is a build/lint error rather than a test failure: the failure is **code-owned**. Route Hint = `CODE_REPAIR`.
+- If `Regression Evidence` is not `None.` and a failing test is one of the named regression targets but does not appear in `### Evidence Classification`, treat it as **code-owned existing-suite evidence**. Route Hint = `CODE_REPAIR`.
+- If ALL failing tests that appear in `### Evidence Classification` are classified as DETERMINISTIC: the failure is **code-owned**. Route Hint = `CODE_REPAIR`.
 - If ALL failing tests are classified as FLAKY, HARNESS_NOISY, or AMBIGUOUS: the failure is **test-owned**. Route Hint = `TEST_REPAIR`.
 - If failing tests are a mix of DETERMINISTIC and unsafe evidence: Route Hint = `CODE_AND_TEST_REPAIR`.
-- If the failure reveals a structural mismatch (missing interface, contradictory plan constraint, undefined contract from a dependency): Route Hint = `BACKWARD_LOOP`.
 - If `### Testability — NO_TASK_AUTHORED_TESTS` and verification fails on build/lint: Route Hint = `CODE_REPAIR`.
 
 Return immediately using the FAIL template. Do not dispatch `qrspi-code-review`.
