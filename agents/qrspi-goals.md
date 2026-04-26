@@ -77,7 +77,7 @@ Run a bounded set of read-only shell commands to ground the interview in the act
 4. `find . -maxdepth 2 -not -path './.git/*' -not -path './node_modules/*' -not -path './.pipeline/*'` — shallow directory tree.
 5. Extract nouns and system names from the user task. For each, run one search: `grep -r --include='*.{ts,js,py,go,rs,java,rb,php,cs}' -l '<keyword>' . 2>/dev/null | head -10` (one grep per keyword; stop after 5 keywords).
 
-Record findings as a scratchpad: key files, owning modules, test patterns, existing constraints or signals in config files. Tag each finding as `repo-finding`. Do not emit this step to the user.
+Record findings as a scratchpad: key files, owning modules, test patterns, existing constraints or signals in config files. Tag each finding as `repo-finding`. Do not emit this orientation step wholesale to the user. Surface only the repo findings that materially shape the next recommendation, scope decision, or stop condition.
 
 #### Step A3 — Initial question when Problem and motivation is unresolved
 
@@ -102,6 +102,7 @@ For each remaining unresolved branch, in dependency order (resolve what others d
    - If the branch can be answered from the codebase (e.g., where relevant code lives, what tests already exist, what limits are already in config files), run 1–3 targeted shell commands first.
    - If exploration resolves the branch with high confidence, record the finding as `repo-finding`, mark it resolved, and move to the next branch without asking the user.
    - If exploration gives a partial or ambiguous answer, carry it forward as context into the next question.
+   - If a repo-resolved branch materially shapes the next recommendation, route judgment, or narrowing decision, carry a concise 1–2 sentence summary of that finding forward into the next user-facing question instead of keeping it entirely hidden.
 
 2. **Ask one question at a time.** Format every user-facing question as:
 
@@ -114,6 +115,7 @@ For each remaining unresolved branch, in dependency order (resolve what others d
    ```
 
    The user can accept the recommendation (e.g. "yes", "that works") or override it. Record the outcome as `user-answer` or `user-confirmed-finding`.
+   - When a repo-resolved branch materially shaped the question, use the context line to say so directly rather than only implying it in the recommendation.
 
 3. **After each answer:**
    - Record the user's answer verbatim and update the scratchpad.
@@ -132,7 +134,7 @@ For each remaining unresolved branch, in dependency order (resolve what others d
 
    Record the user's decision. If they confirm combined scope, note that decision and continue.
 
-5. **Stop condition.** Continue the loop until all branches are resolved. There is no fixed question count — keep going until no material planning gaps remain. If remaining unresolved branches can be satisfied from the repo without requiring a user decision, mark them from exploration and stop without further questions. If after 12 user-facing questions significant gaps still remain, surface a summary of what is unresolved and ask the user to address them together in one final pass.
+5. **Stop condition.** Continue the loop until all branches are resolved. There is no fixed question count — keep going until no material planning gaps remain. If remaining unresolved branches can be satisfied from the repo without requiring a user decision, mark them from exploration. Before stopping without further questions, briefly surface any repo-resolved branches that materially shaped the recommendations or final understanding so the user sees what was inferred from the codebase. If after 12 user-facing questions significant gaps still remain, surface a summary of what is unresolved and ask the user to address them together in one final pass.
 
 Assemble the **Interview Record** — every branch, its source tag (`user-answer`, `repo-finding`, or `user-confirmed-finding`), and its resolved content — to pass to the synthesizer.
 
