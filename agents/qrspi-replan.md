@@ -3,7 +3,7 @@ description: "Stage 8.5 orchestrator — revises the remaining plan after a comp
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 35
+steps: 45
 permission:
   edit: allow
   bash:

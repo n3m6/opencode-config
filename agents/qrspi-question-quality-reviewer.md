@@ -3,7 +3,7 @@ description: Reviews generated research questions independently for coverage, ob
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 10
+steps: 20
 permission:
   edit: deny
   bash:

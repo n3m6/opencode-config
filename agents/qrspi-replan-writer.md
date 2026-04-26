@@ -3,7 +3,7 @@ description: Revises the remaining implementation plan after a completed phase, 
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 25
+steps: 35
 permission:
   edit: deny
   bash:

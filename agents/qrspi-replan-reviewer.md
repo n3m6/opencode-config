@@ -3,7 +3,7 @@ description: Reviews replanned remaining-work artifacts after a completed phase 
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 12
+steps: 20
 permission:
   edit: deny
   bash:

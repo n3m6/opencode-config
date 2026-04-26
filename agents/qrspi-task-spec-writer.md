@@ -3,7 +3,7 @@ description: Writes a single detailed task-NN.md spec from the persisted task ou
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 10
+steps: 25
 permission:
   edit: allow
   bash:

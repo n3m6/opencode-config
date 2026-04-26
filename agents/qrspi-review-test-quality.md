@@ -3,7 +3,7 @@ description: "Per-task test quality reviewer for the pre-GREEN RED_REVIEW gate â
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 10
+steps: 20
 permission:
   edit: deny
   bash:

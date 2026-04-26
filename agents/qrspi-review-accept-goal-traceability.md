@@ -3,7 +3,7 @@ description: "Acceptance-plan goal-traceability reviewer — checks that current
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 15
+steps: 25
 permission:
   edit: deny
   bash:

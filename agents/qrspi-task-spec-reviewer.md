@@ -3,7 +3,7 @@ description: Per-task mutating reviewer for Stage 6. Reads goals.md, the current
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 10
+steps: 25
 permission:
   edit: allow
   bash:

@@ -3,7 +3,7 @@ description: "Acceptance-plan spec reviewer — checks that planned current-phas
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 15
+steps: 25
 permission:
   edit: deny
   bash:

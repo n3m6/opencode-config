@@ -3,7 +3,7 @@ description: Writes a plan overview, phase manifest, and structured per-task out
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 30
+steps: 45
 permission:
   edit: deny
   bash:

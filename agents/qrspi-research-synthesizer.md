@@ -3,7 +3,7 @@ description: Synthesizes per-question research findings into a unified summary. 
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 10
+steps: 20
 permission:
   edit: deny
   bash:

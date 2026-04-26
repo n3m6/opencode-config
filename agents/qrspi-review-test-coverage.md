@@ -3,7 +3,7 @@ description: "Per-task test-coverage reviewer — checks that task expectations,
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 15
+steps: 25
 permission:
   edit: deny
   bash:

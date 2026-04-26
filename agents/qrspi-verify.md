@@ -3,7 +3,7 @@ description: "Stage 9 orchestrator — dispatches verifier to run full build/lin
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 15
+steps: 25
 permission:
   edit: allow
   bash:

@@ -3,7 +3,7 @@ description: "Per-task security reviewer — checks QRSPI task changes for injec
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 15
+steps: 25
 permission:
   edit: deny
   bash:

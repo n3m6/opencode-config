@@ -3,7 +3,7 @@ description: Maps design slices to specific files, components, interfaces, and d
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 20
+steps: 25
 permission:
   edit: deny
   bash:

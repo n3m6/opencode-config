@@ -3,7 +3,7 @@ description: Reviews the current Stage 6 planning artifacts from the pipeline ru
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 10
+steps: 25
 permission:
   edit: deny
   bash:
