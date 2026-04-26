@@ -3,7 +3,7 @@ description: "Stage 1 orchestrator — captures user intent via interactive dial
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 35
+steps: 80
 permission:
   edit: allow
   bash:
@@ -43,53 +43,92 @@ Before asking follow-up questions, write the original `User Task` input verbatim
 - Do not summarize, normalize, or restructure this artifact.
 - This artifact is a downstream reference source and must remain stable across automated review rounds unless the user explicitly changes the task itself during the human gate.
 
-### Step A — Gather Intent via Sequential Dialogue
+### Step A — Adaptive Explore-and-Interview Loop
 
-Use the `question` tool to gather the user's intent through separate questions. Ask one question at a time so you can react to what the user says before proceeding.
+Goal: resolve every planning branch before synthesis. You alternate between repo exploration and focused one-question-at-a-time dialogue. Keep an internal scratchpad throughout; do not expose it to the user.
 
-1. Ask for the core change and motivation together:
+#### Internal decision-coverage model
+
+Track each branch as **unresolved** or **resolved**. A branch is resolved when you have a user-approved answer, an explicitly confirmed repo finding, or user confirmation that the branch does not apply.
+
+| Branch                             | What it captures                                                                 |
+| ---------------------------------- | -------------------------------------------------------------------------------- |
+| Problem and motivation             | What is being built, and the specific problem or value it addresses              |
+| Current behavior / owning surfaces | Where in the codebase the relevant code lives today, or confirmation it is new   |
+| Constraints                        | Technical limits, compatibility requirements, performance targets, rollout rules |
+| Non-goals                          | Explicit scope exclusions                                                        |
+| Acceptance criteria                | Specific, testable success conditions                                            |
+| Testing expectations               | Unit, integration, E2E, or manual test expectations and existing test patterns   |
+| Route and size                     | Whether the change is a quick-fix (1–3 files, no design) or full route           |
+
+#### Step A1 — Repo orientation (internal scratchpad only; not shown to user)
+
+Run a bounded set of read-only shell commands to ground the interview in the actual codebase. Limit to at most 5 keyword searches.
+
+1. `ls` — list top-level files and directories.
+2. `cat README.md` (or `README.rst`, `README` — whichever exists; skip if none).
+3. Read manifests that are present: check for `package.json`, `pyproject.toml`, `setup.py`, `go.mod`, `Cargo.toml`, `pom.xml`, `build.gradle` and read whichever exist.
+4. `find . -maxdepth 2 -not -path './.git/*' -not -path './node_modules/*' -not -path './.pipeline/*'` — shallow directory tree.
+5. Extract nouns and system names from the user task. For each, run one search: `grep -r --include='*.{ts,js,py,go,rs,java,rb,php,cs}' -l '<keyword>' . 2>/dev/null | head -10` (one grep per keyword; stop after 5 keywords).
+
+Record findings as a scratchpad: key files, owning modules, test patterns, existing constraints or signals in config files. Tag each finding as `repo-finding`. Do not emit this step to the user.
+
+#### Step A2 — Initial question
+
+After the repo orientation, ask the first question to capture problem and motivation. Include a relevant repo finding if one exists:
 
 ```
-I need to understand your task before we begin.
+[If a relevant repo finding exists: "I looked at the codebase and [1–2 sentence finding]. " Otherwise omit.]
 
 What are you building, and why does it matter?
-Describe the feature, fix, or change, plus the problem it solves or the value it adds.
+Describe the change plus the problem it solves or the value it adds.
+
+**Recommended:** [your best-guess answer based on codebase context, or omit if no meaningful guess is possible]
 ```
 
-2. Perform a scope decomposition check on the user's answer before continuing:
+Record the user's answer as a `user-answer`. Mark **Problem and motivation** resolved and update **Current behavior / owning surfaces** with any concrete file or module names the user mentions.
 
-- If the request appears to bundle multiple independent subsystems or loosely related tracks of work, warn the user that each independent slice should usually get its own QRSPI run so downstream stages do not mix unrelated work.
-- Ask whether they want to narrow the scope or intentionally keep the combined scope for this run.
-- If the user explicitly confirms the combined scope, proceed and record that decision in the synthesizer input rather than blocking the run.
+#### Step A3 — Adaptive loop
 
-3. Ask for constraints:
+For each remaining unresolved branch, in dependency order (resolve what others depend on first):
 
-```
-What constraints should this work respect?
-Include technical limitations, compatibility requirements, performance targets, timelines, or rollout requirements.
-```
+1. **Decide: repo-answerable or user-decision?**
+   - If the branch can be answered from the codebase (e.g., where relevant code lives, what tests already exist, what limits are already in config files), run 1–3 targeted shell commands first.
+   - If exploration resolves the branch with high confidence, record the finding as `repo-finding`, mark it resolved, and move to the next branch without asking the user.
+   - If exploration gives a partial or ambiguous answer, carry it forward as context into the next question.
 
-4. Ask for non-goals:
+2. **Ask one question at a time.** Format every user-facing question as:
 
-```
-What is explicitly out of scope for this run?
-Name anything that should not be included so we can prevent scope creep.
-```
+   ```
+   [Context: 1–2 sentences from repo findings or prior answers that set up this question. Omit if there is no relevant context.]
 
-5. Ask for acceptance criteria:
+   [Question]
 
-```
-What are the acceptance criteria?
-List specific, testable conditions for success. Each criterion must be measurable, not subjective.
-```
+   **Recommended:** [your best-guess answer based on the codebase and task context]
+   ```
 
-6. Ask for the size estimate:
+   The user can accept the recommendation (e.g. "yes", "that works") or override it. Record the outcome as `user-answer` or `user-confirmed-finding`.
 
-```
-Is this a small fix affecting about 1–3 files, or a larger change that likely needs architectural design?
-```
+3. **After each answer:**
+   - Record the user's answer verbatim and update the scratchpad.
+   - If the answer reveals bundled multi-subsystem scope, address it immediately with a scope narrowing question before moving to the next branch (see item 4).
+   - Mark the branch resolved.
 
-Record the user's answers verbatim for the synthesizer input.
+4. **Scope decomposition.** If the task or a user answer reveals that the request bundles multiple independent subsystems or loosely related tracks of work, ask a focused narrowing question at that moment:
+
+   ```
+   This seems to span [describe the two or more independent areas]. Each independent slice should usually have its own QRSPI run to keep downstream stages focused.
+
+   Should we narrow the scope to [suggested focused scope], or do you want to keep the combined scope for this run?
+
+   **Recommended:** [your recommendation]
+   ```
+
+   Record the user's decision. If they confirm combined scope, note that decision and continue.
+
+5. **Stop condition.** Continue the loop until all branches are resolved. There is no fixed question count — keep going until no material planning gaps remain. If remaining unresolved branches can be satisfied from the repo without requiring a user decision, mark them from exploration and stop without further questions. If after 12 user-facing questions significant gaps still remain, surface a summary of what is unresolved and ask the user to address them together in one final pass.
+
+Assemble the **Interview Record** — every branch, its source tag (`user-answer`, `repo-finding`, or `user-confirmed-finding`), and its resolved content — to pass to the synthesizer.
 
 ### Step B — Dispatch Synthesizer
 
@@ -102,15 +141,17 @@ Invoke `qrspi-goals-synthesizer` as a subagent:
 === USER TASK ===
 [paste the user's original task description verbatim]
 
-=== USER RESPONSES ===
-[paste the user's answers to the dialogue questions verbatim]
+=== INTERVIEW RECORD ===
+[paste the full interview record verbatim — each branch, its source tag (user-answer / repo-finding / user-confirmed-finding), and its resolved content]
 
 === INSTRUCTIONS ===
-Synthesize goals.md and config.md from the user's task and responses.
+Synthesize goals.md and config.md from the user's task and interview record.
 goals.md must contain: Intent, Functional Requirements, Non-Functional Requirements,
 Technical Specification, Constraints, Non-Goals, and Acceptance Criteria sections.
-Preserve explicit requirements, NFRs, and technical decisions from the user's task when they are provided.
-If any of those sections were not provided, say "None specified." rather than inventing content.
+User-answer and user-confirmed-finding entries are authoritative and drive all goals sections.
+Repo-finding entries are factual context only — do not promote them to Functional Requirements,
+Constraints, or Acceptance Criteria unless a user-answer or user-confirmed-finding explicitly approved them.
+If any section was not provided, say "None specified." rather than inventing content.
 config.md must contain YAML frontmatter with: created date, route (full or quick-fix), run_id.
 Use the provided run ID verbatim in config.md.
 Classify as quick-fix if the user estimates 1–3 files and no design alignment needed; otherwise full.
@@ -217,7 +258,7 @@ e. Rebuild `.pipeline/<run-id>/requirements.md` using the edit tool so it contai
 ```
 
 Do not copy the `### Rejected Artifact` blocks into `requirements.md`.
-f. Re-dispatch `qrspi-goals-synthesizer` with original inputs plus a `=== FEEDBACK HISTORY ===` section containing all feedback files.
+f. Re-dispatch `qrspi-goals-synthesizer` with the User Task, the original Interview Record, and a `=== FEEDBACK HISTORY ===` section containing all feedback files.
 g. When the synthesizer returns, overwrite `goals.md` and `config.md`, reset `review_round = 1`, and return to Step D so the automated review loop restarts before the next human review.
 
 ### Return

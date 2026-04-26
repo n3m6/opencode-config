@@ -34,6 +34,7 @@ Apply these checks to the current goals artifact:
 - **Acceptance testability**: Every acceptance criterion is objectively verifiable. Subjective wording such as "fast", "clean", "easy", or "intuitive" must be flagged unless translated into a measurable condition.
 - **Single-run scope**: The artifact describes one coherent change. If it contains multiple independent subsystems or loosely related tracks of work, flag it for decomposition.
 - **Implicit assumptions**: If the draft relies on unstated assumptions that should likely be explicit constraints or non-goals, flag them.
+- **Inference integrity**: No content in Functional Requirements, Constraints, or Acceptance Criteria was derived solely from repo findings without explicit user approval. If a requirement or constraint can only be traced to a `repo-finding` entry and not to a `user-answer` or `user-confirmed-finding`, flag it.
 
 ### Process
 
@@ -58,6 +59,7 @@ Apply these checks to the current goals artifact:
 | Acceptance testability | FAIL | [which criteria are subjective] |
 | Single-run scope | PASS | [brief reason] |
 | Implicit assumptions | FAIL | [which assumption should be explicit] |
+| Inference integrity | PASS | [brief reason] |
 
 ### Fix Guidance
 1. [specific rewrite or correction guidance]
@@ -74,4 +76,5 @@ Apply these checks to the current goals artifact:
 - If all areas pass, write `None.` under `### Fix Guidance`.
 - Do not invent new goals, constraints, or acceptance criteria that the user did not imply.
 - Use the preserved requirements artifact only to verify fidelity, not to introduce new goals the user never stated.
+- Flag any requirement, constraint, or acceptance criterion that cannot be traced to a `user-answer` or `user-confirmed-finding` entry in the interview record.
 - Do not ask the user questions. This is an internal review pass.

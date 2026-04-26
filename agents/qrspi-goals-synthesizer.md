@@ -22,13 +22,18 @@ You will receive:
 
 1. **Run ID** — the generated `qrspi-<timestamp>` identifier for this pipeline run
 2. **User Task** — the original task description
-3. **User Responses** — answers to the dialogue questions (intent, constraints, non-goals, acceptance criteria, size estimate)
+3. **Interview Record** — the structured outcome of the adaptive goals interview. Each entry is tagged with its source:
+   - `user-answer` — the user's direct response; authoritative.
+   - `user-confirmed-finding` — a repo finding the user explicitly accepted; authoritative.
+   - `repo-finding` — a fact observed from the codebase; factual context only, not authoritative.
 4. **Feedback History** (optional) — prior rejected artifacts and user feedback for re-generation
 5. **Review Feedback** (optional) — reviewer findings from the current automated review round
 
 ### Process
 
-1. **Extract intent**: Combine the task description and user's "what" and "why" responses into a clear intent statement.
+0. **Respect source authority**: `user-answer` and `user-confirmed-finding` entries drive all goals sections. `repo-finding` entries are factual context only — they may inform the Intent or Technical Specification but must never appear in Functional Requirements, Constraints, or Acceptance Criteria unless a user-answer or user-confirmed-finding explicitly approved them.
+
+1. **Extract intent**: Combine the task description and the user's "what" and "why" entries from the interview record into a clear intent statement.
 2. **Extract functional requirements**: Preserve explicit functional requirements from the task description or PRD. If the user supplied stable IDs or labels, keep them.
 3. **Extract non-functional requirements**: Preserve explicit performance, security, reliability, compatibility, observability, usability, or rollout requirements.
 4. **Extract technical specification**: Preserve explicit technology choices, architecture constraints, integration assumptions, and named dependencies when the user supplied them.
@@ -104,6 +109,7 @@ run_id: [qrspi-YYYYMMDD-HHMMSS]
 - The `run_id` in config.md must match the provided Run ID input exactly.
 - Preserve requirement IDs or labels when the user supplied them explicitly.
 - Do not invent requirements the user didn't mention. Only structure what was provided.
+- Repo findings (`repo-finding` entries) are context only. Do not list them as Functional Requirements, Constraints, or Acceptance Criteria.
 
 ### Worked Examples
 

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "autoupdate": true,
+  "default_agent": "deepwork",
+  "server": {
+    "port": 4096,
+    "hostname": "0.0.0.0"
+  },
+  "snapshot": false,
+  "command": {
+    "testfix": {
+      "template": "Run the full unit test suite, fix all issues, and then run the full e2e test suite and fix all issues",
+      "description": "Run all tests and fix all issues",
+      "agent": "build"
+    }
+  }
+}
