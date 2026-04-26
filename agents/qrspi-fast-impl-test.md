@@ -7,7 +7,8 @@ steps: 75
 permission:
   edit: deny
   bash:
-    "*": deny
+    "*": allow
+    "rm *": deny
   task:
     "*": deny
     "build": allow
