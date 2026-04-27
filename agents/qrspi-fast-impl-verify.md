@@ -3,7 +3,7 @@ description: Verify agent for the fast impl loop. Runs targeted verification aga
 mode: subagent
 hidden: true
 temperature: 0.1
-steps: 45
+steps: 85
 permission:
   edit: deny
   bash:
