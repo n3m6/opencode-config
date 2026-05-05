@@ -370,8 +370,8 @@ Use `DESIGN`, `STRUCTURE`, `AGENTS Guidance`, and `REVIEW BASELINE` to confirm t
 4. Write the reviewer output to `.pipeline/<run-id>/reviews/plan-review-round-{NN}.md` using the edit tool.
 5. Apply this decision logic in order:
 
-- If the reviewer returns `### Status — PASS` and `review_round` is 5 or greater, stop the review loop.
-- If the reviewer returns `### Status — PASS` and `review_round` is less than 5, increment `review_round` and run the reviewer again on the unchanged current artifacts. This satisfies the minimum 5-round requirement.
+- If the reviewer returns `### Status — PASS` and `review_round` is 3 or greater, stop the review loop.
+- If the reviewer returns `### Status — PASS` and `review_round` is less than 3, increment `review_round` and run the reviewer again on the unchanged current artifacts. This satisfies the minimum 3-round requirement.
 - If the reviewer returns `### Status — FAIL` and `review_round` is less than 10, extract the single most important defect from the reviewer output as `ROOT CAUSE OF FAILURE`, write one sentence describing how the next draft must change as `MUTATION INSTRUCTION`, and re-dispatch `qrspi-plan-writer` with the current draft plus:
 
   ```
@@ -424,7 +424,7 @@ Use `DESIGN`, `STRUCTURE`, `AGENTS Guidance`, and `REVIEW BASELINE` to confirm t
 
 6. The loop therefore guarantees both of these conditions:
 
-- At least 5 review rounds total.
+- At least 3 review rounds total.
 - At most 10 review rounds total.
 
 7. Track the terminal review state for downstream consumers:
