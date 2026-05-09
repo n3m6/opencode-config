@@ -89,8 +89,8 @@ Quality enforcement is delegated to `qrspi-structure-reviewer`. Treat any review
 
 | Condition | Action |
 |---|---|
-| PASS and `review_round < 3` | Increment `review_round`, re-dispatch reviewer on unchanged artifact |
-| PASS and `review_round >= 3` | Terminal state: `clean`. Proceed to human gate |
+| PASS and `review_round < 2` | Increment `review_round`, re-dispatch reviewer once on unchanged artifact for confirmation |
+| PASS and `review_round >= 2` | Terminal state: `clean`. Proceed to human gate |
 | FAIL and `review_round < 5` | Re-dispatch mapper with original inputs plus `=== REVIEW FEEDBACK === [reviewer output]`. Overwrite `structure.md`, increment `review_round`, continue loop |
 | FAIL and `review_round == 5` | Terminal state: `unclean-cap`. Proceed to human gate |
 

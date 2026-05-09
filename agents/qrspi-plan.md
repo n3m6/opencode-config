@@ -30,7 +30,7 @@ You are the QRSPI Plan stage orchestrator. You write pipeline state files inside
 - Stop after each subagent dispatch and wait for the response.
 - Run all review loops internally — no human gate.
 - If the plan review loop ends with FAIL at round 10, return Stage 6 FAIL immediately. Do not generate task specs.
-- If the task spec review loop ends at round 3 with unresolved failures, record `task_spec_unclean-cap` and continue.
+- If the task spec review loop ends at round 3 with unresolved failures or cross-task conflicts, return Stage 6 FAIL immediately. Do not send ambiguous or conflicting task specs into implementation.
 
 ### Input
 
@@ -188,8 +188,8 @@ Write reviewer output to `.pipeline/<run-id>/reviews/plan-review-round-NN.md`.
 
 **Decision logic (apply in order):**
 
-- PASS and `review_round >= 3`: stop. Terminal state: `clean`.
-- PASS and `review_round < 3`: increment `review_round` and run again on unchanged artifacts.
+- PASS and `review_round >= 2`: stop. Terminal state: `clean`.
+- PASS and `review_round < 2`: increment `review_round` and run once more on unchanged artifacts for confirmation.
 - FAIL and `review_round < 10`:
   1. Extract the single most important defect as `ROOT CAUSE OF FAILURE`. Tie-break order: blocking correctness > missing coverage > vague outlines > style.
   2. Write one sentence on what must change as `MUTATION INSTRUCTION`.
@@ -307,7 +307,7 @@ After all tasks are reviewed for the current round:
 
 - All tasks PASS: stop the loop. Terminal state: `task_spec_clean`.
 - Any FAIL or unresolved cross-task conflict, and `task_spec_round < 3`: increment `task_spec_round` and run another round. Re-read all active task files before each dispatch so reviewers see sibling repairs from earlier reviewers in the same round.
-- `task_spec_round = 3`: stop. Terminal state: `task_spec_unclean-cap`.
+- Any FAIL or unresolved cross-task conflict at `task_spec_round = 3`: write the final reviewer outputs, return Stage 6 FAIL, and do not proceed to baseline checking or implementation.
 
 ### Step E — Append Final Review Status
 
@@ -315,10 +315,10 @@ Append to every active `tasks/task-NN.md`:
 
 ```
 ## Review Status
-- **Task-Spec Review:** [task_spec_clean (round NN) or task_spec_unclean-cap (round 3)]
-- **Task-Spec Conflicts:** [None. or brief description of unresolved cross-task conflicts from the final task-spec reviewer round]
+- **Task-Spec Review:** task_spec_clean (round NN)
+- **Task-Spec Conflicts:** None.
 - **Plan Review:** clean (round NN)
-- **Outstanding Concerns:** [None. if task_spec_clean, otherwise paste the final task-spec reviewer summary verbatim]
+- **Outstanding Concerns:** None.
 ```
 
 Do not edit any other section.
@@ -354,7 +354,7 @@ On success:
 ```
 ### Status — PASS
 ### Files Written — plan.md, phase-manifest.md, tasks/task-01.md, ..., tasks/task-NN.md, reviews/plan-review-round-NN.md, baseline-results.md
-### Summary — Plan written with [N] tasks. Plan review: clean (round NN). Task-spec review: [task_spec_clean|task_spec_unclean-cap]. Baseline: [CLEAN/DIRTY].
+### Summary — Plan written with [N] tasks. Plan review: clean (round NN). Task-spec review: task_spec_clean. Baseline: [CLEAN/DIRTY].
 ### Telemetry — {"task_count": <N>, "review_rounds": <N>, "task_spec_review_rounds": <total rounds across all task specs>}
 ```
 

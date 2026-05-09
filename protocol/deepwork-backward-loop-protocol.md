@@ -35,19 +35,25 @@ Do not present Design or Structure as loop targets on the quick-fix route.
 
 3. **If the user chooses A, B, or C** (loop-back):
 a. Determine the loop target stage number (Design=4, Structure=5, Plan=6).
-b. Write loop feedback to `.pipeline/qrspi-<run-id>/feedback/{stage}-loop-{NN}.md` with the backward loop request details using the edit tool.
-c. Create the feedback directory if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback`
-d. Preserve completed phase directories `phases/phase-01/` through `phases/phase-(N-1)/` unchanged.
-e. Delete the current incomplete phase directory with `rm -rf .pipeline/qrspi-<run-id>/phases/phase-NN/`.
-f. Archive any unstarted future phase directories by moving them under `.pipeline/qrspi-<run-id>/phases/archive/phase-NN/` before regenerating the remaining plan.
-g. Delete regenerated top-level artifacts based on the loop target:
+b. Create the feedback and archive directories if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback` and `mkdir -p .pipeline/qrspi-<run-id>/phases/archive`.
+c. Write loop feedback to `.pipeline/qrspi-<run-id>/feedback/{stage}-loop-{NN}.md` with the backward loop request details using the edit tool.
+d. Before deleting or moving any active artifact, write `.pipeline/qrspi-<run-id>/feedback/{stage}-loop-{NN}-evidence.md` containing:
+   - the backward loop request details
+   - the triggering stage and current phase
+   - the current phase's `execution-manifest.md`, `integration-results.md`, `acceptance-results.md`, `stage7-summary.md`, `stage8-summary.md`, and `backward-loop-analysis.md` when present
+   - the current `plan.md`, `phase-manifest.md`, and any current-phase task specs when present
+   Use `N/A` for missing optional files. This evidence file is the preserved failure context for the rerun.
+e. Preserve completed phase directories `phases/phase-01/` through `phases/phase-(N-1)/` unchanged.
+f. Archive the current incomplete phase directory by moving it to `.pipeline/qrspi-<run-id>/phases/archive/failed-phase-NN-loop-{NN}/` when it exists. Do not delete the only copy of the failed phase evidence.
+g. Archive any unstarted future phase directories by moving them under `.pipeline/qrspi-<run-id>/phases/archive/phase-NN/` before regenerating the remaining plan.
+h. Delete regenerated top-level artifacts based on the loop target:
   - Plan: `plan.md`, `phase-manifest.md`, `baseline-results.md`, and `tasks/`
   - Structure: all Plan artifacts plus `structure.md`
   - Design: all Structure artifacts plus `design.md`
-h. Reset the todo items for the target stage and all downstream stages to not-started, and remove stale unstarted phase entries that no longer match the active manifest.
-i. Overwrite `state.md` with the loop target as `next_stage`, increment `backward_loops`, set `current_phase` to the earliest incomplete phase number when completed phases are preserved, reset it to `1` only when no completed phases remain or the target is before phased execution, and preserve `phase_history` for already-completed phases.
-j. Re-enter the pipeline at the target stage. The re-run must receive the feedback file as additional context.
-k. When re-entering Design, Structure, or Plan from Phase 2 or later, also include:
+i. Reset the todo items for the target stage and all downstream stages to not-started, and remove stale unstarted phase entries that no longer match the active manifest.
+j. Overwrite `state.md` with the loop target as `next_stage`, increment `backward_loops`, set `current_phase` to the earliest incomplete phase number when completed phases are preserved, reset it to `1` only when no completed phases remain or the target is before phased execution, and preserve `phase_history` for already-completed phases.
+k. Re-enter the pipeline at the target stage. The re-run must receive the feedback file and evidence file as additional context.
+l. When re-entering Design, Structure, or Plan from Phase 2 or later, also include:
 
 ```
 
@@ -64,8 +70,9 @@ integration-results.md, acceptance-results.md, stage7-summary.md, and
 stage8-summary.md from that phase directory.
 
 === FAILURE CONTEXT ===
-Include the failed phase's backward-loop-analysis.md, the loop feedback file,
-and any relevant stage7/stage8 summaries from the failed phase.
+Include the loop feedback file, the loop evidence file, and any available
+stage7/stage8 summaries or backward-loop analysis from the archived failed
+phase directory.
 
 ```
 

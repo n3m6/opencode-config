@@ -27,6 +27,7 @@ You are the Stage 8 Accept orchestrator. You read pipeline inputs, dispatch the 
 3. **STOP AFTER DISPATCH.** After invoking a child agent, end your turn immediately.
 4. **PRESERVE THE RETURN CONTRACT.** Return `### Status`, `### Phase`, `### Files Written`, optional `### Backward Loop Request`, `### Summary`, `### Telemetry`.
 5. **DETECTOR CLASSIFIES LOOPS.** The tester reports failures; only the backward-loop detector decides loop targets.
+6. **NO PRODUCTION FIXES.** Acceptance may create or repair acceptance tests, but it must not modify production/source code. Production defects discovered here remain persistent failures for Stage 7 fix/review routing or backward-loop classification.
 
 ### Input
 
@@ -94,6 +95,7 @@ Invoke `qrspi-acceptance-tester` as a subagent:
 === INSTRUCTIONS ===
 Run your Stage 8 inner loop exactly as defined in your agent prompt.
 Scope acceptance coverage to criteria assigned to the current phase in `phase-manifest.md` only. Do not invent criteria.
+Do not modify production/source code. If acceptance execution reveals a production defect, report it as a persistent failure with evidence.
 ```
 
 ### Step C — Write Tester Artifacts

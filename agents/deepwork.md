@@ -52,6 +52,7 @@ You are a **thin dispatcher**. Each stage subagent handles its own internal logi
 8. **COMMIT AFTER EVERY STAGE BOUNDARY.** After each successful stage completion or quick-fix skip, once `state.md` reflects the new stage boundary, run `git status --short`. If the worktree is dirty, run `git add -A` and `git commit -m "qrspi: stage <N> <name> <complete|skipped>"` before proceeding. If the worktree is already clean, skip the commit without error.
 9. **RESUME FROM DISK, NOT MEMORY.** On resume, prefer `.pipeline/qrspi-<run-id>/state.md`. If it is missing or inconsistent, infer progress from pipeline artifacts on disk before dispatching the next stage.
 10. **EMIT TELEMETRY AT EVERY STAGE BOUNDARY.** Follow the **Telemetry** section to record `run.*`, `stage.*`, `gate.*`, `backward_loop.*`, and `checkpoint.*` events into `telemetry/events.jsonl` and regenerate `telemetry/run-log.md` at each stage boundary. Telemetry files are diagnostic only and must never affect resume or recovery logic.
+11. **NO UNREVIEWED SOURCE CHANGES AFTER STAGE 7.** Stage 7 is the only normal production/source-changing stage. Stage 8 may create or repair acceptance tests, and Stages 8 and 9 may write pipeline artifacts and run checks, but any production/source change needed after Stage 7 must be routed back through Stage 7 fix/review flow or a backward loop. If a downstream stage reports project source modifications outside that path, treat it as a contract violation and stop.
 
 ### Pipeline
 
@@ -97,19 +98,19 @@ Each stage is handled by a dedicated subagent that:
 - Writes its outputs to the pipeline directory
 - Returns a structured status to deepwork
 
-| Stage           | Agent             | Human Gate | Leaf Subagents Called                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| --------------- | ----------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 — Goals       | `qrspi-goals`     | Yes        | `qrspi-goals-synthesizer`                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| 2 — Questions   | `qrspi-questions` | Yes        | `qrspi-question-generator`, `qrspi-question-leakage-reviewer`, `qrspi-question-quality-reviewer`                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 3 — Research    | `qrspi-research`  | No         | `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer`, `qrspi-research-reviewer`                                                                                                                                                                                                                                                                                                                                                                                       |
-| 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`, `qrspi-design-reviewer`                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-task-spec-writer`, `qrspi-task-spec-reviewer`, `qrspi-plan-reviewer`, `qrspi-baseline-checker`                                                                                                                                                                                                                                                                                                                                                                         |
-| 7 — Implement   | `qrspi-implement` | No         | `qrspi-impl-red`, `qrspi-impl-red-review` (dispatches `qrspi-review-test-coverage`, `qrspi-review-test-quality`), `qrspi-impl-green`, `qrspi-impl-verify` (dispatches `qrspi-code-review`, which dispatches `qrspi-review-code-quality`, `qrspi-review-test-coverage`, `qrspi-review-security`, `qrspi-review-silent-failure`, `qrspi-review-goal-traceability`, `qrspi-review-code-simplifier`), `qrspi-e2e-regression-checker`, `qrspi-integration-checker`, `qrspi-baseline-regression-checker` |
-| 8 — Accept-Test | `qrspi-accept`    | No         | `qrspi-acceptance-tester` (dispatches `qrspi-coverage-planner`, `qrspi-review-accept-goal-traceability`, `qrspi-review-accept-spec`, `qrspi-review-accept-code-quality`, and `build`), `qrspi-backward-loop-detector`                                                                                                                                                                                                                                                                              |
-| 8.5 — Replan    | `qrspi-replan`    | No         | `qrspi-replan-writer`, `qrspi-replan-reviewer`                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| 9 — Verify      | `qrspi-verify`    | No         | `qrspi-verifier`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| 10 — Report     | `qrspi-report`    | No         | `qrspi-reporter`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Stage           | Agent             | Human Gate | Leaf Subagents Called |
+| --------------- | ----------------- | ---------- | --------------------- |
+| 1 — Goals       | `qrspi-goals`     | Yes        | `qrspi-goals-synthesizer` |
+| 2 — Questions   | `qrspi-questions` | Yes        | `qrspi-question-generator`, `qrspi-question-leakage-reviewer`, `qrspi-question-quality-reviewer` |
+| 3 — Research    | `qrspi-research`  | No         | `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer`, `qrspi-research-reviewer` |
+| 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`, `qrspi-design-reviewer` |
+| 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`, `qrspi-structure-reviewer` |
+| 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-task-spec-writer`, `qrspi-task-spec-reviewer`, `qrspi-plan-reviewer`, `qrspi-baseline-checker` |
+| 7 — Implement   | `qrspi-implement` | No         | `qrspi-fast-impl-loop` per task/wave, which sequences `qrspi-fast-impl-code`, `qrspi-fast-impl-test`, and `qrspi-fast-impl-verify`; plus `qrspi-e2e-regression-checker`, `qrspi-integration-checker`, and `qrspi-baseline-regression-checker` |
+| 8 — Accept-Test | `qrspi-accept`    | No         | `qrspi-acceptance-tester` (dispatches `qrspi-coverage-planner`, `qrspi-review-accept-goal-traceability`, `qrspi-review-accept-spec`, `qrspi-review-accept-code-quality`, and `build` for acceptance test authoring/execution only), `qrspi-backward-loop-detector` |
+| 8.5 — Replan    | `qrspi-replan`    | No         | `qrspi-replan-writer`, `qrspi-replan-reviewer` |
+| 9 — Verify      | `qrspi-verify`    | No         | `qrspi-verifier` |
+| 10 — Report     | `qrspi-report`    | No         | `qrspi-reporter` |
 
 ### Protocol Files
 
@@ -248,7 +249,7 @@ Generation rules: partial runs — show "pending" in Active Phase Snapshot. Abor
 | --------- | ------------------------- | ----- | ---- | ---- |
 | research  | qrspi-codebase-researcher | 4     | 4    | 0    |
 | research  | qrspi-web-researcher      | 2     | 2    | 0    |
-| implement | qrspi-impl-task-loop      | 8     | 8    | 0    |
+| implement | qrspi-fast-impl-loop      | 8     | 8    | 0    |
 | accept    | qrspi-acceptance-tester   | 1     | 1    | 0    |
 
 ## Review Rounds
@@ -725,6 +726,7 @@ When `qrspi-accept` completes:
 
 - Parse `### Status`.
 - Check for `### Backward Loop Request`. If present, follow the **Backward Loop Protocol**.
+- If the return reports project source modifications or local implementation fixes without a backward loop, treat it as a Stage 8 contract violation and follow **Error Handling**. Stage 8 may create, revise, or run acceptance tests, but production/source fixes must be routed through Stage 7's reviewed implementation path.
 - If `### Status` is FAIL and no backward loop was requested, follow **Error Handling**.
 - Mark the current phase's Acceptance test entry as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: accept`, `current_phase`, a provisional `next_stage`, and updated `phase_history` for that phase.
@@ -792,6 +794,7 @@ Invoke `qrspi-verify` as a subagent:
 When `qrspi-verify` completes:
 
 - Parse `### Status` (PASS, PARTIAL, or FAIL).
+- If the return reports project source modifications, test-file modifications, or delegated fixes, treat it as a Stage 9 contract violation and follow **Error Handling**. Stage 9 is a verification/reporting gate; fixes must be routed back through Stage 7 or a backward loop.
 - Mark Stage 9 as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: verify` and `next_stage: report`.
 - **Telemetry:** Parse `### Telemetry` from the return and add `verify_status` from `### Status` into the emitted `context`. Emit `stage.completed` for `PASS`, emit `stage.completed` with warning status for `PARTIAL`, and emit `stage.failed` for `FAIL`. Include `artifacts` from `### Files Written` in all cases. Emit `checkpoint.created` after the git commit.

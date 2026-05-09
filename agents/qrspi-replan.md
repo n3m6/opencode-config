@@ -177,8 +177,8 @@ Do not delete completed-phase task files. They remain as audit artifacts.
 4. Write the reviewer output to `.pipeline/<run-id>/reviews/replan-review-round-{NN}.md`.
 5. Apply this decision logic in order:
 
-- If the reviewer returns `### Status — PASS` and `review_round >= 3`, stop the review loop.
-- If the reviewer returns `### Status — PASS` and `review_round < 3`, increment `review_round` and run the reviewer again on the unchanged current artifacts.
+- If the reviewer returns `### Status — PASS` and `review_round >= 2`, stop the review loop.
+- If the reviewer returns `### Status — PASS` and `review_round < 2`, increment `review_round` and run the reviewer once more on the unchanged current artifacts for confirmation.
 - If the reviewer returns `### Status — FAIL` and `review_round < 5`, extract the single most important defect as `ROOT CAUSE OF FAILURE`, write one sentence as `MUTATION INSTRUCTION`, and re-dispatch `qrspi-replan-writer` with the rejected draft plus:
 
   ```
