@@ -1,5 +1,5 @@
 ---
-description: "Per-task code-first loop agent. Sequences qrspi-fast-impl-code → qrspi-fast-impl-test → qrspi-fast-impl-verify (fresh mode), or qrspi-fast-impl-code (code-repair) → qrspi-fast-impl-test (test-sync) → qrspi-fast-impl-verify (fix mode). Routes post-verify failures using the explicit Route Hint from verify. Enforces an 8-cycle outer budget with stall detection. Returns the Stage 7 task result contract."
+description: "Per-task code-first loop agent. Sequences qrspi-fast-impl-code → qrspi-fast-impl-test → qrspi-fast-impl-verify (fresh mode), or qrspi-fast-impl-code (code-repair) → qrspi-fast-impl-test (test-sync) → qrspi-fast-impl-verify (fix mode). Routes post-verify failures using the explicit Route Hint from verify. Forwards verify's ### Simplifier Findings up to qrspi-implement, which dispatches qrspi-simplify-pass for the post-wave simplification pass. Enforces an 8-cycle outer budget with stall detection. Returns the Stage 7 task result contract."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -256,7 +256,7 @@ Check after appending each `cycle_log` entry. Requires ≥ 2 entries; cannot tri
 ### Tests Written — [see Cases]
 ### Review Status — [see Cases]
 ### Review Rounds — [see Cases]
-### Simplification — [forward last_verify_result ### Simplification, or `none` when verify did not run]
+### Simplifier Findings — [forward last_verify_result ### Simplifier Findings verbatim, or `None.` when verify did not run]
 ### Evidence Summary — [forward last_verify_result ### Evidence Summary verbatim, or `DETERMINISTIC: 0, FLAKY: 0, HARNESS_NOISY: 0, AMBIGUOUS: 0, REDUNDANT: 0, NO_TASK_AUTHORED_TESTS: no` when verify did not run]
 ### Iterations — [from last_code_result ### Iterations, or None. if code did not run]
 ### Summary — [see Cases]
@@ -268,7 +268,7 @@ Include `### Unresolved Findings` when blocking findings remain. Include `### Ba
 
 **PASS/CLEAN:**
 - Status: PASS; Review Status: CLEAN
-- Files, Tests, Review Rounds, Summary: all from `last_verify_result`
+- Files, Tests, Review Rounds, Summary: all from `last_verify_result`.
 
 **FAIL (general — pre-verify short-circuit or verify ran but not PASS/CLEAN):**
 - Status: FAIL

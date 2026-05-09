@@ -1,5 +1,5 @@
 ---
-description: "Stage 7: groups phase tasks into dependency waves, dispatches qrspi-fast-impl-loop per task per wave (parallel), gates each wave with qrspi-e2e-regression-checker, then dispatches qrspi-integration-checker and qrspi-baseline-regression-checker in parallel. Remediates regressions up to 3 rounds. Creates git checkpoints. Writes execution-manifest.md, e2e-regression-results.md, stage7-summary.md, integration-results.md, regression-results.md, and stage7-integration-summary.md."
+description: "Stage 7: groups phase tasks into dependency waves, dispatches qrspi-fast-impl-loop per task per wave (parallel), gates each wave with qrspi-e2e-regression-checker, then dispatches qrspi-integration-checker and qrspi-baseline-regression-checker in parallel. After both pass cleanly with no remediation rounds, delegates the post-wave simplification pass to qrspi-simplify-pass (which itself re-runs integration + baseline regression). Remediates regressions up to 3 rounds. Creates git checkpoints. Writes execution-manifest.md, e2e-regression-results.md, stage7-summary.md, integration-results.md, regression-results.md, and stage7-integration-summary.md."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -15,6 +15,7 @@ permission:
     "qrspi-e2e-regression-checker": allow
     "qrspi-integration-checker": allow
     "qrspi-baseline-regression-checker": allow
+    "qrspi-simplify-pass": allow
   webfetch: deny
   todowrite: allow
   question: deny
@@ -47,8 +48,8 @@ Construct all file paths as `.pipeline/<run-id>/`.
 
 ### Mode Routing
 
-- `phase` (default): execute Steps A → A.5 → B → C → D → E → F.
-- `verify-fix`: execute Step A only, then jump straight to **Step F.0 — Verify-Fix Remediation** (defined below) and return its result. Steps A.5, B, C, D, and E are skipped because the phase already completed; Stage 7 has no waves to run in verify-fix mode.
+- `phase` (default): execute Steps A → A.5 → B → C → D → E. If E reports regression FAIL → Step F. If E reports both PASS → Step E.5 (when preconditions hold). If E.5's post-pass integration or regression FAILs → Step F. Otherwise → Return.
+- `verify-fix`: execute Step A only, then jump straight to **Step F.0 — Verify-Fix Remediation** (defined below) and return its result. Steps A.5, B, C, D, E, and E.5 are skipped because the phase already completed; Stage 7 has no waves to run in verify-fix mode.
 
 ### Step A — Read Inputs
 
@@ -197,13 +198,45 @@ fix
 [relevant sections of design.md and structure.md, or "N/A" for quick-fix]
 ```
 
+**SIMPLIFY-PASS** (for `qrspi-simplify-pass`):
+
+```
+=== RUN ID ===
+<run-id>
+
+=== ROUTE ===
+[full or quick-fix]
+
+=== CURRENT PHASE ===
+[current phase]
+
+=== PHASE DIR ===
+[phase dir]
+
+=== PER-TASK FINDINGS ===
+[for each task T where task_simplifier_findings[T] != None., in stable order (by wave number, then task ID):]
+Task <T>:
+  Simplifier Findings:
+  [task_simplifier_findings[T] table verbatim — header rows + HIGH/MEDIUM data rows]
+  Files Modified: [task_file_inventory[T].modified verbatim]
+  Files Created: [task_file_inventory[T].created verbatim]
+[blank line between task blocks]
+```
+
 ### Step C — Execute Waves
 
 For each wave, dispatch `qrspi-fast-impl-loop` for every task using **IMPL (fresh)** — all in one turn.
 
-After all results return:
+After all results return, capture two per-task in-memory maps keyed by task ID for later use in Step E.5 (do not persist to a separate file; the execution-manifest is the on-disk source of truth):
 
-- Overwrite `<phase-dir>/execution-manifest.md` (cumulative; use the table format in Step D).
+- `task_simplifier_findings[T]` ← that task's `### Simplifier Findings` block from the loop return (`None.` or the verbatim severity table).
+- `task_file_inventory[T]` ← `{ modified: ### Files Modified, created: ### Files Created }` from the loop return.
+
+Per-task simplification outcomes (`none | applied | attempted-reverted`) are owned by `qrspi-simplify-pass` and returned to Step E.5; the wave write defaults the manifest's `Simplification` column to `none` for every row.
+
+Then:
+
+- Overwrite `<phase-dir>/execution-manifest.md` (cumulative; use the table format in Step D). The `Simplification` cell defaults to `none` for every row at this point.
 - If any task returns PASS with Review Status ≠ CLEAN, or includes Unresolved Findings: write `stage7-summary.md` and return FAIL.
 - If any task returns FAIL without a backward loop: write `stage7-summary.md` and return FAIL with task details.
 - If any task returns a `### Backward Loop Request`: write `stage7-summary.md`, checkpoint as `"qrspi: phase [N] stage7 early-return"`, and include the backward loop in the return.
@@ -251,7 +284,7 @@ Maintain `<phase-dir>/execution-manifest.md` after each wave (and before any ear
 | Phase | # | Task | Plan Review Status | Implementation Status | Review Status | Review Notes | Files Modified | Files Created | Simplification | Evidence Summary | Summary |
 ```
 
-`Simplification` is the per-task `### Simplification` value (`none`, `applied`, `attempted-reverted`, `skipped`). `Evidence Summary` is the per-task `### Evidence Summary` from `qrspi-fast-impl-loop` verbatim.
+`Simplification` is the per-task simplification outcome, owned by `qrspi-simplify-pass` (one of `none`, `applied`, or `attempted-reverted`). Step C wave writes default this column to `none` for every row; Step E.5 overwrites the rows that appear in `qrspi-simplify-pass`'s `### Outcomes`. The value is **not** sourced from `qrspi-fast-impl-loop`'s return. `Evidence Summary` is the per-task `### Evidence Summary` from `qrspi-fast-impl-loop` verbatim.
 
 Write `<phase-dir>/stage7-summary.md` before returning. Include: phase result, waves completed, whether any wave required E2E remediation, and task-level failure or contract-violation details. All completed tasks must have `Review Status = CLEAN`. Append a `## Phase Evidence Quality` section that aggregates from the `Evidence Summary` column:
 
@@ -280,7 +313,32 @@ Decision tree:
 - Integration-checker returns `### Backward Loop Request` → include it in the final return. Stop.
 - Integration FAIL (no backward loop) + Regression PASS → return FAIL with integration details.
 - Regression FAIL → proceed to **Step F**.
-- Both PASS → proceed to **Return**.
+- Both PASS → proceed to **Step E.5**.
+
+### Step E.5 — Simplification Pass
+
+Runs after Step E **only when** all the following preconditions hold. If any precondition fails, skip Step E.5 entirely and proceed to **Return**; the manifest's `Simplification` column stays `none` for every row, and the `simplification` telemetry block uses defaults (with `skipped_remediation: true` when E2E or Step F remediation rounds ran during this phase).
+
+Preconditions:
+
+1. Both Step E checks returned PASS (no integration FAIL, no regression FAIL).
+2. No E2E remediation rounds ran during this phase (`e2e_remediation_rounds == 0`).
+3. No Step F entry has been triggered in this invocation (`regression_remediation_rounds == 0`).
+4. **Mode** is `phase` (not `verify-fix`). Step F.0 always bypasses Step E.5.
+5. At least one task has `task_simplifier_findings[T] != None.` after Step C.
+
+When all preconditions hold, dispatch `qrspi-simplify-pass` using **SIMPLIFY-PASS**. The agent owns the per-task CODE simplify → TEST simplify-sync → VERIFY chain (with per-task `git reset --hard <pre_simplify_commit>` rollback on regression) and the post-pass re-dispatch of `qrspi-integration-checker` + `qrspi-baseline-regression-checker`. It overwrites `<phase-dir>/integration-results.md`, `<phase-dir>/regression-results.md`, and `<phase-dir>/stage7-integration-summary.md` directly.
+
+When `qrspi-simplify-pass` returns:
+
+1. Apply each `### Outcomes` row to the manifest's `Simplification` column. Rows missing from `### Outcomes` (i.e., tasks whose findings were `None.`) keep their default `none`.
+2. Aggregate the agent's `### Telemetry.{candidates, applied, attempted_reverted}` into the `simplification` block of the eventual Stage 7 Telemetry. Set `simplification.skipped_remediation = false` (Step E.5 ran).
+3. Decision tree on the agent's `### Status` and post-pass fields:
+   - `### Status — PASS` → proceed to **Return**. Set `simplification.post_pass_remediation_triggered = false`.
+   - `### Status — FAIL` with `### Backward Loop Request` (Post-Pass Integration `BACKWARD_LOOP`) → propagate the backward loop in the Stage 7 final return. Set `simplification.post_pass_remediation_triggered = false`.
+   - `### Status — FAIL` with `Post-Pass Integration: FAIL` (no backward loop) and `Post-Pass Regression: PASS` → return FAIL with integration details. Set `simplification.post_pass_remediation_triggered = false`.
+   - `### Status — FAIL` with `Post-Pass Regression: FAIL` (with or without integration FAIL) → enter **Step F** using the freshly overwritten `regression-results.md`. Set `simplification.post_pass_remediation_triggered = true`.
+   - `### Status — FAIL` with `Post-Pass Integration: NOT RUN` and `Post-Pass Regression: NOT RUN` (rollback unsafe or dirty-worktree guard) → propagate FAIL with the agent's `### Summary`. Set `simplification.post_pass_remediation_triggered = false`.
 
 ### Step F — Regression Remediation Loop
 
@@ -358,7 +416,7 @@ All tasks passed, integration passed, no regressions:
 ### Phase — [current phase number]
 ### Files Written — <phase-dir>/execution-manifest.md, <phase-dir>/e2e-regression-results.md, <phase-dir>/stage7-summary.md, <phase-dir>/integration-results.md, <phase-dir>/regression-results.md, <phase-dir>/stage7-integration-summary.md
 ### Summary — Phase [N]: all tasks implemented. Wave E2E gates: PASS. Integration: PASS. Regressions: none.
-### Telemetry — {"mode": "<phase|verify-fix>", "wave_count": <N>, "task_count": <N>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "evidence_quality": {"deterministic": <n>, "flaky": <n>, "harness_noisy": <n>, "ambiguous": <n>, "redundant": <n>, "no_test_tasks": <n>, "no_test_audit_overrides": <n>}}
+### Telemetry — {"mode": "<phase|verify-fix>", "wave_count": <N>, "task_count": <N>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "simplification": {"candidates": <n>, "applied": <n>, "attempted_reverted": <n>, "skipped_remediation": <bool>, "post_pass_remediation_triggered": <bool>}, "evidence_quality": {"deterministic": <n>, "flaky": <n>, "harness_noisy": <n>, "ambiguous": <n>, "redundant": <n>, "no_test_tasks": <n>, "no_test_audit_overrides": <n>}}
 ```
 
 Backward loop requested (any source):
@@ -369,7 +427,7 @@ Backward loop requested (any source):
 ### Files Written — <phase-dir>/execution-manifest.md, <phase-dir>/e2e-regression-results.md, <phase-dir>/stage7-summary.md, [integration-results.md and regression-results.md if written]
 ### Backward Loop Request — [paste backward loop request verbatim]
 ### Summary — Phase [N]: backward loop requested: [brief description].
-### Telemetry — {"mode": "<phase|verify-fix>", "wave_count": <N>, "task_count": <N>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "backward_loop_requested": true, "evidence_quality": {"deterministic": <n>, "flaky": <n>, "harness_noisy": <n>, "ambiguous": <n>, "redundant": <n>, "no_test_tasks": <n>, "no_test_audit_overrides": <n>}}
+### Telemetry — {"mode": "<phase|verify-fix>", "wave_count": <N>, "task_count": <N>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "backward_loop_requested": true, "simplification": {"candidates": <n>, "applied": <n>, "attempted_reverted": <n>, "skipped_remediation": <bool>, "post_pass_remediation_triggered": <bool>}, "evidence_quality": {"deterministic": <n>, "flaky": <n>, "harness_noisy": <n>, "ambiguous": <n>, "redundant": <n>, "no_test_tasks": <n>, "no_test_audit_overrides": <n>}}
 ```
 
 Unrecoverable failure:
@@ -379,7 +437,15 @@ Unrecoverable failure:
 ### Phase — [current phase number]
 ### Files Written — [files written before failure]
 ### Summary — Phase [N]: [description of what went wrong]
-### Telemetry — {"mode": "<phase|verify-fix>", "wave_count": <N completed>, "task_count": <N attempted>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "evidence_quality": {"deterministic": <n>, "flaky": <n>, "harness_noisy": <n>, "ambiguous": <n>, "redundant": <n>, "no_test_tasks": <n>, "no_test_audit_overrides": <n>}}
+### Telemetry — {"mode": "<phase|verify-fix>", "wave_count": <N completed>, "task_count": <N attempted>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "simplification": {"candidates": <n>, "applied": <n>, "attempted_reverted": <n>, "skipped_remediation": <bool>, "post_pass_remediation_triggered": <bool>}, "evidence_quality": {"deterministic": <n>, "flaky": <n>, "harness_noisy": <n>, "ambiguous": <n>, "redundant": <n>, "no_test_tasks": <n>, "no_test_audit_overrides": <n>}}
 ```
 
 `evidence_quality` totals are computed from the `Evidence Summary` column of `execution-manifest.md`. Count rows where `Evidence Summary` contains `NO_TASK_AUTHORED_TESTS: yes (audit-overridden)` toward `no_test_audit_overrides`. Count rows with `NO_TASK_AUTHORED_TESTS: yes` (without the override marker) toward `no_test_tasks`. Default each counter to `0`.
+
+`simplification` totals come from Step E.5:
+
+- `candidates`, `applied`, `attempted_reverted` — copied verbatim from `qrspi-simplify-pass`'s `### Telemetry`. When the pass was skipped (preconditions failed), set `candidates` to the count of tasks with `task_simplifier_findings[T] != None.` after Step C and `applied`/`attempted_reverted` to `0`.
+- `skipped_remediation` — `true` when Step E.5 was skipped because of any precondition failure (E2E or regression remediation rounds ran, verify-fix mode, no candidates, or both Step E checks did not pass); `false` when the pass ran.
+- `post_pass_remediation_triggered` — `true` when `qrspi-simplify-pass` returned `Post-Pass Regression: FAIL` and Stage 7 re-entered Step F; `false` otherwise.
+
+Default all numeric fields to `0` and both booleans to `false` when Step E.5 did not run for any reason (verify-fix mode, no findings, skipped preconditions, or pre-Step-E early returns).

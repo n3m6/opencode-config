@@ -117,7 +117,7 @@ Each stage is handled by a dedicated subagent that:
 | 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`, `qrspi-design-reviewer` |
 | 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`, `qrspi-structure-reviewer` |
 | 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-task-spec-writer`, `qrspi-task-spec-reviewer`, `qrspi-plan-reviewer`, `qrspi-baseline-checker` |
-| 7 — Implement   | `qrspi-implement` | No         | `qrspi-fast-impl-loop` per task/wave, which sequences `qrspi-fast-impl-code`, `qrspi-fast-impl-test`, and `qrspi-fast-impl-verify`; plus `qrspi-e2e-regression-checker`, `qrspi-integration-checker`, and `qrspi-baseline-regression-checker` |
+| 7 — Implement   | `qrspi-implement` | No         | `qrspi-fast-impl-loop` per task/wave, which sequences `qrspi-fast-impl-code`, `qrspi-fast-impl-test`, and `qrspi-fast-impl-verify`; `qrspi-e2e-regression-checker`; `qrspi-integration-checker`; `qrspi-baseline-regression-checker`; `qrspi-simplify-pass` (post-wave; sequences the same three fast-impl agents per task and re-dispatches integration + baseline regression) |
 | 8 — Accept-Test | `qrspi-accept`    | No         | `qrspi-acceptance-tester` (dispatches `qrspi-coverage-planner`, `qrspi-review-accept-goal-traceability`, `qrspi-review-accept-spec`, `qrspi-review-accept-code-quality`, and `build` for acceptance test authoring/execution only), `qrspi-backward-loop-detector` |
 | 8.5 — Replan    | `qrspi-replan`    | No         | `qrspi-replan-writer`, `qrspi-replan-reviewer` |
 | 9 — Verify      | `qrspi-verify`    | No         | `qrspi-verifier` |
