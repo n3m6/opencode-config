@@ -286,7 +286,7 @@ Maintain `<phase-dir>/execution-manifest.md` after each wave (and before any ear
 
 `Simplification` is the per-task simplification outcome, owned by `qrspi-simplify-pass` (one of `none`, `applied`, or `attempted-reverted`). Step C wave writes default this column to `none` for every row; Step E.5 overwrites the rows that appear in `qrspi-simplify-pass`'s `### Outcomes`. The value is **not** sourced from `qrspi-fast-impl-loop`'s return. `Evidence Summary` is the per-task `### Evidence Summary` from `qrspi-fast-impl-loop` verbatim.
 
-Write `<phase-dir>/stage7-summary.md` before returning. Include: phase result, waves completed, whether any wave required E2E remediation, and task-level failure or contract-violation details. All completed tasks must have `Review Status = CLEAN`. Append a `## Phase Evidence Quality` section that aggregates from the `Evidence Summary` column:
+Write `<phase-dir>/stage7-summary.md` before returning. The first line of the file MUST be `### Status — PASS` on success or `### Status — FAIL` on failure, mirroring this stage's return Status. The resume protocol parses this line to distinguish a halted-with-FAIL run from a completed phase. Then include: phase result, waves completed, whether any wave required E2E remediation, and task-level failure or contract-violation details. All completed tasks must have `Review Status = CLEAN`. Append a `## Phase Evidence Quality` section that aggregates from the `Evidence Summary` column:
 
 - Per-category totals across all completed tasks: `DETERMINISTIC`, `FLAKY`, `HARNESS_NOISY`, `AMBIGUOUS`, `REDUNDANT`.
 - `NO_TASK_AUTHORED_TESTS` task count and percentage of phase tasks.

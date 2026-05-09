@@ -151,7 +151,7 @@ Write its full output to `.pipeline/<run-id>/<phase-dir>/backward-loop-analysis.
 
 ### Step E — Write Stage Summary
 
-Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` covering: phase number, acceptance round count, passed/failed criteria counts, **a Failure Reason breakdown line summarizing per-reason counts (`blocking_review`, `reconciliation`, `blocked_action`, `executed_failed`) parsed from `### Acceptance Results`**, whether persistent failures remained, and the detector's loop recommendation (target or none). Describe only the current phase.
+Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` with `### Status — PASS` (or `### Status — FAIL` on failure) as the first line of the file, mirroring this stage's return Status. The resume protocol parses this line to distinguish a halted-with-FAIL run from a completed phase. Then cover: phase number, acceptance round count, passed/failed criteria counts, **a Failure Reason breakdown line summarizing per-reason counts (`blocking_review`, `reconciliation`, `blocked_action`, `executed_failed`) parsed from `### Acceptance Results`**, whether persistent failures remained, and the detector's loop recommendation (target or none). Describe only the current phase.
 
 ### Return
 

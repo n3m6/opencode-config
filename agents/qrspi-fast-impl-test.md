@@ -78,7 +78,7 @@ Do not write a test that:
 **Step 3 — Adopt.** Accept each DETERMINISTIC test covering a task spec behavior. Do not write a new test for already-covered behaviors.
 
 **Step 4 — Repair.** For DETERMINISTIC tests referencing changed APIs or symbols from Code Result:
-- `test-sync` with `simplify_sync = false`: repair mechanical mismatches only (imports, renamed symbols, updated signatures).
+- `test-sync` with `simplify_sync = false`: repair mechanical mismatches only (imports, renamed symbols, updated signatures). **Do not delete tests in this mode**, even if they reference symbols absent from the post-CODE inventory: a refactor that removed a public symbol may have left orphaned coverage that the verifier or per-task code-review must adjudicate. Such tests will fail to load and be flagged in Step 7 as `HARNESS_NOISY` (see classification rule below); the verifier's `TEST_REPAIR` route and the test-quality reviewer's `DELETE` recommendations handle them downstream.
 - `test-sync` with `simplify_sync = true`: dispatch `build` to (a) delete tests asserting on symbols that the simplify CODE return removed and (b) repair mechanical mismatches (renamed symbols, removed wrappers, updated signatures). No assertion-shape changes, no new behavioral coverage.
 - `test-repair`: also repair tests flagged in Repair Context (non-behavioral assertions, wrong trigger shape, over-specified mocks).
 
@@ -86,7 +86,7 @@ Do not write a test that:
 
 **Step 6 — Fix mode.** If `Fix Mode` is `yes`, write new deterministic tests for regression-target behaviors lacking stable coverage, where the behavior is clearly implied by Repair Context. **Skip this step when `simplify_sync = true`** (Fix Mode is always `no` in that case).
 
-**Step 7 — Validate.** Run all adopted, repaired, and written tests via `build`. Reclassify inconsistent tests as FLAKY and move to Unsafe Evidence before returning.
+**Step 7 — Validate.** Run all adopted, repaired, and written tests via `build`. Reclassify inconsistent tests as FLAKY and move to Unsafe Evidence before returning. Tests that fail to load with an import error, missing-symbol error, or syntax error from an API change → classify as `HARNESS_NOISY` with `Reason: references symbol/import not in current codebase` (no behavior was actually exercised, so the failure is not task-relevant; the verifier's `TEST_REPAIR` routing and the per-task code-review's test-quality reviewer adjudicate repair vs. delete downstream).
 
 **build dispatch:**
 

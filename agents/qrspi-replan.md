@@ -132,7 +132,7 @@ When `qrspi-replan-writer` completes:
 - Write `### plan.md` to `.pipeline/<run-id>/plan.md`.
 - Write `### phase-manifest.md` to `.pipeline/<run-id>/phase-manifest.md`.
 - For each `### task-NN.md` section, write to `.pipeline/<run-id>/<next-phase-dir>/tasks/task-NN.md`.
-- Write `### Replan Note` to `.pipeline/<run-id>/<completed-phase-dir>/replan/phase-[PP]-replan.md` where `[PP]` is the completed phase number.
+- Write `### Replan Note` to `.pipeline/<run-id>/<completed-phase-dir>/replan/phase-[PP]-replan.md` where `[PP]` is the completed phase number. Prepend `### Status — PASS` as the first line of the file (or `### Status — FAIL` if this stage is returning FAIL), mirroring this stage's return Status. The resume protocol parses this line to distinguish a halted-with-FAIL run from a completed replan.
 
 Do not delete completed-phase task files. They remain as audit artifacts.
 

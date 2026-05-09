@@ -30,7 +30,8 @@ You are the QRSPI Plan stage orchestrator. You write pipeline state files inside
 - Stop after each subagent dispatch and wait for the response.
 - Run all review loops internally — no human gate.
 - The plan review loop caps at 6 rounds. If the reviewer's `### Fix Guidance` is identical (whitespace-normalized) on two consecutive FAIL rounds, stop the loop and mark `terminal_review_state = stable-cap` (treated as non-FAIL; downstream still runs).
-- If the plan review loop ends with FAIL at round 6 without triggering stable-cap, mark `terminal_review_state = unclean-cap`. Continue to task-spec generation; deepwork escalates the unresolved status to the user.
+- If the plan review loop ends with FAIL at round 6 without triggering stable-cap, mark `terminal_review_state = unclean-cap`. Continue to task-spec generation (Step D.1); deepwork escalates the unresolved status to the user.
+- The task-spec review loop (Step D.2) is gated on `terminal_review_state == clean`. When the plan-review loop terminates in `stable-cap` or `unclean-cap`, skip D.2 entirely: reviewing task specs derived from a plan the reviewer just rejected adds 3N reviewer dispatches without resolving the upstream defect. Steps E and F still run; the existing unclean-cap escalation gate in deepwork ([agents/deepwork.md](deepwork.md)) surfaces the plan-review state to the user before implementation.
 - If the task spec review loop ends at round 3 with unresolved failures or cross-task conflicts, return Stage 6 FAIL immediately. Do not send ambiguous or conflicting task specs into implementation.
 
 ### Input
@@ -231,7 +232,7 @@ Write reviewer output to `.pipeline/<run-id>/reviews/plan-review-round-NN.md`.
 
 ### Step D — Task Spec Generation and Review
 
-Task spec generation begins only after Step C.2 completes with terminal state `clean`.
+Step D.1 (task-spec generation) runs after Step C.2 completes for every plan-review terminal state — `clean`, `stable-cap`, and `unclean-cap`. Step D.2 (task-spec review loop) is gated on `terminal_review_state == clean`: when the plan-review loop terminated in `stable-cap` or `unclean-cap`, skip D.2 entirely and proceed directly to Step E. Specs derived from a plan the reviewer just rejected do not warrant another 3N reviewer dispatches; deepwork's unclean-cap escalation gate decides whether to continue, loop back, or abort once Plan returns.
 
 #### Step D.1 — Generate Task Specs
 
@@ -261,6 +262,8 @@ If the writer returns `### Status — FAIL`, stop immediately and return Stage 6
 Repeat for every active outline. Once all task specs are written, proceed to Step D.2.
 
 #### Step D.2 — Task Spec Review Loop
+
+**Guard:** Skip this entire step if the Step C.2 plan-review terminal state is `stable-cap` or `unclean-cap`. Set `task_spec_review_rounds = 0` and `task_spec_terminal_state = "skipped"` for telemetry, then proceed directly to Step E.
 
 Set `task_spec_round = 1`. For each round, for each task in task-number order, invoke `qrspi-task-spec-reviewer` as a subagent:
 
@@ -314,7 +317,7 @@ After all tasks are reviewed for the current round:
 
 Append to every active `tasks/task-NN.md`. The exact wording depends on the plan-review terminal state recorded in Step C.2:
 
-- `clean`:
+- `clean` (Step D.2 ran):
 
 ```
 ## Review Status
@@ -324,7 +327,15 @@ Append to every active `tasks/task-NN.md`. The exact wording depends on the plan
 - **Outstanding Concerns:** None.
 ```
 
-- `stable-cap` or `unclean-cap`: substitute `Plan Review` accordingly and copy the final round's reviewer summary verbatim into `Outstanding Concerns`. The body of the task spec is otherwise unchanged.
+- `stable-cap` or `unclean-cap` (Step D.2 was skipped per the Step D guard):
+
+```
+## Review Status
+- **Task-Spec Review:** skipped (plan review state: <stable-cap|unclean-cap>)
+- **Task-Spec Conflicts:** N/A (review skipped)
+- **Plan Review:** <stable-cap|unclean-cap> (round NN)
+- **Outstanding Concerns:** [final plan-review reviewer summary verbatim]
+```
 
 Do not edit any other section.
 
@@ -359,8 +370,8 @@ On success:
 ```
 ### Status — PASS
 ### Files Written — plan.md, phase-manifest.md, tasks/task-01.md, ..., tasks/task-NN.md, reviews/plan-review-round-NN.md, baseline-results.md
-### Summary — Plan written with [N] tasks. Plan review: [clean | stable-cap | unclean-cap] (round NN). Task-spec review: task_spec_clean. Baseline: [CLEAN/DIRTY].
-### Telemetry — {"task_count": <N>, "review_rounds": <N>, "task_spec_review_rounds": <total rounds across all task specs>, "terminal_review_state": "<clean|stable-cap|unclean-cap>"}
+### Summary — Plan written with [N] tasks. Plan review: [clean | stable-cap | unclean-cap] (round NN). Task-spec review: [task_spec_clean | skipped (plan review state: <stable-cap|unclean-cap>)]. Baseline: [CLEAN/DIRTY].
+### Telemetry — {"task_count": <N>, "review_rounds": <N>, "task_spec_review_rounds": <total rounds across all task specs, or 0 if skipped>, "terminal_review_state": "<clean|stable-cap|unclean-cap>"}
 ```
 
 On failure:

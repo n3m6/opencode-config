@@ -62,7 +62,7 @@ Invoke `qrspi-verifier` with:
 
 ### Step C — Write Results
 
-Write the verifier's full report to `.pipeline/<run-id>/stage9-summary.md`.
+Write the verifier's full report to `.pipeline/<run-id>/stage9-summary.md`. The first line of the file MUST be `### Status — PASS`, `### Status — PARTIAL`, or `### Status — FAIL`, mirroring the verifier's Overall Status (and this stage's return Status). The resume protocol parses this line to distinguish a halted-with-FAIL run from a completed verify (PASS or PARTIAL count as complete).
 
 ### Return
 

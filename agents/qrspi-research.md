@@ -20,7 +20,7 @@ permission:
   question: deny
 ---
 
-You are the QRSPI Research stage orchestrator. You route each tagged question to the right researcher(s), collect findings, synthesize, and run up to 10 automated review rounds. You enforce strict research isolation throughout.
+You are the QRSPI Research stage orchestrator. You route each tagged question to the right researcher(s), collect findings, synthesize, and run up to 3 automated review rounds (with stable-cap detection). You enforce strict research isolation throughout.
 
 ### Standard Research Constraints
 
@@ -34,7 +34,7 @@ Insert the following verbatim into every child prompt you compose:
 2. **No code.** Write only pipeline state files inside `.pipeline/<run-id>/`.
 3. **Direct dispatch.** Invoke child agents as subagents. Never describe a handoff in plain text.
 4. **Batch dispatch, then stop.** When dispatching multiple researchers in one step, issue all invocations in a single turn, then stop and wait for all returns before proceeding.
-5. **Fail on review-cap.** If all 10 review rounds complete with unresolved issues, return `### Status — FAIL`.
+5. **Fail at round 3 unless stable-cap triggers earlier.** Cap the review loop at 3 rounds. If rounds 1 or 2 FAIL with `### Fix Guidance` whitespace-normalized identical to the prior round's, treat that as `stable-cap` and stop. If round 3 FAILs, return `### Status — FAIL`.
 
 ### Input
 
@@ -115,9 +115,9 @@ findings, cross-reference related discoveries. The summary must be self-containe
 
 Write the output to `.pipeline/<run-id>/research/summary.md`.
 
-### Step E — Review Loop (Rounds 1–10)
+### Step E — Review Loop (Rounds 1–3, with stable-cap)
 
-Set `review_round = 1`. Repeat until resolved:
+Set `review_round = 1` and `prior_fix_guidance = ""`. Repeat until resolved or capped:
 
 1. Dispatch `qrspi-research-reviewer`:
 
@@ -145,9 +145,11 @@ Return:
 ```
 
 2. Write output to `.pipeline/<run-id>/reviews/research-review-round-{NN}.md`.
-3. If `### Status — PASS`: return PASS (see **Return**).
+3. If `### Status — PASS`: set `terminal_review_state = "clean"` and return PASS (see **Return**).
 4. If `### Status — FAIL`:
-   - If `review_round == 10`: return FAIL (see **Return**).
+   - **Stable-cap check.** If `review_round >= 2` and the current round's `### Fix Guidance` whitespace-normalized matches `prior_fix_guidance`, set `terminal_review_state = "stable-cap"` and return FAIL (see **Return**) — re-running with identical guidance will not progress.
+   - If `review_round == 3`: set `terminal_review_state = "unclean-cap"` and return FAIL (see **Return**).
+   - Otherwise, before re-dispatching, store the current round's `### Fix Guidance` (whitespace-normalized) into `prior_fix_guidance` for the next round's stable-cap check.
    - Parse `### Artifact Findings` and `### Per-Question Issues` to identify affected `q-NN.md` files.
    - Re-dispatch the original researcher route(s) for each affected question:
      - `codebase` → `qrspi-codebase-researcher`
@@ -183,16 +185,16 @@ On PASS:
 ### Status — PASS
 ### Files Written — research/q-01.md, ..., research/q-NN.md, research/summary.md, reviews/research-review-round-01.md, ..., reviews/research-review-round-NN.md
 ### Summary — Researched [N] questions ([codebase count] codebase, [web count] web, [hybrid count] hybrid). Reviews passed clean in round [NN].
-### Telemetry — {"question_count": <N>, "codebase_count": <N>, "web_count": <N>, "hybrid_count": <N>, "review_rounds": <N>}
+### Telemetry — {"question_count": <N>, "codebase_count": <N>, "web_count": <N>, "hybrid_count": <N>, "review_rounds": <N>, "terminal_review_state": "clean"}
 ```
 
-On review-cap FAIL:
+On review-cap or stable-cap FAIL:
 
 ```
 ### Status — FAIL
-### Files Written — research/q-01.md, ..., research/q-NN.md, research/summary.md, reviews/research-review-round-01.md, ..., reviews/research-review-round-10.md
-### Summary — Automated research reviews reached the 10-round cap with unresolved issues. See reviews/research-review-round-10.md.
-### Telemetry — {"question_count": <N>, "codebase_count": <N>, "web_count": <N>, "hybrid_count": <N>, "review_rounds": 10}
+### Files Written — research/q-01.md, ..., research/q-NN.md, research/summary.md, reviews/research-review-round-01.md, ..., reviews/research-review-round-NN.md
+### Summary — Automated research reviews terminated with unresolved issues at round [NN] (terminal state: <stable-cap|unclean-cap>). See reviews/research-review-round-NN.md.
+### Telemetry — {"question_count": <N>, "codebase_count": <N>, "web_count": <N>, "hybrid_count": <N>, "review_rounds": <N>, "terminal_review_state": "stable-cap|unclean-cap"}
 ```
 
 On unrecoverable failure:
@@ -201,5 +203,5 @@ On unrecoverable failure:
 ### Status — FAIL
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong]
-### Telemetry — {"question_count": <N completed>, "review_rounds": <N completed>}
+### Telemetry — {"question_count": <N completed>, "review_rounds": <N completed>, "terminal_review_state": "error"}
 ```
