@@ -52,7 +52,18 @@ You are a **thin dispatcher**. Each stage subagent handles its own internal logi
 8. **COMMIT AFTER EVERY STAGE BOUNDARY.** After each successful stage completion or quick-fix skip, once `state.md` reflects the new stage boundary, run `git status --short`. If the worktree is dirty, run `git add -A` and `git commit -m "qrspi: stage <N> <name> <complete|skipped>"` before proceeding. If the worktree is already clean, skip the commit without error.
 9. **RESUME FROM DISK, NOT MEMORY.** On resume, prefer `.pipeline/qrspi-<run-id>/state.md`. If it is missing or inconsistent, infer progress from pipeline artifacts on disk before dispatching the next stage.
 10. **EMIT TELEMETRY AT EVERY STAGE BOUNDARY.** Follow the **Telemetry** section to record `run.*`, `stage.*`, `gate.*`, `backward_loop.*`, and `checkpoint.*` events into `telemetry/events.jsonl` and regenerate `telemetry/run-log.md` at each stage boundary. Telemetry files are diagnostic only and must never affect resume or recovery logic.
-11. **NO UNREVIEWED SOURCE CHANGES AFTER STAGE 7.** Stage 7 is the only normal production/source-changing stage. Stage 8 may create or repair acceptance tests, and Stages 8 and 9 may write pipeline artifacts and run checks, but any production/source change needed after Stage 7 must be routed back through Stage 7 fix/review flow or a backward loop. If a downstream stage reports project source modifications outside that path, treat it as a contract violation and stop.
+11. **NO UNREVIEWED SOURCE CHANGES AFTER STAGE 7.** Stage 7 is the only normal production/source-changing stage. The allowed write surface for each downstream stage is fixed:
+
+    | Stage | Allowed file writes |
+    |---|---|
+    | 8 — Accept-Test | Test files only. Default globs: `**/test/**`, `**/tests/**`, `**/__tests__/**`, `**/*.test.*`, `**/*.spec.*`. If `config.md` defines `test_globs:` use those instead. Pipeline artifacts under `.pipeline/<run-id>/<phase-dir>/` are always allowed. |
+    | 8.5 — Replan | No project source or test writes. Pipeline artifacts only. |
+    | 9 — Verify | No project source or test writes. Pipeline artifacts only. |
+    | 10 — Report | No project source or test writes. Pipeline artifacts only. |
+
+    **Cross-check:** After each Stage 8, 8.5, 9, and 10 dispatch returns, run `git diff --stat <prior_stage_checkpoint>..HEAD` (using the most recent prior stage-boundary checkpoint hash) and parse the file paths. Any path outside the allowed surface for that stage = contract violation → invoke **Error Handling**. The `git log -1 --format='%H' --grep='qrspi: stage <N> .* complete'` command resolves the prior stage's checkpoint hash; the deepwork commits introduced by `git_commit -m "qrspi: stage N ... complete"` provide the boundary. Pipeline-directory writes (`.pipeline/...`) are always permitted.
+
+    A production/source change needed after Stage 7 must be routed back through the Stage 7 fix/review flow (e.g. Stage 9's verify-fix auto-route) or a backward loop. If a downstream stage reports project source modifications outside that path, treat it as a contract violation and stop.
 
 ### Pipeline
 
@@ -276,6 +287,23 @@ Generation rules: partial runs — show "pending" in Active Phase Snapshot. Abor
 | --------- | ------------- | ---------- | --------- |
 | goals     | 1             | 0          | 1         |
 | questions | 1             | 1          | 1         |
+
+## Test Evidence Quality
+
+| Phase | Deterministic | Flaky | Harness Noisy | Ambiguous | Redundant | No-Test Tasks | No-Test Audit Overrides |
+| ----- | ------------- | ----- | ------------- | --------- | --------- | ------------- | ----------------------- |
+| 1     | <n>           | <n>   | <n>           | <n>       | <n>       | <n>           | <n>                     |
+
+Aggregate this table from each Stage 7 attempt's `### Telemetry.evidence_quality`. Sum across attempts when `verify-fix` re-entered a phase. Show `0` for phases without recorded evidence (e.g. failed before tests ran).
+
+## Code Health
+
+- **HIGH/MEDIUM simplifier findings (committed unchanged):** <n>
+- **HIGH/MEDIUM simplifier findings (auto-applied):** <n>
+- **HIGH/MEDIUM simplifier findings (attempted-reverted):** <n>
+- **Coverage status:** PASS | FAIL | NOT CONFIGURED | SKIPPED (from baseline + final regression check)
+- **Plan/Replan terminal review states:** <comma-separated `<stage>:<state>` pairs from telemetry>
+
 ```
 
 ### Resume Mode
@@ -639,6 +667,16 @@ Invoke `qrspi-plan` as a subagent:
 When `qrspi-plan` completes:
 
 - Parse `### Status`. If FAIL, follow **Error Handling**.
+- **Unclean-cap escalation gate** — Parse `### Telemetry`. If `terminal_review_state` is `unclean-cap` or `stable-cap`, pause via `question` before continuing:
+
+  > Stage 6 (Plan) reached the review cap with unresolved concerns (`<terminal_review_state>` after <N> rounds). The plan reviewer's last `Fix Guidance` is in `.pipeline/<run-id>/reviews/plan-review-round-<N>.md`. Continue, or loop back to revise upstream context?
+  >
+  > A) Continue (accept the cap and proceed to Stage 7)
+  > B) Loop back to Stage 5 (Structure) — full route only
+  > C) Loop back to Stage 4 (Design) — full route only
+  > D) Loop back to Stage 1 (Goals)
+
+  Telemetry: emit `human_gate.requested` with `gate: "plan-unclean-cap"`, `terminal_review_state`, and present-options. On A → continue. On B/C/D → emit `human_gate.completed` with the chosen option and invoke the **Backward Loop Protocol** with target `<chosen stage>` and the reviewer's final `### Fix Guidance` as the loop request body.
 - Mark Stage 6 as complete in `todowrite`.
 - Read `=== NEXT REMAINING PHASE ===` from the Stage 6 input and treat it as the earliest incomplete phase number. Use `1` for fresh runs.
 - Format `next_remaining_phase` as a zero-padded two-digit phase directory name before creating or referencing any `phases/phase-NN/` path.
@@ -727,6 +765,7 @@ When `qrspi-accept` completes:
 - Parse `### Status`.
 - Check for `### Backward Loop Request`. If present, follow the **Backward Loop Protocol**.
 - If the return reports project source modifications or local implementation fixes without a backward loop, treat it as a Stage 8 contract violation and follow **Error Handling**. Stage 8 may create, revise, or run acceptance tests, but production/source fixes must be routed through Stage 7's reviewed implementation path.
+- **Allowed-list cross-check (rule 11):** Resolve the prior stage-boundary commit hash via `git log -1 --format='%H' --grep='^qrspi: stage 7 implement complete'` (or the most recent prior `qrspi: stage *` checkpoint if the Stage 7 hash is missing). Run `git diff --stat <hash>..HEAD` and parse changed paths. Each path must either match the configured/default test globs (see rule 11) or fall under `.pipeline/`. Any path outside this set is a contract violation → follow **Error Handling**.
 - If `### Status` is FAIL and no backward loop was requested, follow **Error Handling**.
 - Mark the current phase's Acceptance test entry as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: accept`, `current_phase`, a provisional `next_stage`, and updated `phase_history` for that phase.
@@ -770,6 +809,17 @@ When `qrspi-replan` completes:
 - Parse `### Status`.
 - Check for `### Backward Loop Request`. If present, follow the **Backward Loop Protocol**.
 - If `### Status` is FAIL and no backward loop was requested, follow **Error Handling**.
+- **Allowed-list cross-check (rule 11):** Resolve the prior stage-boundary commit hash via `git log -1 --format='%H' --grep='^qrspi: stage 8 accept complete'` (most recent matching). Run `git diff --stat <hash>..HEAD` and parse changed paths. Stage 8.5 may write only under `.pipeline/`. Any path outside that set is a contract violation → follow **Error Handling**.
+- **Unclean-cap escalation gate** — Parse `### Telemetry`. If `terminal_review_state` is `unclean-cap` or `stable-cap`, pause via `question` before continuing:
+
+  > Stage 8.5 (Replan) reached the review cap with unresolved concerns (`<terminal_review_state>` after <N> rounds). The replan reviewer's last `Fix Guidance` is in `.pipeline/<run-id>/<phase-dir>/reviews/replan-review-round-<N>.md`. Continue, or loop back to revise upstream context?
+  >
+  > A) Continue (accept the cap and proceed to the next phase)
+  > B) Loop back to Stage 5 (Structure)
+  > C) Loop back to Stage 4 (Design)
+  > D) Loop back to Stage 1 (Goals)
+
+  Telemetry: emit `human_gate.requested` with `gate: "replan-unclean-cap"`, `terminal_review_state`, and present-options. On A → continue. On B/C/D → emit `human_gate.completed` with the chosen option and invoke the **Backward Loop Protocol** with target `<chosen stage>` and the reviewer's final `### Fix Guidance` as the loop request body.
 - Re-read the updated `phase-manifest.md` with `cat` and recompute `total_phases` from the refreshed remaining-work plan.
 - Archive any unstarted future phase directories that are no longer active by moving them under `.pipeline/<run-id>/phases/archive/` with `mv`.
 - Rebuild `todowrite` from the refreshed manifest so stale unstarted phases are removed and newly-added phases appear.
@@ -795,6 +845,15 @@ When `qrspi-verify` completes:
 
 - Parse `### Status` (PASS, PARTIAL, or FAIL).
 - If the return reports project source modifications, test-file modifications, or delegated fixes, treat it as a Stage 9 contract violation and follow **Error Handling**. Stage 9 is a verification/reporting gate; fixes must be routed back through Stage 7 or a backward loop.
+- **Allowed-list cross-check (rule 11):** Resolve the prior stage-boundary commit hash via `git log -1 --format='%H' --grep='^qrspi: stage 8'` (most recent matching `stage 8 accept` or `stage 8.5 replan`). Run `git diff --stat <hash>..HEAD` and parse changed paths. Stage 9 may write only under `.pipeline/`. Any path outside that set is a contract violation → follow **Error Handling**. (This check runs **before** the Stage 9 → Stage 7 auto-fix route below; auto-fix is initiated only when Stage 9 itself returned FAIL without violating the allowed-list.)
+- **On `### Status — FAIL`, run the Stage 9 → Stage 7 auto-fix route before falling into Error Handling:**
+  1. Parse the failing-row evidence from `stage9-summary.md` (failing checks, failing tests, files, and any task attribution the verifier produced). Build a `verify-fix` regression payload formatted like `regression-results.md` rows (`Check / Failing Test or Error / Command / Failing File(s) / Suspected Task IDs`).
+  2. **Telemetry:** Emit `stage.failed` for the failed Stage 9 attempt, then emit `backward_loop.requested` with `stage: "verify"`, `phase: <last phase>`, and `context.auto_fix: true`. Regenerate `telemetry/run-log.md`.
+  3. Increment `qrspi-implement`'s `stage_instance` for the last phase. Dispatch `qrspi-implement` with the standard Stage 7 inputs plus `=== MODE === verify-fix` and `=== VERIFY FAILURES ===` containing the payload from step 1.
+  4. When `qrspi-implement` returns:
+     - If it includes `### Backward Loop Request`, follow the **Backward Loop Protocol** with the verify failure as the loop request body.
+     - If `### Status` is FAIL without a backward loop, follow **Error Handling**.
+     - On PASS, increment Stage 9's `stage_instance` and re-dispatch `qrspi-verify`. Process the new return through this same Stage 9 handler. Re-runs only happen once per FAIL — if the second Stage 9 attempt also returns FAIL, do **not** auto-route again; instead invoke the **Backward Loop Protocol** with the new verify evidence as the loop request body so the user picks the next step.
 - Mark Stage 9 as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: verify` and `next_stage: report`.
 - **Telemetry:** Parse `### Telemetry` from the return and add `verify_status` from `### Status` into the emitted `context`. Emit `stage.completed` for `PASS`, emit `stage.completed` with warning status for `PARTIAL`, and emit `stage.failed` for `FAIL`. Include `artifacts` from `### Files Written` in all cases. Emit `checkpoint.created` after the git commit.

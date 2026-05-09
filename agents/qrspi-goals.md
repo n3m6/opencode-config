@@ -159,8 +159,7 @@ Write the reviewer output to `.pipeline/<run-id>/reviews/goals-review-round-{NN}
 
 **Loop decision (apply in order):**
 
-- PASS and `review_round ≥ 2` → stop; terminal state `clean`.
-- PASS and `review_round < 2` → increment `review_round`; re-run reviewer on the unchanged artifact for confirmation.
+- PASS → stop; terminal state `clean`.
 - FAIL and `review_round < 5` → re-dispatch `qrspi-goals-synthesizer` with the original inputs plus `=== REVIEW FEEDBACK ===` [reviewer output verbatim]; overwrite `goals.md` and `config.md`; increment `review_round`; continue.
 - FAIL and `review_round = 5` → stop; terminal state `unclean-cap`.
 

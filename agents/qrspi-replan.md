@@ -177,8 +177,8 @@ Do not delete completed-phase task files. They remain as audit artifacts.
 4. Write the reviewer output to `.pipeline/<run-id>/reviews/replan-review-round-{NN}.md`.
 5. Apply this decision logic in order:
 
-- If the reviewer returns `### Status — PASS` and `review_round >= 2`, stop the review loop.
-- If the reviewer returns `### Status — PASS` and `review_round < 2`, increment `review_round` and run the reviewer once more on the unchanged current artifacts for confirmation.
+- If the reviewer returns `### Status — PASS`, stop the review loop. Terminal state: `clean`.
+- If the reviewer returns `### Status — FAIL` and `review_round >= 2` and the current round's `### Fix Guidance` is identical to the prior round's after whitespace normalization (collapse runs of whitespace, strip leading/trailing whitespace per line), stop the review loop. Terminal state: `stable-cap`. Do not regenerate again — the writer is not converging.
 - If the reviewer returns `### Status — FAIL` and `review_round < 5`, extract the single most important defect as `ROOT CAUSE OF FAILURE`, write one sentence as `MUTATION INSTRUCTION`, and re-dispatch `qrspi-replan-writer` with the rejected draft plus:
 
   ```
@@ -206,9 +206,9 @@ Do not delete completed-phase task files. They remain as audit artifacts.
 
   Then overwrite the updated artifacts, increment `review_round`, and continue the loop.
 
-- If the reviewer returns `### Status — FAIL` and `review_round = 5`, stop the review loop. Do not run a sixth review round.
+- If the reviewer returns `### Status — FAIL` and `review_round = 5`, stop the review loop. Terminal state: `unclean-cap`. Do not run a sixth review round.
 
-6. Track the terminal review state: `clean` if the final round passed; `unclean-cap` if round 5 still failed.
+6. Track the terminal review state: `clean` if the final round passed; `stable-cap` if guidance was repeated; `unclean-cap` if round 5 still failed without repeating guidance.
 
 ### Step E — Append Review Status To Next-Phase Task Specs
 
@@ -216,7 +216,7 @@ After the review loop ends, append to every task file in `<next-phase-dir>/tasks
 
 ```
 ## Review Status
-- **State:** [clean (round NN) or unclean-cap (round 5)]
+- **State:** [clean (round NN) | stable-cap (round NN) | unclean-cap (round 5)]
 - **Outstanding Concerns:** ["None." if clean, otherwise paste the final review summary verbatim]
 ```
 
@@ -241,8 +241,8 @@ If the replan succeeds:
 ### Status — PASS
 ### Phase — [completed phase number]
 ### Files Written — plan.md, phase-manifest.md, <next-phase-dir>/tasks/task-NN.md, reviews/replan-review-round-{NN}.md, <completed-phase-dir>/replan/phase-[PP]-replan.md
-### Summary — Replan completed after phase [N]. Remaining work updated for the next phase. Final review state: [clean|unclean-cap].
-### Telemetry — {"review_rounds": <N>, "backward_loop_requested": false}
+### Summary — Replan completed after phase [N]. Remaining work updated for the next phase. Final review state: [clean|stable-cap|unclean-cap].
+### Telemetry — {"review_rounds": <N>, "backward_loop_requested": false, "terminal_review_state": "<clean|stable-cap|unclean-cap>"}
 ```
 
 If any step fails unrecoverably:
@@ -252,5 +252,5 @@ If any step fails unrecoverably:
 ### Phase — [completed phase number]
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong]
-### Telemetry — {"review_rounds": <N completed>, "backward_loop_requested": false}
+### Telemetry — {"review_rounds": <N completed>, "backward_loop_requested": false, "terminal_review_state": "<clean|stable-cap|unclean-cap>"}
 ```

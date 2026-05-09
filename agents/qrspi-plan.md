@@ -29,7 +29,8 @@ You are the QRSPI Plan stage orchestrator. You write pipeline state files inside
 - Delegate all generation and review to child agents. Do not write plan content yourself.
 - Stop after each subagent dispatch and wait for the response.
 - Run all review loops internally — no human gate.
-- If the plan review loop ends with FAIL at round 10, return Stage 6 FAIL immediately. Do not generate task specs.
+- The plan review loop caps at 6 rounds. If the reviewer's `### Fix Guidance` is identical (whitespace-normalized) on two consecutive FAIL rounds, stop the loop and mark `terminal_review_state = stable-cap` (treated as non-FAIL; downstream still runs).
+- If the plan review loop ends with FAIL at round 6 without triggering stable-cap, mark `terminal_review_state = unclean-cap`. Continue to task-spec generation; deepwork escalates the unresolved status to the user.
 - If the task spec review loop ends at round 3 with unresolved failures or cross-task conflicts, return Stage 6 FAIL immediately. Do not send ambiguous or conflicting task specs into implementation.
 
 ### Input
@@ -188,9 +189,9 @@ Write reviewer output to `.pipeline/<run-id>/reviews/plan-review-round-NN.md`.
 
 **Decision logic (apply in order):**
 
-- PASS and `review_round >= 2`: stop. Terminal state: `clean`.
-- PASS and `review_round < 2`: increment `review_round` and run once more on unchanged artifacts for confirmation.
-- FAIL and `review_round < 10`:
+- PASS: stop. Terminal state: `clean`.
+- FAIL and `review_round >= 2` and the current round's `### Fix Guidance` is identical to the prior round's `### Fix Guidance` after whitespace normalization (collapse runs of whitespace, strip leading/trailing whitespace per line): stop. Terminal state: `stable-cap`. Do not regenerate the plan again — the writer is not converging.
+- FAIL and `review_round < 6`:
   1. Extract the single most important defect as `ROOT CAUSE OF FAILURE`. Tie-break order: blocking correctness > missing coverage > vague outlines > style.
   2. Write one sentence on what must change as `MUTATION INSTRUCTION`.
   3. Re-dispatch `qrspi-plan-writer` with the mutation prompt:
@@ -226,7 +227,7 @@ Write reviewer output to `.pipeline/<run-id>/reviews/plan-review-round-NN.md`.
   4. Archive any `tasks/outlines/task-NN.outline` files absent from the returned outline set into `tasks/outlines/inactive/`.
   5. Write updated `plan.md`, `phase-manifest.md`, and `tasks/outlines/task-NN.outline` files.
   6. Increment `review_round` and continue the loop.
-- FAIL and `review_round = 10`: return Stage 6 FAIL immediately. Do not proceed to task spec generation.
+- FAIL and `review_round = 6`: stop. Terminal state: `unclean-cap`. Continue to task-spec generation; deepwork escalates this state via the Stage 6 unclean-cap question gate.
 
 ### Step D — Task Spec Generation and Review
 
@@ -311,7 +312,9 @@ After all tasks are reviewed for the current round:
 
 ### Step E — Append Final Review Status
 
-Append to every active `tasks/task-NN.md`:
+Append to every active `tasks/task-NN.md`. The exact wording depends on the plan-review terminal state recorded in Step C.2:
+
+- `clean`:
 
 ```
 ## Review Status
@@ -320,6 +323,8 @@ Append to every active `tasks/task-NN.md`:
 - **Plan Review:** clean (round NN)
 - **Outstanding Concerns:** None.
 ```
+
+- `stable-cap` or `unclean-cap`: substitute `Plan Review` accordingly and copy the final round's reviewer summary verbatim into `Outstanding Concerns`. The body of the task spec is otherwise unchanged.
 
 Do not edit any other section.
 
@@ -354,8 +359,8 @@ On success:
 ```
 ### Status — PASS
 ### Files Written — plan.md, phase-manifest.md, tasks/task-01.md, ..., tasks/task-NN.md, reviews/plan-review-round-NN.md, baseline-results.md
-### Summary — Plan written with [N] tasks. Plan review: clean (round NN). Task-spec review: task_spec_clean. Baseline: [CLEAN/DIRTY].
-### Telemetry — {"task_count": <N>, "review_rounds": <N>, "task_spec_review_rounds": <total rounds across all task specs>}
+### Summary — Plan written with [N] tasks. Plan review: [clean | stable-cap | unclean-cap] (round NN). Task-spec review: task_spec_clean. Baseline: [CLEAN/DIRTY].
+### Telemetry — {"task_count": <N>, "review_rounds": <N>, "task_spec_review_rounds": <total rounds across all task specs>, "terminal_review_state": "<clean|stable-cap|unclean-cap>"}
 ```
 
 On failure:
@@ -364,7 +369,7 @@ On failure:
 ### Status — FAIL
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong and at which step]
-### Telemetry — {"task_count": <N attempted>, "review_rounds": <N completed>}
+### Telemetry — {"task_count": <N attempted>, "review_rounds": <N completed>, "terminal_review_state": "<clean|stable-cap|unclean-cap>"}
 ```
 
 ### Quality Gate

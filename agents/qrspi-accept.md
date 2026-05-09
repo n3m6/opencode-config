@@ -58,7 +58,7 @@ Construct all paths as `.pipeline/<run-id>/`.
 ### Phase — [current phase number]
 ### Files Written — none
 ### Summary — Quick-fix route inconsistency: design.md and structure.md must not exist for quick-fix runs.
-### Telemetry — {"acceptance_loop_rounds": 0, "criteria_count": 0, "criteria_passed": 0, "backward_loop_requested": false}
+### Telemetry — {"acceptance_loop_rounds": 0, "criteria_count": 0, "criteria_passed": 0, "backward_loop_requested": false, "failure_reasons": {"blocking_review": 0, "reconciliation": 0, "blocked_action": 0, "executed_failed": 0}}
 ```
 
 **Prior phase context** (only when current phase > 1): for each completed prior phase directory under `.pipeline/<run-id>/phases/` excluding `<phase-dir>`, read `execution-manifest.md`, `acceptance-results.md`, `stage7-summary.md`, and `stage8-summary.md`.
@@ -151,7 +151,7 @@ Write its full output to `.pipeline/<run-id>/<phase-dir>/backward-loop-analysis.
 
 ### Step E — Write Stage Summary
 
-Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` covering: phase number, acceptance round count, passed/failed criteria counts, whether persistent failures remained, and the detector's loop recommendation (target or none). Describe only the current phase.
+Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` covering: phase number, acceptance round count, passed/failed criteria counts, **a Failure Reason breakdown line summarizing per-reason counts (`blocking_review`, `reconciliation`, `blocked_action`, `executed_failed`) parsed from `### Acceptance Results`**, whether persistent failures remained, and the detector's loop recommendation (target or none). Describe only the current phase.
 
 ### Return
 
@@ -162,7 +162,7 @@ Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` covering: phase number,
 ### Phase — [current phase number]
 ### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/stage8-summary.md
 ### Summary — Phase [N]: all assigned acceptance criteria passed.
-### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": false}
+### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": false, "failure_reasons": {"blocking_review": 0, "reconciliation": 0, "blocked_action": 0, "executed_failed": 0}}
 ```
 
 **Persistent failures + detector recommends a loop** — Status is PASS because Stage 8 completed its analysis; deepwork owns the routing decision:
@@ -173,7 +173,7 @@ Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` covering: phase number,
 ### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/backward-loop-analysis.md, <phase-dir>/stage8-summary.md
 ### Backward Loop Request — [paste detector's Backward Loop Request verbatim]
 ### Summary — Phase [N]: follow-up routing requested: [brief description].
-### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": true}
+### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": true, "failure_reasons": {"blocking_review": <n>, "reconciliation": <n>, "blocked_action": <n>, "executed_failed": <n>}}
 ```
 
 **Persistent failures + detector recommends `NO_LOOP`:**
@@ -183,7 +183,7 @@ Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` covering: phase number,
 ### Phase — [current phase number]
 ### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/backward-loop-analysis.md, <phase-dir>/stage8-summary.md
 ### Summary — Phase [N]: [N] of [M] acceptance criteria still failed; no structural backward loop was recommended.
-### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": false}
+### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": false, "failure_reasons": {"blocking_review": <n>, "reconciliation": <n>, "blocked_action": <n>, "executed_failed": <n>}}
 ```
 
 **Unrecoverable error at any step:**
@@ -193,5 +193,5 @@ Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` covering: phase number,
 ### Phase — [current phase number]
 ### Files Written — [list files written before failure]
 ### Summary — Phase [N]: [description of what went wrong]
-### Telemetry — {"acceptance_loop_rounds": <N completed>, "criteria_count": <N>, "criteria_passed": <N>}
+### Telemetry — {"acceptance_loop_rounds": <N completed>, "criteria_count": <N>, "criteria_passed": <N>, "failure_reasons": {"blocking_review": <n>, "reconciliation": <n>, "blocked_action": <n>, "executed_failed": <n>}}
 ```

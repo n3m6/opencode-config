@@ -63,6 +63,35 @@ You are the QRSPI fast verification agent. You own targeted verification, the pe
 
 Start from Code Result `### Files Modified` / `### Files Created` for production files. Overlay Test Result equivalents for test files. If Prior Verify Result exists, overlay its more recent inventory. Never re-add files deleted in a prior repair step.
 
+**Step 1.5 — Audit testability when test agent claimed `NO_TASK_AUTHORED_TESTS`.**
+
+Run this step **only** when Test Result `### Testability` is `NO_TASK_AUTHORED_TESTS`. Otherwise skip directly to Step 2.
+
+The test agent self-classifies and exits without an external sanity check. Validate its claim against the production file inventory built in Step 1 by reading each production file with `cat` (you have read access via the verify dispatch contract):
+
+1. Compute the **production file set**: `Files Modified` ∪ `Files Created`, excluding any path that matches the project test globs (use `config.md.test_globs` if present; otherwise default `**/test/**`, `**/tests/**`, `**/__tests__/**`, `**/*.test.*`, `**/*.spec.*`).
+2. The claim is **acceptable** when every production file fits one of these categories:
+   - TypeScript declaration only (`.d.ts`).
+   - Type-only TS (no value declarations: only `type`, `interface`, or re-export of types).
+   - Pure config (`.json`, `.yaml`, `.yml`, `.toml`, lockfiles, `tsconfig*`, `package.json`).
+   - Documentation (`.md`, `.txt`, `.rst`).
+   - Scaffolding/template files (e.g. starter templates, asset boilerplate) explicitly identified by the task spec's `### Files` section.
+3. The claim is **rejected** when any production file contains executable behavior — detected by the presence of any of these tokens (case-sensitive line scan): `function`, ` def `, `class`, `=>`, `func`, runtime entrypoints (`main`, `if __name__`, server bootstrap), or top-level executable statements outside type-only blocks.
+4. If the claim is rejected, do **not** run Step 2's verification. Treat the verifier output as:
+   - `### Status — FAIL`
+   - `### Final Verification Status — FAIL`
+   - `### Route Hint — TEST_REPAIR`
+   - `### Route Context.Failure Type — test_missing_coverage`
+   - `### Route Context.Affected Files` — the rejected production files
+   - `### Route Context.Description — Production code requires deterministic test coverage; the prior NO_TASK_AUTHORED_TESTS claim has been overridden.`
+   - `### Review Status — NOT RUN`
+   - `### Review Rounds — 0/2` (cycle 0) or `0/1` (cycle > 0)
+   - `### Simplification — none`
+   - `### Evidence Summary — DETERMINISTIC: 0, FLAKY: 0, HARNESS_NOISY: 0, AMBIGUOUS: 0, REDUNDANT: 0, NO_TASK_AUTHORED_TESTS: yes (audit-overridden)`
+5. If the claim is accepted, proceed to Step 2 with the test result intact.
+
+When Step 1.5 rejects the claim, the fast-impl-loop will route the next cycle into TEST in test-repair mode with the override Route Context as guidance.
+
 **Step 2 — Run targeted verification.**
 
 Dispatch `build`. Pass all 12 input sections verbatim using their `=== SECTION ===` headers, then append:
@@ -158,16 +187,63 @@ Return:
 
 If a review/verification mismatch occurs (verification passed but code review reports impossible compiler/syntax blockers), refresh the merged inventory, rerun `build`, and rerun `qrspi-code-review` within the remaining local round budget.
 
-**Step 6 — Determine final Route Hint and commit.**
+**Step 6 — Determine final Route Hint.**
 
 After local rounds are exhausted or the result is clean:
 
-| Outcome                                       | Route Hint      | Action |
-| --------------------------------------------- | --------------- | ------ |
-| PASS + CLEAN                                  | `PASS`          | Commit |
-| PASS + UNRESOLVED (production findings)       | `CODE_REPAIR`   | Return |
-| PASS + UNRESOLVED (test-quality findings)     | `TEST_REPAIR`   | Return |
-| Any finding with BACKWARD_LOOP recommendation | `BACKWARD_LOOP` | Return |
+| Outcome                                       | Route Hint      | Action                                        |
+| --------------------------------------------- | --------------- | --------------------------------------------- |
+| PASS + CLEAN                                  | `PASS`          | Proceed to Step 6.5 (simplifier), then commit |
+| PASS + UNRESOLVED (production findings)       | `CODE_REPAIR`   | Return                                        |
+| PASS + UNRESOLVED (test-quality findings)     | `TEST_REPAIR`   | Return                                        |
+| Any finding with BACKWARD_LOOP recommendation | `BACKWARD_LOOP` | Return                                        |
+
+**Step 6.5 — Bounded simplification pass (only when Route Hint = `PASS`).**
+
+Conditions to attempt simplification (all must hold):
+
+- Cycle == 0 (never on re-entry cycles).
+- Test Result `### Testability` is `TASK_AUTHORED_TESTS` (a behavioral safety net exists).
+- The latest `qrspi-code-review` `### Findings` table contains at least one row from `qrspi-review-code-simplifier` with `Severity` `HIGH` or `MEDIUM`.
+
+If any condition fails, skip Step 6.5 and proceed to Step 7 (commit).
+
+Otherwise, attempt one bounded simplification pass:
+
+1. Dispatch `build` to apply only the HIGH/MEDIUM simplifier findings:
+
+   ```
+   === TASK ===
+   [paste task spec verbatim]
+
+   === HIGH/MEDIUM SIMPLIFIER FINDINGS ===
+   [paste only the HIGH and MEDIUM rows from qrspi-review-code-simplifier]
+
+   === CURRENT FILE INVENTORY ===
+   [latest Files Modified + Files Created]
+
+   === INSTRUCTIONS ===
+   Apply the smallest semantics-preserving diff that addresses the HIGH and MEDIUM simplifier findings.
+   Do not introduce new abstractions or rename public APIs.
+   Do not modify tests.
+   Do not address LOW or 💡 findings.
+   Stay strictly within Files Modified + Files Created.
+
+   Return:
+   ### Files Modified — updated inventory
+   ### Files Created — updated inventory
+   ### Diff Summary — one paragraph describing what changed
+   ```
+
+2. Re-run targeted verification by re-dispatching `build` exactly as in Step 2.
+3. Re-dispatch `qrspi-code-review` exactly as in Step 4. Use `### REVIEW ROUND` value `1`; pass the new file inventory in IMPLEMENTER REPORT.
+4. Decide:
+   - Verification PASS **and** review CLEAN → Step 7 commits the simplified version.
+   - Anything else → revert the simplification: dispatch `build` to run `git checkout -- [the simplified files]` (worktree restore; no commit was made yet for this cycle). After revert, the original CLEAN state is restored. Proceed to Step 7 to commit the original task changes. Record the simplification as `attempted-reverted` in the return.
+
+Step 6.5 runs at most once per task. Do not enter it from a re-entry cycle.
+
+**Step 7 — Commit.**
 
 Commit using `build` with a descriptive commit message only when Route Hint = `PASS`.
 
@@ -198,6 +274,8 @@ Description: [one sentence describing the specific failure]
 ### Tests Written — list of test files with what they test, or None.
 ### Review Status — CLEAN | UNRESOLVED | NOT RUN
 ### Review Rounds — N/2 on cycle 0, N/1 on cycle > 0 (use 0/2 or 0/1 when review did not run)
+### Simplification — none | applied | attempted-reverted | skipped (one-line basis)
+### Evidence Summary — DETERMINISTIC: <n>, FLAKY: <n>, HARNESS_NOISY: <n>, AMBIGUOUS: <n>, REDUNDANT: <n>, NO_TASK_AUTHORED_TESTS: <yes|no>
 ### Unresolved Findings — [blocking findings verbatim; omit when none remain]
 ### Summary — one paragraph
 ### Backward Loop Request — [omit unless Route Hint = BACKWARD_LOOP]
@@ -205,12 +283,21 @@ Description: [one sentence describing the specific failure]
 
 Case defaults:
 
-| Outcome                          | Status | Final Verification Status | Review Status |
-| -------------------------------- | ------ | ------------------------- | ------------- |
-| PASS + CLEAN                     | PASS   | PASS                      | CLEAN         |
-| Verification fail (hard stop)    | FAIL   | FAIL                      | NOT RUN       |
-| Budget exhausted / unresolved    | FAIL   | PASS                      | UNRESOLVED    |
-| Backward loop (pre-verify)       | FAIL   | FAIL                      | NOT RUN       |
+| Outcome                          | Status | Final Verification Status | Review Status | Simplification        |
+| -------------------------------- | ------ | ------------------------- | ------------- | --------------------- |
+| PASS + CLEAN                     | PASS   | PASS                      | CLEAN         | one of `none/applied/attempted-reverted/skipped` per Step 6.5 |
+| Verification fail (hard stop)    | FAIL   | FAIL                      | NOT RUN       | `none`                |
+| Budget exhausted / unresolved    | FAIL   | PASS                      | UNRESOLVED    | `none`                |
+| Backward loop (pre-verify)       | FAIL   | FAIL                      | NOT RUN       | `none`                |
+
+**Evidence Summary** counts come from the most recent Test Result's `### Evidence Classification` table. If the test agent returned `### Testability — NO_TASK_AUTHORED_TESTS`, set all category counts to `0` and `NO_TASK_AUTHORED_TESTS: yes`. Otherwise set `NO_TASK_AUTHORED_TESTS: no` and tally each category from the classification table. `REDUNDANT` rows are tracked separately when the test agent flags duplicates of existing coverage.
+
+`Simplification` values:
+
+- `none` — Step 6.5 did not run (cycle > 0, no HIGH/MEDIUM findings, or `NO_TASK_AUTHORED_TESTS`).
+- `skipped` — Step 6.5 was eligible but explicitly skipped for a documented reason; basis required.
+- `applied` — Step 6.5 ran, the simplified version stayed PASS+CLEAN, and is what gets committed.
+- `attempted-reverted` — Step 6.5 ran but verification or review regressed; original task changes are committed.
 
 On PASS + CLEAN: Route Context Failure Type = `none`, Affected Files = `none`, Description = `All verification and review checks passed.`
 

@@ -1,6 +1,22 @@
 ### Backward Loop Protocol
 
-When a stage subagent (`qrspi-implement`, `qrspi-accept`, or `qrspi-replan`) includes a `### Backward Loop Request` section in its return:
+This protocol is invoked from any of the following:
+
+- A stage subagent (`qrspi-implement`, `qrspi-accept`, `qrspi-replan`) returns a `### Backward Loop Request`.
+- `qrspi-verify` returns FAIL and the **auto Stage 7 fix-mode pass** (see precondition below) does not recover. In that case deepwork synthesizes a backward-loop request from the verifier's failing rows before invoking this protocol.
+- The Plan/Replan **unclean-cap or stable-cap escalation gate** in deepwork yields a "loop back" answer; deepwork synthesizes a backward-loop request from the reviewer's final `### Fix Guidance` and invokes this protocol with the user-chosen target.
+
+#### Precondition: Stage 9 → Stage 7 Auto-Fix Pass
+
+When `qrspi-verify` returns FAIL, deepwork attempts **one** Stage 7 fix-mode pass before invoking this protocol:
+
+1. The verifier's failing rows are formatted as regression evidence.
+2. Deepwork dispatches `qrspi-implement` with `=== MODE === verify-fix` and `=== VERIFY FAILURES ===` containing those rows; `qrspi-implement` runs the existing regression-remediation path, capped at one round.
+3. Deepwork re-dispatches `qrspi-verify`. PASS or PARTIAL → continue to Stage 10. FAIL again → invoke this protocol with the verify failure as the loop request body.
+
+This pass is bypassed when the user has already triggered a backward loop in this stage instance, or when `qrspi-implement` itself returned a `### Backward Loop Request`.
+
+When this protocol is invoked:
 
 1. Read the backward loop request details.
 2. Present the issue to the user via `question`:

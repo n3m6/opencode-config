@@ -8,6 +8,9 @@ permission:
   edit: deny
   bash:
     "*": deny
+    "cat .pipeline/*": allow
+    "ls .pipeline/*": allow
+    "ls -la .pipeline/*": allow
   task:
     "*": deny
     "qrspi-fast-impl-code": allow
@@ -35,17 +38,31 @@ You own exactly one task per invocation. Sequence `qrspi-fast-impl-code`, `qrspi
 
 ### Input
 
-1. **Run ID** / **Phase Dir** — pipeline context only; do not pass to child agents.
+Required from the parent (`qrspi-implement`):
+
+1. **Run ID** — `qrspi-<timestamp>`
 2. **Route** — `full` or `quick-fix`
 3. **Current Phase** — active phase number
-4. **Mode** — `fresh` or `fix`
-5. **Task** — full task spec verbatim
-6. **Goals** — acceptance criteria excerpt
-7. **Plan Review Status** — state + outstanding concerns from Stage 6
-8. **Design Context** — design/structure context, or `N/A` for quick-fix
-9. **Completed Dependencies** — one-line summaries of prerequisite task outputs
-10. **Regression Evidence** — (fix mode) failing test names, commands, error output
-11. **Suspected Files** — (fix mode) production files suspected of causing regressions
+4. **Phase Dir** — relative path under `.pipeline/<run-id>/` (e.g. `phases/phase-01`)
+5. **Task ID** — task number for this invocation (e.g. `01`)
+6. **Mode** — `fresh` or `fix`
+7. **Dependency Pointers** — comma-separated list of dependency task IDs (e.g. `02, 05`), or `None.`
+8. **Regression Evidence** — (fix mode only) failing test names, commands, error output verbatim, or `None.`
+9. **Suspected Files** — (fix mode only) production files suspected of causing regressions, or `None.`
+
+### Step 0 — Read Inputs From Disk
+
+Use `cat`/`ls` (scoped to `.pipeline/<run-id>/`) to bind these context strings before any child dispatch. Do not edit any file:
+
+| Context variable | Source |
+|---|---|
+| `TASK` | `cat .pipeline/<run-id>/<phase-dir>/tasks/task-<TaskID>.md` |
+| `GOALS` | acceptance-criteria section of `cat .pipeline/<run-id>/goals.md`; if extraction is unclear, paste the full file |
+| `PLAN_REVIEW_STATUS` | the `## Review Status` block at the bottom of the task file |
+| `DESIGN_CONTEXT` | for full route: `cat .pipeline/<run-id>/design.md` followed by `cat .pipeline/<run-id>/structure.md`. For quick-fix: `N/A` |
+| `COMPLETED_DEPENDENCIES` | for each dependency ID in **Dependency Pointers**, a one-line summary built from that task's row in `cat .pipeline/<run-id>/<phase-dir>/execution-manifest.md` (Files Modified + Files Created + Summary truncated). If the manifest is missing or has no row for that ID, use `task-<id>: pending` |
+
+Bind these once at entry. Re-read **only** the task file and execution-manifest after re-entry cycles, in case Stage 7 fix-mode dispatches updated them.
 
 ### State
 
@@ -60,29 +77,29 @@ Build each `cycle_log` entry from the verify result because its inventory is aut
 
 ### Child Call Contracts
 
-**BASE CONTEXT** — paste verbatim into every child call:
+**BASE CONTEXT** — paste verbatim into every child call (substitute the values bound in Step 0):
 
 ```
 === TASK ===
-[task spec]
+[TASK]
 
 === GOALS ===
-[goals excerpt]
+[GOALS]
 
 === ROUTE ===
-[route]
+[Route]
 
 === CURRENT PHASE ===
-[current phase]
+[Current Phase]
 
 === PLAN REVIEW STATUS ===
-[plan review status]
+[PLAN_REVIEW_STATUS]
 
 === DESIGN CONTEXT ===
-[design context]
+[DESIGN_CONTEXT]
 
 === COMPLETED DEPENDENCIES ===
-[completed dependencies]
+[COMPLETED_DEPENDENCIES]
 ```
 
 **CODE call** — BASE CONTEXT plus:
@@ -239,6 +256,8 @@ Check after appending each `cycle_log` entry. Requires ≥ 2 entries; cannot tri
 ### Tests Written — [see Cases]
 ### Review Status — [see Cases]
 ### Review Rounds — [see Cases]
+### Simplification — [forward last_verify_result ### Simplification, or `none` when verify did not run]
+### Evidence Summary — [forward last_verify_result ### Evidence Summary verbatim, or `DETERMINISTIC: 0, FLAKY: 0, HARNESS_NOISY: 0, AMBIGUOUS: 0, REDUNDANT: 0, NO_TASK_AUTHORED_TESTS: no` when verify did not run]
 ### Iterations — [from last_code_result ### Iterations, or None. if code did not run]
 ### Summary — [see Cases]
 ```

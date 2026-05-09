@@ -103,8 +103,7 @@ Each iteration:
    ```
 2. Write output to `.pipeline/<run-id>/reviews/design-review-round-{NN}.md`.
 3. Branch:
-   - **PASS and `review_round >= 2`** → exit loop, `terminal_state = clean`
-   - **PASS and `review_round < 2`** → `review_round++`, repeat once on the unchanged artifact for confirmation
+   - **PASS** → exit loop, `terminal_state = clean`
    - **FAIL and `review_round < 5`** → re-dispatch synthesizer with original inputs plus `=== REVIEW FEEDBACK ===` [reviewer output]; overwrite `design.md`; `review_round++`; repeat
    - **FAIL and `review_round == 5`** → exit loop, `terminal_state = unclean-cap`
 

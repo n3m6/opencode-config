@@ -78,6 +78,8 @@ Return exactly:
 created: YYYY-MM-DD
 route: full|quick-fix
 run_id: [Run ID verbatim]
+coverage_threshold: <integer 0-100, optional>
+test_globs: <list of glob strings, optional>
 ---
 ```
 
@@ -87,3 +89,5 @@ Rules:
 - Empty sections (except Intent) use "None specified."
 - Do not invent requirements, constraints, or thresholds absent from the user-supplied input.
 - `repo-finding` entries must not appear in Functional Requirements, Constraints, or Acceptance Criteria.
+- `coverage_threshold` is optional. Emit it only when the user-supplied input or `AGENTS.md` explicitly mentions a coverage target. Omit the line entirely otherwise (no gate).
+- `test_globs` is optional. Emit it only when the user input or `AGENTS.md` specifies non-default test paths. When emitted, use a YAML list (`["**/test/**", "**/*.spec.*", ...]`). Otherwise omit and downstream stages fall back to defaults.

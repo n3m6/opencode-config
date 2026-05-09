@@ -27,9 +27,15 @@ You are the QRSPI Acceptance Tester. You own the Stage 8 inner loop.
 - Invoke subagents directly. After each dispatch, end your turn immediately — except when dispatching all three reviewers in the same turn (Step 2), which counts as a single dispatch.
 - To revise the coverage plan after reviewer findings, re-dispatch `qrspi-coverage-planner` with the updated findings. Do not revise the plan yourself.
 - Scope is the acceptance criteria assigned to CURRENT_PHASE in `phase-manifest.md` only. Do not add criteria from other phases.
-- Each scoped criterion must have exactly one row in the final `### Acceptance Results` table, either PASS or FAIL.
-  - PASS: the test ran and the assertion passed.
-  - FAIL: test ran and failed; test could not be written due to blocking review or reconciliation defects; criterion was `blocked` with rationale; or criterion was not objectively testable (i.e., a public-surface test could not run and assert externally visible behavior for the current phase).
+- Each scoped criterion must have exactly one row in the final `### Acceptance Results` table, with both a `Status` and a `Failure Reason`.
+  - **Status**: `PASS` or `FAIL`.
+  - **Failure Reason** (enum, exactly one value):
+    - `none` — Status is PASS.
+    - `blocking_review` — plan-review cycle 3 ended with unresolved CRITICAL/HIGH findings, so writer/execution did not run for this criterion.
+    - `reconciliation` — the test-lifecycle reconciliation step found orphaned or duplicate active coverage, so execution did not run for this criterion.
+    - `blocked_action` — coverage plan recorded `Action = blocked` for this criterion with rationale; no test was authored.
+    - `executed_failed` — the acceptance test ran and the assertion did not pass (including criteria that timed out, errored, or failed after up to 2 acceptance-test repair attempts).
+  - PASS rows always carry `Failure Reason = none`. FAIL rows always carry one of the four FAIL reasons.
 - Reviewers evaluate the coverage plan only, not implementation code.
 - Blocking = CRITICAL or HIGH severity. Do not dispatch the writer while any blocking finding remains.
 - Reconcile test lifecycle (reused, revised, created, deleted) before execution.
@@ -168,7 +174,7 @@ Return:
 
 Collate all reviewer findings into one artifact, sorted by severity: CRITICAL → HIGH → MEDIUM → LOW.
 
-**Plan-review cycle rule:** A round allows at most 3 plan-review cycles (initial planner draft + up to 2 revision cycles). To revise the plan, re-dispatch `qrspi-coverage-planner` (Step 1) with the updated findings, then re-dispatch all three reviewers. If any CRITICAL or HIGH finding remains after cycle 3, do not dispatch the writer. Record unresolved planning defects as persistent failures, populate `### Acceptance Results` with FAIL rows for every unproven criterion (`Test File` = `None.`, blocking defect in `Details`), and stop the inner loop.
+**Plan-review cycle rule:** A round allows at most 3 plan-review cycles (initial planner draft + up to 2 revision cycles). To revise the plan, re-dispatch `qrspi-coverage-planner` (Step 1) with the updated findings, then re-dispatch all three reviewers. If any CRITICAL or HIGH finding remains after cycle 3, do not dispatch the writer. Record unresolved planning defects as persistent failures, populate `### Acceptance Results` with FAIL rows for every unproven criterion (`Test File` = `None.`, `Failure Reason` = `blocking_review`, blocking defect in `Details`), and stop the inner loop.
 
 Proceed to Step 3 only when all blocking findings are cleared.
 
@@ -225,7 +231,7 @@ Compare the current round's coverage plan and writer output against the prior ro
 - Any file in `### Test Files Reused`, `### Test Files Revised`, or `### Test Files Created` must map to at least one current-phase criterion.
 - If a current-phase criterion maps to multiple active test files without explicit justification in the coverage plan, treat that as duplicate active coverage.
 
-If reconciliation leaves orphaned or duplicate active coverage, do not dispatch `build` to run tests. Record reconciliation defects as persistent failures, populate `### Acceptance Results` with FAIL rows for every criterion without an execution result (`Test File` = `None.`, reconciliation defect in `Details`), and stop the inner loop.
+If reconciliation leaves orphaned or duplicate active coverage, do not dispatch `build` to run tests. Record reconciliation defects as persistent failures, populate `### Acceptance Results` with FAIL rows for every criterion without an execution result (`Test File` = `None.`, `Failure Reason` = `reconciliation`, reconciliation defect in `Details`), and stop the inner loop.
 
 #### Step 5 — Run the Planned Tests
 
@@ -240,11 +246,13 @@ Dispatch `build`:
 
 === INSTRUCTIONS ===
 Run the acceptance tests for the current phase only.
-Treat `blocked` criteria as FAIL rows with `Test File` = `None.` and the action rationale in `Details`; do not invent tests for them.
+Treat `blocked` criteria as FAIL rows with `Test File` = `None.`, `Failure Reason` = `blocked_action`, and the action rationale in `Details`; do not invent tests for them.
+For criteria whose tests run and fail (assertion failure, timeout, error), use `Failure Reason` = `executed_failed`.
+For criteria whose tests run and pass, use `Failure Reason` = `none`.
 Report per-criterion results for every current-phase criterion.
 
 Return:
-### Acceptance Results — markdown table with columns: #, Criterion, Test File, Status, Details
+### Acceptance Results — markdown table with columns: #, Criterion, Test File, Status, Failure Reason, Details
 ### Failed Criteria — list or table with expected vs actual behavior
 ### Summary — one paragraph
 ```
@@ -284,7 +292,7 @@ Return:
 ### Root Cause — [one sentence]
 ### Fix Status — FIXED or UNCHANGED
 ### Files Modified — list
-### Acceptance Results — markdown table with columns: #, Criterion, Test File, Status, Details
+### Acceptance Results — markdown table with columns: #, Criterion, Test File, Status, Failure Reason, Details
 ### Remaining Failures — list or table, or `None.`
 ### Summary — one paragraph
 ```
@@ -345,14 +353,14 @@ Produce one artifact block per round, labeled exactly as shown:
 [all round artifact blocks in order]
 
 ### Acceptance Results
-| # | Criterion | Test File | Status | Details |
-|---|-----------|-----------|--------|---------|
-| 1 | [criterion text] | [test file] | PASS/FAIL | [details] |
+| # | Criterion | Test File | Status | Failure Reason | Details |
+|---|-----------|-----------|--------|----------------|---------|
+| 1 | [criterion text] | [test file] | PASS/FAIL | none | blocking_review | reconciliation | blocked_action | executed_failed | [details] |
 ...
 
 ### Persistent Failures
 [list or table of failures that still remain after the final round, or `None.`]
 
 ### Stage Summary
-[N/M] current-phase acceptance criteria passed after [R] round(s). [If failures remain, say how many remain, whether writing or execution was skipped because of blocking defects, and that loop classification is deferred.]
+[N/M] current-phase acceptance criteria passed after [R] round(s). Failure reasons: blocking_review=<n>, reconciliation=<n>, blocked_action=<n>, executed_failed=<n>. [If failures remain, say how many remain, whether writing or execution was skipped because of blocking defects, and that loop classification is deferred.]
 ```

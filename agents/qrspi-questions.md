@@ -82,38 +82,38 @@ Set `review_round = 1`.
 
 While `review_round ≤ 5`:
 
-1. Invoke `qrspi-question-leakage-reviewer` as a subagent:
+1. Dispatch both reviewers **in the same turn** (single tool-call batch), then end your turn and wait for both responses. This double dispatch counts as one dispatch step under the "stop after subagent dispatch" rule.
 
-```
-=== GOALS ===
-[paste contents of goals.md verbatim]
+   - `qrspi-question-leakage-reviewer` with:
 
-=== REQUIREMENTS ===
-[paste contents of requirements.md verbatim]
+     ```
+     === GOALS ===
+     [paste contents of goals.md verbatim]
 
-=== QUESTIONS ===
-[paste contents of questions.md verbatim]
-```
+     === REQUIREMENTS ===
+     [paste contents of requirements.md verbatim]
 
-Write the output to `.pipeline/<run-id>/question-leakage-review.md`.
+     === QUESTIONS ===
+     [paste contents of questions.md verbatim]
+     ```
 
-2. Invoke `qrspi-question-quality-reviewer` as a subagent:
+   - `qrspi-question-quality-reviewer` with:
 
-```
-=== GOALS ===
-[paste contents of goals.md verbatim]
+     ```
+     === GOALS ===
+     [paste contents of goals.md verbatim]
 
-=== REQUIREMENTS ===
-[paste contents of requirements.md verbatim]
+     === REQUIREMENTS ===
+     [paste contents of requirements.md verbatim]
 
-=== NORMALIZED GOAL INVENTORY ===
-[paste contents of goal-inventory.md verbatim]
+     === NORMALIZED GOAL INVENTORY ===
+     [paste contents of goal-inventory.md verbatim]
 
-=== QUESTIONS ===
-[paste contents of questions.md verbatim]
-```
+     === QUESTIONS ===
+     [paste contents of questions.md verbatim]
+     ```
 
-Write the output to `.pipeline/<run-id>/question-quality-review.md`.
+2. After both reviewers return, write `qrspi-question-leakage-reviewer` output to `.pipeline/<run-id>/question-leakage-review.md` and `qrspi-question-quality-reviewer` output to `.pipeline/<run-id>/question-quality-review.md`.
 
 3. If both reviewers return `### Status — PASS`: set `terminal_review_state = clean` and proceed to **Human Gate**.
 

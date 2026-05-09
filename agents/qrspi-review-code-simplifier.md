@@ -23,9 +23,20 @@ Check:
 4. **Premature Abstraction** — hypothetical utilities/extension points.
 5. **Inconsistency** — mixed patterns for the same operation in changed files.
 
+### Severity Assignment
+
+Assign one severity per finding from this fixed enum:
+
+- **HIGH** — unambiguous dead code (unused imports, unreachable branches, write-only locals) or single-caller pass-through wrappers in the changed files. Mechanical to delete; semantics-preserving with high confidence.
+- **MEDIUM** — redundant temps/booleans/null checks or pattern inconsistency within the changed files. Semantics-preserving but requires care to avoid behavior changes.
+- **LOW** — minor verbose patterns, naming, or readability nits.
+- **💡** — speculative or stylistic suggestion; not actionable without further evidence.
+
+HIGH and MEDIUM findings are the only ones the verifier will act on. LOW and 💡 remain pure advisory notes. Status is always `PASS`.
+
 Return exactly:
 ### Status — PASS
 ### Findings
 | # | Severity | File | Lines | Category | Issue | Recommendation |
 
-All severities: `💡`. No findings: `None.` under `### Findings`. Never `FAIL`.
+No findings: `None.` under `### Findings`. Never `FAIL`.

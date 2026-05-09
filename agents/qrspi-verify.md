@@ -31,7 +31,7 @@ Read:
 - `.pipeline/<run-id>/requirements.md`
 - `.pipeline/<run-id>/baseline-results.md`
 - Discover phase directories: `ls .pipeline/<run-id>/phases/phase-*/`
-- For each phase: `phases/phase-NN/execution-manifest.md` and `phases/phase-NN/acceptance-results.md`
+- For each phase: `phases/phase-NN/execution-manifest.md`, `phases/phase-NN/acceptance-results.md`, `phases/phase-NN/stage7-summary.md`, and `phases/phase-NN/regression-results.md` (when present)
 
 ### Step B — Invoke Verifier
 
@@ -44,8 +44,14 @@ Invoke `qrspi-verifier` with:
 === REQUIREMENTS ===
 [requirements.md verbatim]
 
-=== EXECUTION MANIFEST (ALL PHASES) ===
+=== EXECUTION MANIFESTS ===
 [for each phase, prepend `## Phase N` then paste execution-manifest.md verbatim]
+
+=== STAGE 7 SUMMARIES ===
+[for each phase, prepend `## Phase N` then paste stage7-summary.md verbatim, including the Phase Evidence Quality section]
+
+=== PHASE REGRESSION RESULTS ===
+[for each phase that has phases/phase-NN/regression-results.md: prepend `## Phase N` then paste regression-results.md verbatim. If absent, write `## Phase N — None.`]
 
 === ACCEPTANCE RESULTS (ALL PHASES) ===
 [for each phase, prepend `## Phase N` then paste acceptance-results.md verbatim]
