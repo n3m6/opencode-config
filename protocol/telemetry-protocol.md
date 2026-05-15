@@ -117,16 +117,47 @@ When deepwork synthesizes `gate.*` events for stage-local human gates, it relies
 
 **Standard context fields by stage:**
 
-| Stage           | Telemetry context fields                                                                 |
-| --------------- | ---------------------------------------------------------------------------------------- |
-| Goals (1)       | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds)                     |
-| Questions (2)   | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds)                     |
-| Research (3)    | `question_count`, `codebase_count`, `web_count`, `hybrid_count`, `review_rounds`         |
-| Design (4)      | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds)                     |
-| Structure (5)   | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds)                     |
-| Plan (6)        | `task_count`, `review_rounds`, `task_spec_review_rounds` (total across tasks)            |
-| Implement (7)   | `wave_count`, `task_count`, `e2e_remediation_rounds`, `regression_remediation_rounds`    |
-| Accept-Test (8) | `acceptance_loop_rounds`, `criteria_count`, `criteria_passed`, `backward_loop_requested` |
-| Replan (8.5)    | `review_rounds`, `backward_loop_requested`                                               |
-| Verify (9)      | `verify_rounds`, `verify_status`                                                         |
-| Report (10)     | — (no internal loops)                                                                    |
+| Stage           | Telemetry context fields                                                                                                                                                                                                |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Goals (1)       | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                           |
+| Questions (2)   | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                           |
+| Research (3)    | `question_count`, `codebase_count`, `web_count`, `hybrid_count`, `review_rounds`                                                                                                                                        |
+| Design (4)      | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                           |
+| Structure (5)   | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                           |
+| Plan (6)        | `task_count`, `review_rounds`, `task_spec_review_rounds` (total across tasks), `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                       |
+| Implement (7)   | `mode` (`phase` \| `verify-fix`), `wave_count`, `task_count`, `e2e_remediation_rounds`, `regression_remediation_rounds`, `evidence_quality` (object), `coverage_status` (PASS/FAIL/NOT CONFIGURED/SKIPPED, when present) |
+| Accept-Test (8) | `acceptance_loop_rounds`, `criteria_count`, `criteria_passed`, `backward_loop_requested`, `failure_reasons` (object: `blocking_review`, `reconciliation`, `blocked_action`, `executed_failed`)                          |
+| Replan (8.5)    | `review_rounds`, `backward_loop_requested`, `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                                                          |
+| Verify (9)      | `verify_rounds`, `verify_status`, `code_health` (optional digest object)                                                                                                                                                |
+| Report (10)     | — (no internal loops)                                                                                                                                                                                                   |
+
+**`evidence_quality` object** (Stage 7):
+
+```
+{
+  "deterministic": <int>,
+  "flaky": <int>,
+  "harness_noisy": <int>,
+  "ambiguous": <int>,
+  "redundant": <int>,
+  "no_test_tasks": <int>,
+  "no_test_audit_overrides": <int>
+}
+```
+
+**`failure_reasons` object** (Stage 8):
+
+```
+{
+  "blocking_review": <int>,
+  "reconciliation": <int>,
+  "blocked_action": <int>,
+  "executed_failed": <int>
+}
+```
+
+**`terminal_review_state`** is the final terminal state of the stage's automated review loop:
+
+- `clean` — final review round PASSed.
+- `stable-cap` — Plan/Replan only; consecutive identical `Fix Guidance` triggered early termination.
+- `unclean-cap` — reached the maximum round cap with outstanding concerns. For Plan/Replan, deepwork raises an unclean-cap question gate after observing this state.
