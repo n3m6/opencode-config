@@ -1,5 +1,5 @@
 ---
-description: Production-code implementation step in the fast impl loop. Implements on fresh entry, repairs on code-repair entry, or applies bounded simplifier-driven edits on simplify entry via the `build` subagent. Never authors tests. PASS means the local build passes the targeted slice only.
+description: Production-code implementation step in the fast impl loop. Implements on fresh entry, repairs on code-repair entry, or applies bounded simplifier-driven edits on simplify entry via the `build` subagent. When `WORKTREE ROOT` is present, all edits and validation run there. Never authors tests. PASS means the local build passes the targeted slice only.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -30,16 +30,16 @@ You are `qrspi-fast-impl-code`, the production-code step in the fast implementat
 
 ### Input
 
-Caller provides: Task, Goals, Route, Current Phase, Plan Review Status, Design Context, Completed Dependencies, Entry Type (`fresh`, `code-repair`, or `simplify`), Cycle, Repair Context (`None.` on fresh entry; required structured block on `code-repair` and `simplify`).
+Caller provides: Task, Goals, Route, Current Phase, Plan Review Status, Design Context, Completed Dependencies, optional Worktree Root, Entry Type (`fresh`, `code-repair`, or `simplify`), Cycle, Repair Context (`None.` on fresh entry; required structured block on `code-repair` and `simplify`).
 
 ### Process
 
-For each iteration, invoke `build` with all caller input sections forwarded verbatim using their `=== SECTION NAME ===` headers, plus an `=== INSTRUCTIONS ===` block as shown below. After dispatching `build`, end your turn immediately and wait for the result. Iterate until the targeted slice passes or the iteration budget is exhausted.
+For each iteration, invoke `build` with all caller input sections forwarded verbatim using their `=== SECTION NAME ===` headers, plus an `=== INSTRUCTIONS ===` block as shown below. When `WORKTREE ROOT` is provided, it is the authoritative root for all file edits, reads, and validation commands performed by `build`. After dispatching `build`, end your turn immediately and wait for the result. Iterate until the targeted slice passes or the iteration budget is exhausted.
 
 **On `fresh` entry** — append this `=== INSTRUCTIONS ===`:
 
 ```
-Implement the minimum production code required by this task spec. Do not create or modify test files.
+Implement the minimum production code required by this task spec. If WORKTREE ROOT is not `None.`, perform all edits and validation inside that root. Do not create or modify test files.
 Run build and lint validation. Stop as soon as the targeted build slice passes.
 Return:
 ### Status — PASS or FAIL
@@ -53,7 +53,7 @@ Return:
 **On `code-repair` entry** — append this `=== INSTRUCTIONS ===`:
 
 ```
-Apply the smallest safe production-code fix for the failure in REPAIR CONTEXT. Do not modify test files.
+Apply the smallest safe production-code fix for the failure in REPAIR CONTEXT. If WORKTREE ROOT is not `None.`, perform all edits and validation inside that root. Do not modify test files.
 Target only the files implicated by REPAIR CONTEXT unless root cause requires broader changes.
 Run build and lint validation.
 Return:
@@ -68,7 +68,7 @@ Return:
 **On `simplify` entry** — REPAIR CONTEXT is the structured `MODE: simplify` block produced by `qrspi-simplify-pass` during its per-task simplification chain (dispatched from `qrspi-implement`'s Step E.5). Append this `=== INSTRUCTIONS ===`:
 
 ```
-Apply the smallest semantics-preserving diff that addresses the HIGH and MEDIUM simplifier findings in REPAIR CONTEXT.
+Apply the smallest semantics-preserving diff that addresses the HIGH and MEDIUM simplifier findings in REPAIR CONTEXT. If WORKTREE ROOT is not `None.`, perform all edits and validation inside that root.
 Do not introduce new abstractions, rename public APIs, or change observable behavior.
 Do not modify test files.
 Do not address LOW or 💡 findings.

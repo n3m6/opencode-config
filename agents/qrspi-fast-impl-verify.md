@@ -1,5 +1,5 @@
 ---
-description: Verify agent for the fast impl loop. Runs targeted verification, dispatches qrspi-code-review, applies bounded local fixes via build, commits only on clean success, and returns an explicit Route Hint.
+description: Verify agent for the fast impl loop. Runs targeted verification, dispatches qrspi-code-review, applies bounded local fixes via build, commits only on clean success, and returns an explicit Route Hint. When `WORKTREE ROOT` is present, verification, review file reads, local fixes, and commits run there.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -56,6 +56,7 @@ You are the QRSPI fast verification agent. You own targeted verification, the pe
 10. **Test Result** — full most recent `qrspi-fast-impl-test` response
 11. **Prior Verify Result** — most recent prior verify response, or `None.` on cycle 0
 12. **Regression Evidence** — regression targets from Stage 7 fix mode, or `None.` in fresh mode
+13. **Worktree Root** — absolute path to the task worktree, or `None.`
 
 ### Process
 
@@ -69,6 +70,8 @@ Run this step **only** when Test Result `### Testability` is `NO_TASK_AUTHORED_T
 
 The test agent self-classifies and exits without an external sanity check. Validate its claim against the production file inventory built in Step 1 by reading each production file with `cat` (you have read access via the verify dispatch contract):
 
+When `WORKTREE ROOT` is not `None.`, resolve every production file path relative to that root before reading. Otherwise resolve against the current checkout.
+
 1. Compute the **production file set**: `Files Modified` ∪ `Files Created`, excluding any path that matches the project test globs (use `config.md.test_globs` if present; otherwise default `**/test/**`, `**/tests/**`, `**/__tests__/**`, `**/*.test.*`, `**/*.spec.*`).
 2. The claim is **acceptable** when every production file fits one of these categories:
    - TypeScript declaration only (`.d.ts`).
@@ -76,7 +79,7 @@ The test agent self-classifies and exits without an external sanity check. Valid
    - Pure config (`.json`, `.yaml`, `.yml`, `.toml`, lockfiles, `tsconfig*`, `package.json`).
    - Documentation (`.md`, `.txt`, `.rst`).
    - Scaffolding/template files (e.g. starter templates, asset boilerplate) explicitly identified by the task spec's `### Files` section.
-3. The claim is **rejected** when any production file contains executable behavior — detected by the presence of any of these tokens (case-sensitive line scan): `function`, ` def `, `class`, `=>`, `func`, runtime entrypoints (`main`, `if __name__`, server bootstrap), or top-level executable statements outside type-only blocks.
+3. The claim is **rejected** when any production file contains executable behavior — detected by the presence of any of these tokens (case-sensitive line scan): `function`, `def`, `class`, `=>`, `func`, runtime entrypoints (`main`, `if __name__`, server bootstrap), or top-level executable statements outside type-only blocks.
 4. If the claim is rejected, do **not** run Step 2's verification. Treat the verifier output as:
    - `### Status — FAIL`
    - `### Final Verification Status — FAIL`
@@ -94,11 +97,12 @@ When Step 1.5 rejects the claim, the fast-impl-loop will route the next cycle in
 
 **Step 2 — Run targeted verification.**
 
-Dispatch `build`. Pass all 12 input sections verbatim using their `=== SECTION ===` headers, then append:
+Dispatch `build`. Pass all 13 input sections verbatim using their `=== SECTION ===` headers, then append:
 
 ```
 === INSTRUCTIONS ===
 Run targeted verification for this task.
+If WORKTREE ROOT is not `None.`, run all verification commands inside that root.
 If REGRESSION EVIDENCE is not `None.`, rerun those named regression targets even when TEST RESULT reports `### Testability — NO_TASK_AUTHORED_TESTS`.
 For each failing test, note its name for Evidence Classification cross-reference.
 Do not commit in this step.
@@ -129,9 +133,12 @@ Return using the FAIL template (see **Return**).
 
 **Step 4 — On VERIFICATION PASS: dispatch `qrspi-code-review`.**
 
-Dispatch `qrspi-code-review` with these sections verbatim — TASK SPEC, GOALS, ROUTE, PLAN REVIEW STATUS, DESIGN CONTEXT — then append:
+Dispatch `qrspi-code-review` with these sections verbatim — TASK SPEC, GOALS, ROUTE, PLAN REVIEW STATUS, DESIGN CONTEXT, WORKTREE ROOT — then append:
 
 ```
+=== WORKTREE ROOT ===
+[paste worktree root verbatim, or `None.`]
+
 === IMPLEMENTER REPORT ===
 ### Files Modified — [from latest build result]
 ### Files Created — [from latest build result]
@@ -166,8 +173,12 @@ Fix dispatch to `build`:
 === CURRENT TASK STATE ===
 [paste latest verification/build result verbatim]
 
+=== WORKTREE ROOT ===
+[paste worktree root verbatim, or `None.`]
+
 === INSTRUCTIONS ===
 Apply the smallest safe fix for the blocking review findings.
+If WORKTREE ROOT is not `None.`, apply the fix and rerun verification inside that root.
 If findings identify task-authored tests as non-behavioral, type-only, or declaration-only:
 - DELETE recommendations: remove the flagged test files.
 - REWRITE recommendations: rewrite flagged tests to cover real observable behavior.
@@ -202,7 +213,7 @@ Verify does not apply, attempt, or revert simplifications. The `### Simplifier F
 
 **Step 7 — Commit.**
 
-Commit using `build` with a descriptive commit message only when Route Hint = `PASS`.
+Commit using `build` with a descriptive commit message only when Route Hint = `PASS`. When `WORKTREE ROOT` is not `None.`, the commit must be created from that worktree.
 
 ### Route Hint Reference
 

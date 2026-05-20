@@ -1,5 +1,5 @@
 ---
-description: "Per-task code-first loop agent. Sequences qrspi-fast-impl-code → qrspi-fast-impl-test → qrspi-fast-impl-verify (fresh mode), or qrspi-fast-impl-code (code-repair) → qrspi-fast-impl-test (test-sync) → qrspi-fast-impl-verify (fix mode). Routes post-verify failures using the explicit Route Hint from verify. Forwards verify's ### Simplifier Findings up to qrspi-implement, which dispatches qrspi-simplify-pass for the post-wave simplification pass. Enforces an 8-cycle outer budget with stall detection. Returns the Stage 7 task result contract."
+description: "Per-task code-first loop agent. Sequences qrspi-fast-impl-code → qrspi-fast-impl-test → qrspi-fast-impl-verify (fresh mode), or qrspi-fast-impl-code (code-repair) → qrspi-fast-impl-test (test-sync) → qrspi-fast-impl-verify (fix mode). Routes post-verify failures using the explicit Route Hint from verify. When Stage 7 assigns a task worktree, forwards that execution root to CODE/TEST/VERIFY while continuing to read shared .pipeline artifacts from the primary checkout. Forwards verify's ### Simplifier Findings up to qrspi-implement, which dispatches qrspi-simplify-pass for the post-wave simplification pass. Enforces an 8-cycle outer budget with stall detection. Returns the Stage 7 task result contract."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -35,6 +35,7 @@ You own exactly one task per invocation. Sequence `qrspi-fast-impl-code`, `qrspi
 8. **ROUTE BY EXPLICIT ROUTE HINT ONLY.** Use `### Route Hint` from verify for all post-verify routing. Missing or unrecognised hint = contract violation FAIL.
 9. **MAX 8 OUTER CYCLES.** Return FAIL after 8 cycles without PASS.
 10. **STALL DETECTION.** After each VERIFY, append to `cycle_log` and check for a stall (see **Stall Detection**).
+11. **PIPELINE ARTIFACTS STAY SHARED.** Read `.pipeline/<run-id>/...` only from the primary checkout. When `WORKTREE ROOT` is provided, forward it to child agents as the exclusive execution root for code, tests, verification, and per-task review reads.
 
 ### Input
 
@@ -49,20 +50,21 @@ Required from the parent (`qrspi-implement`):
 7. **Dependency Pointers** — comma-separated list of dependency task IDs (e.g. `02, 05`), or `None.`
 8. **Regression Evidence** — (fix mode only) failing test names, commands, error output verbatim, or `None.`
 9. **Suspected Files** — (fix mode only) production files suspected of causing regressions, or `None.`
+10. **Worktree Root** — absolute path to the task-specific git worktree created by `qrspi-implement`, or `None.` when Stage 7 is running in the primary checkout
 
 ### Step 0 — Read Inputs From Disk
 
 Use `cat`/`ls` (scoped to `.pipeline/<run-id>/`) to bind these context strings before any child dispatch. Do not edit any file:
 
-| Context variable | Source |
-|---|---|
-| `TASK` | `cat .pipeline/<run-id>/<phase-dir>/tasks/task-<TaskID>.md` |
-| `GOALS` | acceptance-criteria section of `cat .pipeline/<run-id>/goals.md`; if extraction is unclear, paste the full file |
-| `PLAN_REVIEW_STATUS` | the `## Review Status` block at the bottom of the task file |
-| `DESIGN_CONTEXT` | for full route: `cat .pipeline/<run-id>/design.md` followed by `cat .pipeline/<run-id>/structure.md`. For quick-fix: `N/A` |
+| Context variable         | Source                                                                                                                                                                                                                                                                                              |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TASK`                   | `cat .pipeline/<run-id>/<phase-dir>/tasks/task-<TaskID>.md`                                                                                                                                                                                                                                         |
+| `GOALS`                  | acceptance-criteria section of `cat .pipeline/<run-id>/goals.md`; if extraction is unclear, paste the full file                                                                                                                                                                                     |
+| `PLAN_REVIEW_STATUS`     | the `## Review Status` block at the bottom of the task file                                                                                                                                                                                                                                         |
+| `DESIGN_CONTEXT`         | for full route: `cat .pipeline/<run-id>/design.md` followed by `cat .pipeline/<run-id>/structure.md`. For quick-fix: `N/A`                                                                                                                                                                          |
 | `COMPLETED_DEPENDENCIES` | for each dependency ID in **Dependency Pointers**, a one-line summary built from that task's row in `cat .pipeline/<run-id>/<phase-dir>/execution-manifest.md` (Files Modified + Files Created + Summary truncated). If the manifest is missing or has no row for that ID, use `task-<id>: pending` |
 
-Bind these once at entry. Re-read **only** the task file and execution-manifest after re-entry cycles, in case Stage 7 fix-mode dispatches updated them.
+Bind these once at entry. Re-read **only** the task file and execution-manifest after re-entry cycles, in case Stage 7 fix-mode dispatches updated them. `WORKTREE ROOT` is execution-only context and is never used for `.pipeline` reads in this agent.
 
 ### State
 
@@ -100,6 +102,9 @@ Build each `cycle_log` entry from the verify result because its inventory is aut
 
 === COMPLETED DEPENDENCIES ===
 [COMPLETED_DEPENDENCIES]
+
+=== WORKTREE ROOT ===
+[WORKTREE_ROOT]
 ```
 
 **CODE call** — BASE CONTEXT plus:
@@ -198,32 +203,36 @@ After VERIFY: update state variables, append to `cycle_log`, run stall check. If
 ### Outer Loop (Cycles 1–7)
 
 At the top of each cycle:
+
 - `cycle >= 8` → return **budget-exhausted FAIL**.
 - Stall detected → **stall action** (see **Stall Detection**).
 
 Route by `### Route Hint` from `last_verify_result`:
 
-| Route Hint | Dispatch |
-|---|---|
-| `PASS` | Contract violation → return FAIL (must not reach here) |
-| missing or unrecognised | Contract violation → return FAIL |
-| `BACKWARD_LOOP` | Propagate immediately (see **Return**) |
-| `CODE_REPAIR` | CODE → VERIFY (skip TEST; pass `last_test_result` as test_result in VERIFY) |
-| `TEST_REPAIR` | TEST → VERIFY (skip CODE; pass `last_code_result` as code_result in VERIFY) |
-| `CODE_AND_TEST_REPAIR` | CODE → TEST → VERIFY |
+| Route Hint              | Dispatch                                                                    |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `PASS`                  | Contract violation → return FAIL (must not reach here)                      |
+| missing or unrecognised | Contract violation → return FAIL                                            |
+| `BACKWARD_LOOP`         | Propagate immediately (see **Return**)                                      |
+| `CODE_REPAIR`           | CODE → VERIFY (skip TEST; pass `last_test_result` as test_result in VERIFY) |
+| `TEST_REPAIR`           | TEST → VERIFY (skip CODE; pass `last_code_result` as code_result in VERIFY) |
+| `CODE_AND_TEST_REPAIR`  | CODE → TEST → VERIFY                                                        |
 
 If CODE or TEST returns FAIL or backward loop: stop and return immediately.
 
 **Re-entry CODE** (cycles 1–7):
+
 - entry_type: `code-repair`; cycle: current; repair_context: `### Route Context` block from `last_verify_result` verbatim
 - instructions: `Repair production code for the code-owned failure in REPAIR CONTEXT. No test files. Max 2 iterations.`
 
 **Re-entry TEST** (cycles 1–7):
+
 - entry_type: `test-repair`; cycle: current; fix_mode: `yes` if outer mode is fix, else `no`; repair_context: `### Route Context` block from `last_verify_result` verbatim
 - code_result: new code result if CODE ran this cycle, else `last_code_result`
 - instructions: `Repair test evidence for the test-owned failure in REPAIR CONTEXT. Adopt deterministic tests, repair flaky or structurally bad ones. Write missing deterministic tests only if REPAIR CONTEXT confirms coverage is insufficient. Max 2 iterations.`
 
 **Re-entry VERIFY** (cycles 1–7):
+
 - cycle: current; prior_verify_result: `last_verify_result`; regression_evidence: input regression evidence if outer mode is fix, else `None.`
 - code_result: new code result if CODE ran this cycle, else `last_code_result`
 - test_result: new test result if TEST ran this cycle, else `last_test_result`
@@ -236,10 +245,12 @@ After VERIFY: update state variables, append `cycle_log`, run stall check. If PA
 Check after appending each `cycle_log` entry. Requires ≥ 2 entries; cannot trigger on cycle 0.
 
 **Stall condition** — both must hold for the two most recent entries:
+
 1. `Failure Signature` is identical.
 2. `Inventory Snapshot` is identical.
 
 **Stall action:**
+
 - Failure Type = `upstream_ambiguity` → return using the backward loop template (see **Return**). Construct `### Backward Loop Request` from the repeated failure. Include `### Unresolved Findings` from `last_verify_result` if present.
 - Otherwise → return stall FAIL.
 
@@ -267,10 +278,12 @@ Include `### Unresolved Findings` when blocking findings remain. Include `### Ba
 **Cases:**
 
 **PASS/CLEAN:**
+
 - Status: PASS; Review Status: CLEAN
 - Files, Tests, Review Rounds, Summary: all from `last_verify_result`.
 
 **FAIL (general — pre-verify short-circuit or verify ran but not PASS/CLEAN):**
+
 - Status: FAIL
 - Files/Tests: from most recent agent result (or None.)
 - Review Status: UNRESOLVED if verify ran; NOT RUN if pre-verify
@@ -279,17 +292,20 @@ Include `### Unresolved Findings` when blocking findings remain. Include `### Ba
 - Include `### Unresolved Findings` from `last_verify_result` if present
 
 **Budget exhausted (8 cycles without PASS):**
+
 - Status: FAIL; Review Status: UNRESOLVED or NOT RUN
 - Files/Tests: from `last_verify_result` (or None.); Review Rounds: from `last_verify_result`
 - Summary: `fast-impl-loop: outer cycle budget exhausted after 8 cycles. Last Route Hint: [value]. Last failure: [one sentence from last_verify_result Route Context].`
 - Include `### Unresolved Findings` from `last_verify_result` if present
 
 **Stall (same failure signature and inventory for 2 consecutive cycles):**
+
 - Status: FAIL; Review Status: UNRESOLVED or NOT RUN
 - Files/Tests: from `last_verify_result` (or None.); Review Rounds: from `last_verify_result`
 - Summary: `fast-impl-loop: stall detected at cycle [N]. Same failure signature and inventory snapshot repeated for 2 consecutive cycles. Failure Type: [value]. Affected Files: [list].`
 
 **Backward loop (child-triggered or stall-generated upstream_ambiguity):**
+
 - Status: FAIL; Review Status: NOT RUN
 - Files/Tests: from triggering agent result (or None.)
 - Review Rounds: from triggering verify result if verify raised it; `0/2` (cycle 0) or `0/1` (cycle > 0) if pre-verify
