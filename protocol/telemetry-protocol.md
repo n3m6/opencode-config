@@ -123,7 +123,7 @@ Stages without a local human gate may still return `gate_status: "none"` and `ga
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Goals (1)       | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                            |
 | Questions (2)   | `review_rounds`, `gate_status` (always `none`), `gate_rounds` (always `0`; compatibility field), `terminal_review_state`                                                                                                 |
-| Research (3)    | `question_count`, `codebase_count`, `web_count`, `hybrid_count`, `review_rounds`                                                                                                                                         |
+| Research (3)    | `question_count`, `codebase_count`, `web_count`, `hybrid_count`, `review_rounds`, `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                     |
 | Design (4)      | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                            |
 | Structure (5)   | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                            |
 | Plan (6)        | `task_count`, `review_rounds`, `task_spec_review_rounds` (total across tasks), `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                        |
@@ -161,5 +161,5 @@ Stages without a local human gate may still return `gate_status: "none"` and `ga
 **`terminal_review_state`** is the final terminal state of the stage's automated review loop:
 
 - `clean` — final review round PASSed.
-- `stable-cap` — Plan/Replan only; consecutive identical `Fix Guidance` triggered early termination.
-- `unclean-cap` — reached the maximum round cap with outstanding concerns. For Plan/Replan, deepwork raises an unclean-cap question gate after observing this state.
+- `stable-cap` — Research/Plan/Replan only; consecutive identical `Fix Guidance` triggered early termination. For Research, the stage still returns PASS and deepwork proceeds to Design. For Plan/Replan, deepwork raises an unclean-cap question gate after observing this state.
+- `unclean-cap` — reached the maximum round cap with outstanding concerns. For Goals/Design/Structure, the state feeds the stage-local human gate. For Questions and Research, the stage auto-continues downstream while preserving the latest review artifact. For Plan/Replan, deepwork raises an unclean-cap question gate after observing this state.

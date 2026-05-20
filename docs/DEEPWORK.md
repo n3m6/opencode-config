@@ -78,7 +78,7 @@
                           │  │qrspi-research-synthesizer││  (combine findings)
                           │  └────────────────────────┘  │
                           │  ┌────────────────────────┐  │
-                          │  │ qrspi-research-reviewer│  │  (up to 10 rounds)
+                          │  │ qrspi-research-reviewer│  │  (up to 2 rounds)
                           │  └────────────────────────┘  │
                           └─────────────┬────────────────┘
                                         │
@@ -482,7 +482,7 @@ Every alignment and planning stage runs an internal automated review loop before
 | ------------- | -------------------------------------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------- |
 | 1 — Goals     | `qrspi-goals-reviewer`                                                                 | 5          | Re-dispatch synthesizer with review feedback                                       |
 | 2 — Questions | Dual (parallel): `qrspi-question-leakage-reviewer` + `qrspi-question-quality-reviewer` | 2          | Re-dispatch generator once; auto-continue on cap                                   |
-| 3 — Research  | `qrspi-research-reviewer`                                                              | 10         | Re-dispatch affected researchers + synthesizer; FAIL on cap                        |
+| 3 — Research  | `qrspi-research-reviewer`                                                              | 2          | Re-dispatch affected researchers + synthesizer once; auto-continue on cap          |
 | 4 — Design    | `qrspi-design-reviewer`                                                                | 5          | Re-dispatch design synthesizer with feedback                                       |
 | 5 — Structure | `qrspi-structure-reviewer`                                                             | 5          | Re-dispatch structure mapper with feedback                                         |
 | 6 — Plan      | `qrspi-plan-reviewer`                                                                  | 6          | Re-dispatch plan writer with feedback; stable-cap if same `Fix Guidance` repeats   |
@@ -492,16 +492,16 @@ Review loop logic:
 
 - If the reviewer returns `PASS` at any round, the loop terminates immediately with `clean`. The previous "min 2" confirmation re-review has been removed (it cost a full reviewer round per clean stage without ever changing the outcome).
 - If the reviewer returns `FAIL` and the maximum has not been reached, re-dispatch the synthesizer/writer with review feedback, then re-review.
-- For Stage 6 (Plan) and Stage 8.5 (Replan): if two consecutive FAIL rounds emit identical `### Fix Guidance` (whitespace-normalized), terminate with `stable-cap`; the writer is not converging and additional rounds will not help.
+- For Stage 3 (Research), Stage 6 (Plan), and Stage 8.5 (Replan): if two consecutive FAIL rounds emit identical `### Fix Guidance` (whitespace-normalized), terminate with `stable-cap`; the rerun loop is not converging and additional rounds will not help.
 - If the reviewer returns `FAIL` at the maximum round cap, terminate with `unclean-cap`.
 
 Terminal review states:
 
 - `clean` — the final review round passed.
-- `stable-cap` — Plan/Replan only; consecutive identical `Fix Guidance`. Treated as non-FAIL; downstream still runs but deepwork raises a question gate before continuing.
-- `unclean-cap` — reached the maximum with outstanding concerns. For Goals/Design/Structure, this surfaces in the human gate. For Questions, the stage continues automatically to Research with the remaining concerns captured in `question-leakage-review.md` and/or `question-quality-review.md`. For Plan/Replan (no human gate), deepwork raises a question gate before continuing to the next stage.
+- `stable-cap` — Research/Plan/Replan only; consecutive identical `Fix Guidance`. For Research, the stage continues automatically to Design with the remaining concerns captured in `reviews/research-review-round-NN.md`. For Plan/Replan, downstream still runs only after deepwork raises a question gate before continuing.
+- `unclean-cap` — reached the maximum with outstanding concerns. For Goals/Design/Structure, this surfaces in the human gate. For Questions and Research, the stage continues automatically to the next stage with the remaining concerns captured in the latest review artifact. For Plan/Replan (no human gate), deepwork raises a question gate before continuing to the next stage.
 
-Stage 3 (Research) differs: if the review loop reaches the 10-round cap with unresolved material issues, the stage returns `FAIL` rather than proceeding with weak research.
+Stage 3 (Research) now follows the non-blocking cap pattern used by Questions: if the review loop reaches the 2-round cap with unresolved material issues, the stage returns `PASS` with `terminal_review_state` set to `stable-cap` or `unclean-cap`, and deepwork proceeds using the latest research review artifact as the record of remaining concerns.
 
 Stage 6 (Plan) runs two review layers: a plan-level review loop (max 6 rounds, with stable-cap detection) where `qrspi-plan-reviewer` reads the current plan artifacts from the pipeline run directory, followed by a per-task review loop (max 3 rounds) where `qrspi-task-spec-reviewer` repairs each task spec in place and loads sibling task specs from the canonical top-level `tasks/` directory for cross-task checks. Unresolved task-spec failures or cross-task conflicts at round 3 are blocking and stop Stage 6. After both loops pass, Stage 6 appends the final review status block (`clean`, `stable-cap`, or `unclean-cap`) to every `tasks/task-NN.md`.
 
@@ -681,7 +681,7 @@ Independently reviews `questions.md` against `goals.md` for: per-question field 
 
 #### qrspi-research
 
-Stage orchestrator. Dispatches codebase and web researchers per question tag in parallel, collects findings into per-question artifacts, dispatches the research synthesizer, and runs up to 10 automated review rounds. Enforces strict goal isolation. Returns FAIL (not PASS with weak results) if the review loop reaches the 10-round cap with unresolved material issues.
+Stage orchestrator. Dispatches codebase and web researchers per question tag in parallel, collects findings into per-question artifacts, dispatches the research synthesizer, and runs up to 2 automated review rounds. Enforces strict goal isolation. If the review loop caps at round 2 with `stable-cap` or `unclean-cap`, it still returns PASS and lets deepwork proceed to Design while preserving the latest research review artifact.
 
 #### qrspi-codebase-researcher
 
