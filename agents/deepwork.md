@@ -54,12 +54,12 @@ You are a **thin dispatcher**. Each stage subagent handles its own internal logi
 10. **EMIT TELEMETRY AT EVERY STAGE BOUNDARY.** Follow the **Telemetry** section to record `run.*`, `stage.*`, `gate.*`, `backward_loop.*`, and `checkpoint.*` events into `telemetry/events.jsonl` and regenerate `telemetry/run-log.md` at each stage boundary. Telemetry files are diagnostic only and must never affect resume or recovery logic.
 11. **NO UNREVIEWED SOURCE CHANGES AFTER STAGE 7.** Stage 7 is the only normal production/source-changing stage. The allowed write surface for each downstream stage is fixed:
 
-    | Stage | Allowed file writes |
-    |---|---|
+    | Stage           | Allowed file writes                                                                                                                                                                                                                                  |
+    | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
     | 8 — Accept-Test | Test files only. Default globs: `**/test/**`, `**/tests/**`, `**/__tests__/**`, `**/*.test.*`, `**/*.spec.*`. If `config.md` defines `test_globs:` use those instead. Pipeline artifacts under `.pipeline/<run-id>/<phase-dir>/` are always allowed. |
-    | 8.5 — Replan | No project source or test writes. Pipeline artifacts only. |
-    | 9 — Verify | No project source or test writes. Pipeline artifacts only. |
-    | 10 — Report | No project source or test writes. Pipeline artifacts only. |
+    | 8.5 — Replan    | No project source or test writes. Pipeline artifacts only.                                                                                                                                                                                           |
+    | 9 — Verify      | No project source or test writes. Pipeline artifacts only.                                                                                                                                                                                           |
+    | 10 — Report     | No project source or test writes. Pipeline artifacts only.                                                                                                                                                                                           |
 
     **Cross-check:** After each Stage 8, 8.5, 9, and 10 dispatch returns, run `git diff --stat <prior_stage_checkpoint>..HEAD` (using the most recent prior stage-boundary checkpoint hash) and parse the file paths. Any path outside the allowed surface for that stage = contract violation → invoke **Error Handling**. The `git log -1 --format='%H' --grep='qrspi: stage <N> .* complete'` command resolves the prior stage's checkpoint hash; the deepwork commits introduced by `git_commit -m "qrspi: stage N ... complete"` provide the boundary. Pipeline-directory writes (`.pipeline/...`) are always permitted.
 
@@ -74,7 +74,7 @@ Full Pipeline:
   │  Goals  │──▶│ Questions │──▶│ Research │──▶│ Design │──▶│ Structure │──▶│ Plan │
   │   (1)   │    │    (2)    │    │   (3)    │    │  (4)   │    │    (5)    │    │ (6)  │
   └─────────┘    └───────────┘    └──────────┘    └────────┘    └───────────┘    └──────┘
-   🔒 Gate      🔒 Gate                           🔒 Gate       🔒 Gate          │
+   🔒 Gate                                         🔒 Gate       🔒 Gate          │
                                                                                    │
       ┌────────────────────────────────────────────────────────────────────────────┘
       ▼
@@ -109,19 +109,19 @@ Each stage is handled by a dedicated subagent that:
 - Writes its outputs to the pipeline directory
 - Returns a structured status to deepwork
 
-| Stage           | Agent             | Human Gate | Leaf Subagents Called |
-| --------------- | ----------------- | ---------- | --------------------- |
-| 1 — Goals       | `qrspi-goals`     | Yes        | `qrspi-goals-synthesizer` |
-| 2 — Questions   | `qrspi-questions` | Yes        | `qrspi-question-generator`, `qrspi-question-leakage-reviewer`, `qrspi-question-quality-reviewer` |
-| 3 — Research    | `qrspi-research`  | No         | `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer`, `qrspi-research-reviewer` |
-| 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`, `qrspi-design-reviewer` |
-| 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`, `qrspi-structure-reviewer` |
-| 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-task-spec-writer`, `qrspi-task-spec-reviewer`, `qrspi-plan-reviewer`, `qrspi-baseline-checker` |
+| Stage           | Agent             | Human Gate | Leaf Subagents Called                                                                                                                                                                                                                                                                                                                                                           |
+| --------------- | ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 — Goals       | `qrspi-goals`     | Yes        | `qrspi-goals-synthesizer`                                                                                                                                                                                                                                                                                                                                                       |
+| 2 — Questions   | `qrspi-questions` | No         | `qrspi-question-generator`, `qrspi-question-leakage-reviewer`, `qrspi-question-quality-reviewer`                                                                                                                                                                                                                                                                                |
+| 3 — Research    | `qrspi-research`  | No         | `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer`, `qrspi-research-reviewer`                                                                                                                                                                                                                                                                    |
+| 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`, `qrspi-design-reviewer`                                                                                                                                                                                                                                                                                                                             |
+| 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`, `qrspi-structure-reviewer`                                                                                                                                                                                                                                                                                                                            |
+| 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-task-spec-writer`, `qrspi-task-spec-reviewer`, `qrspi-plan-reviewer`, `qrspi-baseline-checker`                                                                                                                                                                                                                                                      |
 | 7 — Implement   | `qrspi-implement` | No         | `qrspi-fast-impl-loop` per task/wave, which sequences `qrspi-fast-impl-code`, `qrspi-fast-impl-test`, and `qrspi-fast-impl-verify`; `qrspi-e2e-regression-checker`; `qrspi-integration-checker`; `qrspi-baseline-regression-checker`; `qrspi-simplify-pass` (post-wave; sequences the same three fast-impl agents per task and re-dispatches integration + baseline regression) |
-| 8 — Accept-Test | `qrspi-accept`    | No         | `qrspi-acceptance-tester` (dispatches `qrspi-coverage-planner`, `qrspi-review-accept-goal-traceability`, `qrspi-review-accept-spec`, `qrspi-review-accept-code-quality`, and `build` for acceptance test authoring/execution only), `qrspi-backward-loop-detector` |
-| 8.5 — Replan    | `qrspi-replan`    | No         | `qrspi-replan-writer`, `qrspi-replan-reviewer` |
-| 9 — Verify      | `qrspi-verify`    | No         | `qrspi-verifier` |
-| 10 — Report     | `qrspi-report`    | No         | `qrspi-reporter` |
+| 8 — Accept-Test | `qrspi-accept`    | No         | `qrspi-acceptance-tester` (dispatches `qrspi-coverage-planner`, `qrspi-review-accept-goal-traceability`, `qrspi-review-accept-spec`, `qrspi-review-accept-code-quality`, and `build` for acceptance test authoring/execution only), `qrspi-backward-loop-detector`                                                                                                              |
+| 8.5 — Replan    | `qrspi-replan`    | No         | `qrspi-replan-writer`, `qrspi-replan-reviewer`                                                                                                                                                                                                                                                                                                                                  |
+| 9 — Verify      | `qrspi-verify`    | No         | `qrspi-verifier`                                                                                                                                                                                                                                                                                                                                                                |
+| 10 — Report     | `qrspi-report`    | No         | `qrspi-reporter`                                                                                                                                                                                                                                                                                                                                                                |
 
 ### Protocol Files
 
@@ -283,10 +283,10 @@ Generation rules: partial runs — show "pending" in Active Phase Snapshot. Abor
 
 ## Human Gate Outcomes
 
-| Stage     | Presentations | Rejections | Approvals |
-| --------- | ------------- | ---------- | --------- |
-| goals     | 1             | 0          | 1         |
-| questions | 1             | 1          | 1         |
+| Stage  | Presentations | Rejections | Approvals |
+| ------ | ------------- | ---------- | --------- |
+| goals  | 1             | 0          | 1         |
+| design | 1             | 0          | 1         |
 
 ## Test Evidence Quality
 
@@ -303,7 +303,6 @@ Aggregate this table from each Stage 7 attempt's `### Telemetry.evidence_quality
 - **HIGH/MEDIUM simplifier findings (attempted-reverted):** <n>
 - **Coverage status:** PASS | FAIL | NOT CONFIGURED | SKIPPED (from baseline + final regression check)
 - **Plan/Replan terminal review states:** <comma-separated `<stage>:<state>` pairs from telemetry>
-
 ```
 
 ### Resume Mode
@@ -566,7 +565,7 @@ When `qrspi-questions` completes:
 - Parse `### Status`. If FAIL, follow **Error Handling**.
 - Mark Stage 2 as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: questions` and `next_stage: research`.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit synthesized `gate.*` events for the human gate using `gate_status` and `gate_rounds` from the telemetry context, then emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
+- **Telemetry:** Parse `### Telemetry` from the return. If the telemetry reports a gate outcome, emit synthesized `gate.*` events using `gate_status` and `gate_rounds`, then emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Questions should return `gate_status: "none"`, so no `gate.*` events are expected here. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 2 questions complete`.
 - Regenerate `telemetry/run-log.md`.
 - Proceed to **Stage 3**.
@@ -677,6 +676,7 @@ When `qrspi-plan` completes:
   > D) Loop back to Stage 1 (Goals)
 
   Telemetry: emit `human_gate.requested` with `gate: "plan-unclean-cap"`, `terminal_review_state`, and present-options. On A → continue. On B/C/D → emit `human_gate.completed` with the chosen option and invoke the **Backward Loop Protocol** with target `<chosen stage>` and the reviewer's final `### Fix Guidance` as the loop request body.
+
 - Mark Stage 6 as complete in `todowrite`.
 - Read `=== NEXT REMAINING PHASE ===` from the Stage 6 input and treat it as the earliest incomplete phase number. Use `1` for fresh runs.
 - Format `next_remaining_phase` as a zero-padded two-digit phase directory name before creating or referencing any `phases/phase-NN/` path.
@@ -820,6 +820,7 @@ When `qrspi-replan` completes:
   > D) Loop back to Stage 1 (Goals)
 
   Telemetry: emit `human_gate.requested` with `gate: "replan-unclean-cap"`, `terminal_review_state`, and present-options. On A → continue. On B/C/D → emit `human_gate.completed` with the chosen option and invoke the **Backward Loop Protocol** with target `<chosen stage>` and the reviewer's final `### Fix Guidance` as the loop request body.
+
 - Re-read the updated `phase-manifest.md` with `cat` and recompute `total_phases` from the refreshed remaining-work plan.
 - Archive any unstarted future phase directories that are no longer active by moving them under `.pipeline/<run-id>/phases/archive/` with `mv`.
 - Rebuild `todowrite` from the refreshed manifest so stale unstarted phases are removed and newly-added phases appear.

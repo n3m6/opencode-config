@@ -115,21 +115,23 @@ The parent orchestrator (deepwork or a nested orchestrator) reads this line, par
 
 When deepwork synthesizes `gate.*` events for stage-local human gates, it relies on `gate_status` and `gate_rounds` from this section. Treat `gate_rounds` as the count of rejected gate rounds. If the final `gate_status` is `approved`, that count is the number of rejections before approval. Gate artifact paths and decision reasons are optional and included only when the stage return carries them.
 
+Stages without a local human gate may still return `gate_status: "none"` and `gate_rounds: 0` as compatibility fields so parent orchestrators do not need a stage-specific parsing branch.
+
 **Standard context fields by stage:**
 
-| Stage           | Telemetry context fields                                                                                                                                                                                                |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Goals (1)       | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                           |
-| Questions (2)   | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                           |
-| Research (3)    | `question_count`, `codebase_count`, `web_count`, `hybrid_count`, `review_rounds`                                                                                                                                        |
-| Design (4)      | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                           |
-| Structure (5)   | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                           |
-| Plan (6)        | `task_count`, `review_rounds`, `task_spec_review_rounds` (total across tasks), `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                       |
+| Stage           | Telemetry context fields                                                                                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Goals (1)       | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                            |
+| Questions (2)   | `review_rounds`, `gate_status` (always `none`), `gate_rounds` (always `0`; compatibility field), `terminal_review_state`                                                                                                 |
+| Research (3)    | `question_count`, `codebase_count`, `web_count`, `hybrid_count`, `review_rounds`                                                                                                                                         |
+| Design (4)      | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                            |
+| Structure (5)   | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                            |
+| Plan (6)        | `task_count`, `review_rounds`, `task_spec_review_rounds` (total across tasks), `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                        |
 | Implement (7)   | `mode` (`phase` \| `verify-fix`), `wave_count`, `task_count`, `e2e_remediation_rounds`, `regression_remediation_rounds`, `evidence_quality` (object), `coverage_status` (PASS/FAIL/NOT CONFIGURED/SKIPPED, when present) |
-| Accept-Test (8) | `acceptance_loop_rounds`, `criteria_count`, `criteria_passed`, `backward_loop_requested`, `failure_reasons` (object: `blocking_review`, `reconciliation`, `blocked_action`, `executed_failed`)                          |
-| Replan (8.5)    | `review_rounds`, `backward_loop_requested`, `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                                                          |
-| Verify (9)      | `verify_rounds`, `verify_status`, `code_health` (optional digest object)                                                                                                                                                |
-| Report (10)     | — (no internal loops)                                                                                                                                                                                                   |
+| Accept-Test (8) | `acceptance_loop_rounds`, `criteria_count`, `criteria_passed`, `backward_loop_requested`, `failure_reasons` (object: `blocking_review`, `reconciliation`, `blocked_action`, `executed_failed`)                           |
+| Replan (8.5)    | `review_rounds`, `backward_loop_requested`, `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                                                           |
+| Verify (9)      | `verify_rounds`, `verify_status`, `code_health` (optional digest object)                                                                                                                                                 |
+| Report (10)     | — (no internal loops)                                                                                                                                                                                                    |
 
 **`evidence_quality` object** (Stage 7):
 

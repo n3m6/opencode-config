@@ -42,7 +42,6 @@
                                         ▼
                           ┌──────────────────────────────┐
                           │  STAGE 2 — Questions        │
-                          │  🔒 Human Gate               │
                           │                              │
                           │  ┌────────────────────────┐  │
                           │  │qrspi-question-generator│  │
@@ -53,7 +52,7 @@
                           │  └────────────────────────┘  │
                           │  ┌────────────────────────┐  │
                           │  │qrspi-question-quality- │  │
-                          │  │reviewer                │  │  (parallel dual review, max 5)
+                          │  │reviewer                │  │  (parallel dual review, max 2)
                           │  └────────────────────────┘  │
                           └─────────────┬────────────────┘
                                         │
@@ -479,15 +478,15 @@ If both `state.md` and the artifact set imply the run is already complete, prese
 
 Every alignment and planning stage runs an internal automated review loop before human review or downstream consumption. Each loop caps at a maximum to prevent infinite loops; the minimum is 1 round (PASS at any round terminates).
 
-| Stage         | Reviewer Agent                                                              | Max Rounds | Failure Action                                              |
-| ------------- | --------------------------------------------------------------------------- | ---------- | ----------------------------------------------------------- |
-| 1 — Goals     | `qrspi-goals-reviewer`                                                      | 5          | Re-dispatch synthesizer with review feedback                |
-| 2 — Questions | Dual (parallel): `qrspi-question-leakage-reviewer` + `qrspi-question-quality-reviewer` | 5 | Re-dispatch generator; user choice after round 1     |
-| 3 — Research  | `qrspi-research-reviewer`                                                   | 10         | Re-dispatch affected researchers + synthesizer; FAIL on cap |
-| 4 — Design    | `qrspi-design-reviewer`                                                     | 5          | Re-dispatch design synthesizer with feedback                |
-| 5 — Structure | `qrspi-structure-reviewer`                                                  | 5          | Re-dispatch structure mapper with feedback                  |
-| 6 — Plan      | `qrspi-plan-reviewer`                                                       | 6          | Re-dispatch plan writer with feedback; stable-cap if same `Fix Guidance` repeats |
-| 8.5 — Replan  | `qrspi-replan-reviewer`                                                     | 5          | Re-dispatch replan writer with feedback; stable-cap if same `Fix Guidance` repeats |
+| Stage         | Reviewer Agent                                                                         | Max Rounds | Failure Action                                                                     |
+| ------------- | -------------------------------------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------- |
+| 1 — Goals     | `qrspi-goals-reviewer`                                                                 | 5          | Re-dispatch synthesizer with review feedback                                       |
+| 2 — Questions | Dual (parallel): `qrspi-question-leakage-reviewer` + `qrspi-question-quality-reviewer` | 2          | Re-dispatch generator once; auto-continue on cap                                   |
+| 3 — Research  | `qrspi-research-reviewer`                                                              | 10         | Re-dispatch affected researchers + synthesizer; FAIL on cap                        |
+| 4 — Design    | `qrspi-design-reviewer`                                                                | 5          | Re-dispatch design synthesizer with feedback                                       |
+| 5 — Structure | `qrspi-structure-reviewer`                                                             | 5          | Re-dispatch structure mapper with feedback                                         |
+| 6 — Plan      | `qrspi-plan-reviewer`                                                                  | 6          | Re-dispatch plan writer with feedback; stable-cap if same `Fix Guidance` repeats   |
+| 8.5 — Replan  | `qrspi-replan-reviewer`                                                                | 5          | Re-dispatch replan writer with feedback; stable-cap if same `Fix Guidance` repeats |
 
 Review loop logic:
 
@@ -500,8 +499,7 @@ Terminal review states:
 
 - `clean` — the final review round passed.
 - `stable-cap` — Plan/Replan only; consecutive identical `Fix Guidance`. Treated as non-FAIL; downstream still runs but deepwork raises a question gate before continuing.
-- `unclean-cap` — reached the maximum with outstanding concerns. For Goals/Questions/Design/Structure, this surfaces in the human gate. For Plan/Replan (no human gate), deepwork raises a question gate before continuing to the next stage.
-- `fixed-unverified` — (Stage 2 only) round 1 failed, fixes applied, user chose immediate presentation.
+- `unclean-cap` — reached the maximum with outstanding concerns. For Goals/Design/Structure, this surfaces in the human gate. For Questions, the stage continues automatically to Research with the remaining concerns captured in `question-leakage-review.md` and/or `question-quality-review.md`. For Plan/Replan (no human gate), deepwork raises a question gate before continuing to the next stage.
 
 Stage 3 (Research) differs: if the review loop reaches the 10-round cap with unresolved material issues, the stage returns `FAIL` rather than proceeding with weak research.
 
@@ -529,12 +527,11 @@ Stage 6 (Plan) runs two review layers: a plan-level review loop (max 6 rounds, w
 
 ## Human Gates
 
-Four stages require human approval before proceeding:
+Three stages require human approval before proceeding:
 
 | Stage         | Artifact       | What the User Reviews                                  |
 | ------------- | -------------- | ------------------------------------------------------ |
 | 1 — Goals     | `goals.md`     | Intent, constraints, non-goals, acceptance criteria    |
-| 2 — Questions | `questions.md` | Research question neutrality, coverage, and tagging    |
 | 4 — Design    | `design.md`    | Approach, vertical slices, phases, replan gates, tests |
 | 5 — Structure | `structure.md` | File mapping, interfaces, Mermaid diagram              |
 
@@ -664,11 +661,11 @@ Reviews `goals.md` independently for intent clarity, constraint specificity, sco
 
 #### qrspi-questions
 
-Stage orchestrator. Dispatches the question generator, runs dual independent reviews (leakage and quality), and manages a user choice after round 1 issues (present now or loop until clean). Holds a mandatory human gate before research begins.
+Stage orchestrator. Dispatches the question generator, runs dual independent reviews (leakage and quality), and automatically continues to Research after a clean review or a 2-round `unclean-cap`. No human gate runs in this stage.
 
 #### qrspi-question-generator
 
-Performs a shallow repo orientation (ls, README, manifests, 2-level tree, goal-keyword greps) to ground questions in the actual codebase. Builds an internal investigation map — one zone per affected subsystem, named dependency, acceptance criterion, and risk area — then drafts one question per zone (two for high-risk zones). Targets 5–15 questions with a `Count justification:` line when outside that range. Every question carries four fields: `Tag` (codebase/web/hybrid), `Covers` (phrase from goals.md), `Answer shape` (concrete bounded deliverable), `Decision unblocked` (downstream design/plan decision). Applies a two-bullet neutrality contract: MAY reference existing systems/files/libs; MUST NOT reference the intended change, feature names, outcomes, or implementation direction. Incorporates reviewer feedback and human feedback history. Read-only.
+Performs a shallow repo orientation (ls, README, manifests, 2-level tree, goal-keyword greps) to ground questions in the actual codebase. Builds an internal investigation map — one zone per affected subsystem, named dependency, acceptance criterion, and risk area — then drafts one question per zone (two for high-risk zones). Targets 5–15 questions with a `Count justification:` line when outside that range. Every question carries four fields: `Tag` (codebase/web/hybrid), `Covers` (phrase from goals.md), `Answer shape` (concrete bounded deliverable), `Decision unblocked` (downstream design/plan decision). Applies a two-bullet neutrality contract: MAY reference existing systems/files/libs; MUST NOT reference the intended change, feature names, outcomes, or implementation direction. Incorporates reviewer feedback from prior automated review rounds. Read-only.
 
 #### qrspi-question-leakage-reviewer
 
