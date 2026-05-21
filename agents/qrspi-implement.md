@@ -249,8 +249,40 @@ After all results return, capture two per-task in-memory maps keyed by task ID f
 
 Before writing the manifest or deciding wave success, reconcile worktrees back onto the pipeline branch in stable task order (ascending task ID):
 
-- `PASS` + `Review Status = CLEAN` + no `### Unresolved Findings` → from the primary checkout, run `git merge --squash <task-branch>`. If the squash reports conflicts or otherwise fails, immediately restore the pipeline branch with `git reset --hard HEAD`, leave the conflicting task worktree and branch in place for inspection, write `stage7-summary.md`, and return FAIL describing the task-boundary overlap. If the squash succeeds and produces changes, commit them on `qrspi/<run-id>` with `git commit -m "qrspi: phase [N] task [T]"`. Then remove the successful worktree (`git worktree remove --force <path>`) and delete the task branch (`git branch -D <branch>`).
+- `PASS` + `Review Status = CLEAN` + no `### Unresolved Findings` → from the primary checkout, run `git merge --squash <task-branch>`.
+  - If the squash succeeds and produces changes, commit them on `qrspi/<run-id>` with `git commit -m "qrspi: phase [N] task [T]"`. Then remove the successful worktree (`git worktree remove --force <path>`) and delete the task branch (`git branch -D <branch>`).
+  - If the squash reports conflicts or otherwise fails, enter the **Squash Conflict Resolution** sub-flow defined below before considering the task abandoned.
 - `PASS` with invalid review state, `FAIL`, or `### Backward Loop Request` → do not merge that task worktree. Leave the worktree and branch in place until this Stage 7 invocation returns so the failure can be inspected. Any later re-dispatch of the same task must begin by removing the stale worktree and recreating it from the current pipeline branch.
+
+**Squash Conflict Resolution** (at most one attempt per task per Stage 7 invocation; applies to the fresh-wave merge-back, the E2E remediation merge-back, and the verify-fix merge-back via "the same stable-order squash-merge rules"):
+
+1. From the primary checkout, capture the conflicted file list with `git diff --name-only --diff-filter=U` and the conflict-marker excerpts with `git diff` (truncate per file to the conflict hunks). Then restore the pipeline branch with `git reset --hard HEAD` so the primary checkout is clean. Do not remove the task worktree or branch.
+2. Inside the task worktree (`<repo-parent>/.qrspi-worktrees/<run-id>/phase-[NN]/task-<T>`), run `git rebase qrspi/<run-id>`.
+   - Exit 0 (auto-applied cleanly) → skip to step 4.
+   - Exit non-zero with `<<<<<<<` markers in the worktree → rebase is paused on real conflicts; proceed to step 3.
+   - Exit non-zero for any other reason (dirty worktree, missing ref, etc.) before the rebase reaches the conflict-paused handoff to step 3 → if a rebase is in progress, run `git rebase --abort` inside the worktree to restore the branch to its pre-rebase tip, then fall through to the **Abandon path** below and record the cause.
+3. With the rebase paused on conflicts, dispatch `qrspi-fast-impl-loop` for that task using **IMPL (fix)** with:
+   - `=== MODE ===` `fix`
+   - `=== REGRESSION EVIDENCE ===` set to a structured block of the form:
+     ```
+     MODE: rebase-conflict
+     Rebase paused at:
+     [`git status` excerpt from the worktree showing the paused commit]
+     Conflicted files:
+     [conflicted file list captured in step 1]
+     Conflict markers:
+     [for each conflicted file, the verbatim `<<<<<<<`/`=======`/`>>>>>>>` hunks from the worktree]
+     Objective: resolve the conflicts in WORKTREE ROOT, drive `git add <file>` and `git rebase --continue` until the rebase completes, and prove all required tests still pass on the rebased tip.
+     ```
+   - `=== SUSPECTED FILES ===` set to the conflicted file list
+   - all other IMPL fields unchanged from the original fresh dispatch for that task
+
+   The loop's fix-mode CODE → TEST → VERIFY chain is responsible for editing the conflicted files inside the worktree, driving the rebase to completion, and re-validating; Stage 7 does not edit project files and does not run the rebase-continue steps itself.
+
+4. When the loop returns:
+   - `PASS` + `Review Status = CLEAN` + no `### Unresolved Findings` → confirm the rebase is finished by checking that no `rebase-merge` or `rebase-apply` directory exists for this worktree under `.git/worktrees/<task>/` and that the task-branch tip is a descendant of `qrspi/<run-id>` (`git merge-base --is-ancestor qrspi/<run-id> <task-branch>` returns 0). If confirmed, retry `git merge --squash <task-branch>` from the primary checkout. With the task branch now atop pipeline tip, the squash applies cleanly; commit `qrspi: phase [N] task [T]`, force-remove the worktree, and delete the task branch as in the normal success path. If the rebase is still in progress, or the retry squash unexpectedly conflicts, fall through to the **Abandon path**.
+   - Any other return (FAIL, backward loop, unresolved findings) → fall through to the **Abandon path**.
+5. **Abandon path** (only after the resolution attempt above has failed): leave the conflicting task worktree and branch in place for inspection. If step 3 was reached and the worktree still has a paused rebase, do not run `git rebase --abort` in Stage 7 — preserve the loop-returned conflict state because it documents the overlap and any partial resolution attempt. Write `stage7-summary.md` describing the unresolvable task-boundary overlap — include the conflicted file list captured in step 1, the loop return summary if the loop ran, and which task IDs in this wave merged successfully before the conflict — and return FAIL.
 
 Per-task simplification outcomes (`none | applied | attempted-reverted`) are owned by `qrspi-simplify-pass` and returned to Step E.5; the wave write defaults the manifest's `Simplification` column to `none` for every row.
 
