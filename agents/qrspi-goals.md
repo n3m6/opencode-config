@@ -39,6 +39,7 @@ Write the User Task verbatim to `.pipeline/<run-id>/requirements.md`. Do not sum
 Goal: resolve all planning branches before synthesis.
 
 **Coverage branches** (track each as unresolved/resolved):
+
 - Problem and motivation
 - Current behavior / owning surfaces
 - Constraints
@@ -167,6 +168,14 @@ Write the reviewer output to `.pipeline/<run-id>/reviews/goals-review-round-{NN}
 
 ### Step E — Human Gate
 
+Before each `question` call in this step, run `date -u +%Y-%m-%dT%H:%M:%SZ` and store the result as that gate round's `presented_at`. Immediately after the user responds, run the same command again and store it as `responded_at`. Maintain an internal `gate_round_details` array with one object per human-gate round:
+
+```
+{"round": <int starting at 1>, "decision": "approved|rejected", "presented_at": "<ts>", "responded_at": "<ts>"}
+```
+
+Also maintain `gate_wait_time_s` as the total elapsed seconds across all human-gate rounds. These values are returned in `### Telemetry` only; do not write them into pipeline artifacts.
+
 1. Read: `cat .pipeline/<run-id>/goals.md`
 2. Present via `question`:
 
@@ -222,7 +231,7 @@ After approval, read `config.md` to extract the route. Return:
 ### Files Written — requirements.md, goals.md, config.md
 ### Route — [full or quick-fix, from config.md]
 ### Summary — Goals captured and approved. Route: [route].
-### Telemetry — {"review_rounds": <N>, "gate_status": "approved", "gate_rounds": <rejections before approval>}
+### Telemetry — {"review_rounds": <N>, "gate_status": "approved", "gate_rounds": <rejections before approval>, "gate_wait_time_s": <seconds>, "gate_round_details": [{"round": 1, "decision": "approved", "presented_at": "<ts>", "responded_at": "<ts>"}]}
 ```
 
 On unrecoverable failure:
@@ -231,5 +240,5 @@ On unrecoverable failure:
 ### Status — FAIL
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong]
-### Telemetry — {"review_rounds": <N completed>, "gate_status": "none"}
+### Telemetry — {"review_rounds": <N completed>, "gate_status": "none", "gate_rounds": 0, "gate_wait_time_s": 0, "gate_round_details": []}
 ```

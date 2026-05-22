@@ -91,6 +91,7 @@ mkdir -p .pipeline/<run-id>/reviews
 Each iteration:
 
 1. Invoke `qrspi-design-reviewer`:
+
    ```
    === GOALS ===
    [contents of goals.md]
@@ -101,6 +102,7 @@ Each iteration:
    === DESIGN ===
    [contents of design.md]
    ```
+
 2. Write output to `.pipeline/<run-id>/reviews/design-review-round-{NN}.md`.
 3. Branch:
    - **PASS** → exit loop, `terminal_state = clean`
@@ -108,6 +110,14 @@ Each iteration:
    - **FAIL and `review_round == 5`** → exit loop, `terminal_state = unclean-cap`
 
 ### Step E — Human Gate
+
+Before each `question` call in this step, run `date -u +%Y-%m-%dT%H:%M:%SZ` and store the result as that gate round's `presented_at`. Immediately after the user responds, run the same command again and store it as `responded_at`. Maintain an internal `gate_round_details` array with one object per human-gate round:
+
+```
+{"round": <int starting at 1>, "decision": "approved|rejected", "presented_at": "<ts>", "responded_at": "<ts>"}
+```
+
+Also maintain `gate_wait_time_s` as the total elapsed seconds across all human-gate rounds. These values are returned in `### Telemetry` only; do not write them into pipeline artifacts.
 
 Read `design.md` and present via `question`:
 
@@ -124,6 +134,7 @@ Reply **approve** to proceed, or provide your feedback for revision.
 On approval: proceed to Return.
 
 On feedback:
+
 1. Increment rejection counter (first = round 1).
 2. `mkdir -p .pipeline/<run-id>/feedback`
 3. Write `.pipeline/<run-id>/feedback/design-round-{NN}.md`:
@@ -146,7 +157,7 @@ On success:
 ### Status — PASS
 ### Files Written — design.md, reviews/design-review-round-{NN}.md
 ### Summary — Design approved. Approach: [name]. Final review state: [clean|unclean-cap].
-### Telemetry — {"review_rounds": <N>, "gate_status": "approved", "gate_rounds": <rejections before approval>}
+### Telemetry — {"review_rounds": <N>, "gate_status": "approved", "gate_rounds": <rejections before approval>, "gate_wait_time_s": <seconds>, "gate_round_details": [{"round": 1, "decision": "approved", "presented_at": "<ts>", "responded_at": "<ts>"}]}
 ```
 
 On unrecoverable failure (missing required input, malformed child return, or failed file operation):
@@ -155,5 +166,5 @@ On unrecoverable failure (missing required input, malformed child return, or fai
 ### Status — FAIL
 ### Files Written — [files written before failure]
 ### Summary — [description of what failed]
-### Telemetry — {"review_rounds": <N completed>, "gate_status": "none"}
+### Telemetry — {"review_rounds": <N completed>, "gate_status": "none", "gate_rounds": 0, "gate_wait_time_s": 0, "gate_round_details": []}
 ```

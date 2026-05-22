@@ -175,11 +175,17 @@ fix
 
 === EXECUTION MANIFEST ===
 [<phase-dir>/execution-manifest.md verbatim]
+
+=== PRIOR PHASE EXECUTION MANIFESTS ===
+[for each prior completed phase, prepend `## Phase N` then paste execution-manifest.md verbatim; or `None.` for Phase 1]
 ```
 
 **INTEGRATION** (for `qrspi-integration-checker`):
 
 ```
+=== PIPELINE CONFIG ===
+[config.md verbatim]
+
 === EXECUTION MANIFEST ===
 [<phase-dir>/execution-manifest.md verbatim]
 

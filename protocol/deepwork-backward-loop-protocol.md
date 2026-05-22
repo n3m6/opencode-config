@@ -19,7 +19,8 @@ This pass is bypassed when the user has already triggered a backward loop in thi
 When this protocol is invoked:
 
 1. Read the backward loop request details.
-2. Present the issue to the user via `question`:
+2. If the caller already has a user-chosen option from the Plan/Replan unclean-cap escalation gate, skip the prompt in step 2 entirely. Treat that earlier answer as the protocol decision, continue directly with the matching option handler below, and do not emit a second `backward-loop-decision` gate pair; the original Plan/Replan gate already captured the wait time and choice.
+3. Otherwise, present the issue to the user via `question`:
 
    ```
    ### Backward Loop Detected
@@ -49,7 +50,7 @@ Which option?
 
 Do not present Design or Structure as loop targets on the quick-fix route.
 
-3. **If the user chooses A, B, or C** (loop-back):
+4. **If the user chooses A, B, or C** (loop-back):
 a. Determine the loop target stage number (Design=4, Structure=5, Plan=6).
 b. Create the feedback and archive directories if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback` and `mkdir -p .pipeline/qrspi-<run-id>/phases/archive`.
 c. Write loop feedback to `.pipeline/qrspi-<run-id>/feedback/{stage}-loop-{NN}.md` with the backward loop request details using the edit tool.
@@ -93,14 +94,14 @@ phase directory.
 ```
 
 Stage 6 will recreate active phase directories and task locations after the loop target completes.
-4. **If the user chooses D** (defer to Replan):
+5. **If the user chooses D** (defer to Replan):
 a. Create the feedback directory if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback`
 b. Write `.pipeline/qrspi-<run-id>/feedback/deferred-replan-{NN}.md` with the current stage, current phase, and backward-loop request details.
 c. Overwrite `state.md` with the same current phase, increment `backward_loops`, and keep the normal next stage.
 d. Continue the current stage as non-blocking. The next Replan stage must read all deferred replan feedback files.
-5. **If the user chooses E** (local fix): Continue the current stage, treating the issue as a non-blocking problem.
-6. **If the user chooses F** (continue): Proceed to the next stage without changes.
-7. **If the user chooses G** (full reset to Goals):
+6. **If the user chooses E** (local fix): Continue the current stage, treating the issue as a non-blocking problem.
+7. **If the user chooses F** (continue): Proceed to the next stage without changes.
+8. **If the user chooses G** (full reset to Goals):
 a. Create the feedback directory if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback`
 b. Write `.pipeline/qrspi-<run-id>/feedback/goals-reset-context.md` containing the backward-loop request, current phase, and a concise summary of what was learned before the reset.
 c. Delete every pipeline artifact except `feedback/`, including all active and archived `phases/` directories. Do NOT delete the `telemetry/` directory — preserve it as a diagnostic record of the failed run state.
@@ -113,6 +114,7 @@ f. Re-enter the pipeline at **Stage 1** and include the contents of `feedback/go
 Telemetry events are emitted by deepwork around the protocol steps above:
 
 - **Before presenting the decision to the user:** Emit `backward_loop.requested` with `stage`, `phase`, and `context` containing the loop request details.
+- **When invoked with a preselected Plan/Replan loop-back target:** Deepwork still emits `backward_loop.requested` before entering the protocol, but skips the extra backward-loop decision prompt and emits the corresponding `backward_loop.decided` event directly from the preselected choice after the loop-back artifacts are determined.
 - **After the user decides:**
   - Options A, B, C (loop-back): Emit `backward_loop.decided` with `decision.choice` (A/B/C), `decision.reason` (user input or inferred), `context.loop_target` (design/structure/plan), `context.deleted_artifacts` (list of deleted top-level artifacts), and `context.archived_artifacts` (list of archived phase directories).
   - Option D (defer): Emit `backward_loop.deferred` with `decision.choice: "D"` and `decision.reason`.

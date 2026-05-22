@@ -87,13 +87,21 @@ Quality enforcement is delegated to `qrspi-structure-reviewer`. Treat any review
 4. Write the reviewer output to `.pipeline/<run-id>/reviews/structure-review-round-{NN}.md`.
 5. Apply this routing in order:
 
-| Condition | Action |
-|---|---|
-| PASS | Terminal state: `clean`. Proceed to human gate |
-| FAIL and `review_round < 5` | Re-dispatch mapper with original inputs plus `=== REVIEW FEEDBACK === [reviewer output]`. Overwrite `structure.md`, increment `review_round`, continue loop |
-| FAIL and `review_round == 5` | Terminal state: `unclean-cap`. Proceed to human gate |
+| Condition                    | Action                                                                                                                                                      |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PASS                         | Terminal state: `clean`. Proceed to human gate                                                                                                              |
+| FAIL and `review_round < 5`  | Re-dispatch mapper with original inputs plus `=== REVIEW FEEDBACK === [reviewer output]`. Overwrite `structure.md`, increment `review_round`, continue loop |
+| FAIL and `review_round == 5` | Terminal state: `unclean-cap`. Proceed to human gate                                                                                                        |
 
 ### Step D — Human Gate
+
+Before each `question` call in this step, run `date -u +%Y-%m-%dT%H:%M:%SZ` and store the result as that gate round's `presented_at`. Immediately after the user responds, run the same command again and store it as `responded_at`. Maintain an internal `gate_round_details` array with one object per human-gate round:
+
+```
+{"round": <int starting at 1>, "decision": "approved|rejected", "presented_at": "<ts>", "responded_at": "<ts>"}
+```
+
+Also maintain `gate_wait_time_s` as the total elapsed seconds across all human-gate rounds. These values are returned in `### Telemetry` only; do not write them into pipeline artifacts.
 
 1. `cat .pipeline/<run-id>/structure.md`
 2. Ask via the `question` tool:
@@ -126,9 +134,9 @@ Reply **approve** to proceed, or provide your feedback for revision.
 [full content of the rejected structure.md]
 ```
 
-   d. `cat .pipeline/<run-id>/feedback/structure-round-*.md`
-   e. Re-dispatch `qrspi-structure-mapper` with original inputs plus `=== FEEDBACK HISTORY === [all feedback files]`.
-   f. Overwrite `structure.md`, reset `review_round = 1`, return to Step C.
+d. `cat .pipeline/<run-id>/feedback/structure-round-*.md`
+e. Re-dispatch `qrspi-structure-mapper` with original inputs plus `=== FEEDBACK HISTORY === [all feedback files]`.
+f. Overwrite `structure.md`, reset `review_round = 1`, return to Step C.
 
 ### Return
 
@@ -139,7 +147,7 @@ Reply **approve** to proceed, or provide your feedback for revision.
 
 ### Summary — Structure approved. Final review state: [clean|unclean-cap].
 
-### Telemetry — {"review_rounds": <N>, "gate_status": "approved", "gate_rounds": <rejections before approval>}
+### Telemetry — {"review_rounds": <N>, "gate_status": "approved", "gate_rounds": <rejections before approval>, "gate_wait_time_s": <seconds>, "gate_round_details": [{"round": 1, "decision": "approved", "presented_at": "<ts>", "responded_at": "<ts>"}]}
 ```
 
 If any step fails unrecoverably:
@@ -151,5 +159,5 @@ If any step fails unrecoverably:
 
 ### Summary — [description of what went wrong]
 
-### Telemetry — {"review_rounds": <N completed>, "gate_status": "none"}
+### Telemetry — {"review_rounds": <N completed>, "gate_status": "none", "gate_rounds": 0, "gate_wait_time_s": 0, "gate_round_details": []}
 ```

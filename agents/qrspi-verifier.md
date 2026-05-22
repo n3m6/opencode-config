@@ -82,14 +82,18 @@ Return one section per check:
 **Step 2 — Baseline comparison**
 
 For each named check in the baseline `### Check Results` table:
+
 - Failure existed in baseline and is unchanged → **Unchanged baseline failure**
 - Failure not in baseline, or materially worse → **New regression**
 - Baseline failure now passing → **Improved**
 - Baseline row was `SKIPPED` or `NOT CONFIGURED` → non-failing; carry that classification forward
 
+For each new regression, cross-reference the failing file paths and affected checks against `=== EXECUTION MANIFESTS ===` to derive best-effort ownership: earliest matching phase = `Phase Introduced`, latest matching phase = `Last Modified Phase`, and latest matching task row(s) = `Likely Owner`. Use `unknown` when no manifest row matches.
+
 **Step 3 — Requirements and acceptance**
 
 For each preserved requirement, classify using execution manifests, acceptance results, and check outputs:
+
 - `SATISFIED` — evidence clearly proves it
 - `FAILED` — evidence clearly contradicts it
 - `UNVERIFIED` — should be provable from this pass but evidence is missing
@@ -113,9 +117,9 @@ If any new regression, any configured non-SKIPPED/NOT-CONFIGURED check fails, an
 
 Return these sections in order:
 
-**`### Check Results`** — columns: Check, Status, Details.
+**`### Check Results`** — columns: Check, Status, Likely Owner, Details.
 
-**`### Baseline Comparison`** — columns: Check, Baseline Status, Current Status, Regression Status (Improved / Unchanged baseline failure / New regression / Not configured / Skipped).
+**`### Baseline Comparison`** — columns: Check, Baseline Status, Current Status, Regression Status (Improved / Unchanged baseline failure / New regression / Not configured / Skipped), Phase Introduced, Last Modified Phase.
 
 **`### Requirement Checks`** — columns: Requirement, Evidence, Status (`SATISFIED` / `FAILED` / `UNVERIFIED` / `OUT_OF_SCOPE`), Notes.
 

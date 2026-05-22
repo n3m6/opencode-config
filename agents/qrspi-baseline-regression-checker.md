@@ -1,5 +1,5 @@
 ---
-description: Detects new build/lint/typecheck/E2E/test regressions introduced by the current phase by diffing against baseline-results.md. Attributes each regression to task IDs via the execution manifest. Does not fix anything.
+description: Detects new build/lint/typecheck/E2E/test regressions introduced by the current phase by diffing against baseline-results.md. Attributes each regression to task IDs and phases via the current and prior execution manifests. Does not fix anything.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -21,14 +21,14 @@ You are the QRSPI Baseline Regression Checker. Detect, classify, and attribute n
 ### Rules
 
 1. **Baseline is the reference.** Failures already present in `baseline-results.md` are pre-existing — ignore them. Only new or worsened failures are regressions.
-2. **Attribute to tasks.** Cross-reference failing file paths against `Files Modified` and `Files Created` in the execution manifest. Record `unknown` when no task matches.
+2. **Attribute to tasks and phases.** Cross-reference failing file paths against `Files Modified` and `Files Created` in the current and prior execution manifests. Record `unknown` when no task or phase matches.
 3. **Be incremental.** Build a `phase_changed_paths` set from the execution manifest's `Files Modified` and `Files Created` columns. Use it to decide which checks to skip safely; skipped checks become `### Skipped Checks` rows with rationale.
 4. **Coverage gate.** If the baseline `Coverage` row exists, re-measure coverage and compare against `coverage_threshold` from `config.md`.
 5. **Invoke `build` directly.** After dispatch, stop immediately. When `build` returns, copy its regression table and summary into the return contract below.
 
 ### Input
 
-You receive: Run ID, Current Phase, Pipeline Config (`config.md`), Baseline Results (`baseline-results.md`), and Execution Manifest.
+You receive: Run ID, Current Phase, Pipeline Config (`config.md`), Baseline Results (`baseline-results.md`), Execution Manifest, and Prior Phase Execution Manifests.
 
 ### Step 0 — Build Phase Path Inventory
 
@@ -60,6 +60,9 @@ Invoke `build` with:
 === EXECUTION MANIFEST ===
 [paste execution manifest verbatim]
 
+=== PRIOR PHASE EXECUTION MANIFESTS ===
+[paste each prior phase execution-manifest.md verbatim with phase headers, or `None.`]
+
 === PHASE CHANGED PATHS ===
 [bullet list of phase_changed_paths, or `None.`]
 
@@ -86,12 +89,12 @@ For Coverage:
 - If `current >= coverage_threshold` → no regression row, status PASS.
 - If `current < coverage_threshold` → emit a Coverage regression row with `Failing Test / Error` = `coverage <current>% < threshold <threshold>%` and `Suspected Task IDs` derived from execution-manifest rows whose changed files dominate the coverage drop (best-effort: if attribution is uncertain, use `unknown`).
 
-For each regression, record one row (columns: Check, Failing Test / Error, Command, Failing File(s), Suspected Task IDs). Cross-reference failing file(s) against the execution manifest to populate Suspected Task IDs; use `unknown` if no match.
+For each regression, record one row (columns: Check, Failing Test / Error, Command, Failing File(s), Suspected Task IDs, Phase Introduced, Last Modified Phase). Cross-reference failing file(s) against the current and prior execution manifests: use the earliest matching phase as `Phase Introduced`, the latest matching phase as `Last Modified Phase`, and the latest matching task row(s) as `Suspected Task IDs`. Use `unknown` for any field that cannot be derived.
 
 Return:
 ### Regression List
-| # | Check | Failing Test / Error | Command | Failing File(s) | Suspected Task IDs |
-|---|-------|----------------------|---------|-----------------|--------------------|
+| # | Check | Failing Test / Error | Command | Failing File(s) | Suspected Task IDs | Phase Introduced | Last Modified Phase |
+|---|-------|----------------------|---------|-----------------|--------------------|------------------|---------------------|
 [one row per regression, or "None." if no regressions found]
 
 ### Skipped Checks
@@ -113,8 +116,8 @@ After `build` returns, copy its output into:
 ```
 ### Status — PASS or FAIL
 ### Regressions
-| # | Check | Failing Test / Error | Command | Failing File(s) | Suspected Task IDs |
-|---|-------|----------------------|---------|-----------------|--------------------|
+| # | Check | Failing Test / Error | Command | Failing File(s) | Suspected Task IDs | Phase Introduced | Last Modified Phase |
+|---|-------|----------------------|---------|-----------------|--------------------|------------------|---------------------|
 [rows from build result, or "None."]
 ### Skipped Checks
 | Check | Rationale |

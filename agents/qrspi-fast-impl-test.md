@@ -60,12 +60,13 @@ Do not write a test that:
 5. **Plan Review Status** — Stage 6 state and outstanding concerns
 6. **Design Context** — design/structure context, or `N/A`
 7. **Completed Dependencies** — one-line summaries of prerequisite task outputs
-8. **Entry Type** — `test-sync` (first test pass in a cycle: adopt, repair, write) or `test-repair` (re-entry to fix a test-owned failure)
-9. **Cycle** — outer loop cycle number (0-indexed)
-10. **Code Result** — full most recent `qrspi-fast-impl-code` response
-11. **Repair Context** — on `test-repair`: `### Route Context` block from `qrspi-fast-impl-verify`. On `test-sync`: usually `None.`; non-`None.` when `qrspi-simplify-pass` is running the post-wave simplification pass for `qrspi-implement`, in which case the block begins with `MODE: simplify-sync` followed by the post-simplify file inventory and any deleted/renamed symbol hints from the simplify CODE return.
-12. **Fix Mode** — `yes` enables new tests for regression-target behaviors lacking stable coverage; `no` for fresh mode and for simplify-sync
-13. **Worktree Root** — absolute path to the task worktree, or `None.`
+8. **Test File Boundary** — effective test-file globs from `config.md.test_globs`, or default globs
+9. **Entry Type** — `test-sync` (first test pass in a cycle: adopt, repair, write) or `test-repair` (re-entry to fix a test-owned failure)
+10. **Cycle** — outer loop cycle number (0-indexed)
+11. **Code Result** — full most recent `qrspi-fast-impl-code` response
+12. **Repair Context** — on `test-repair`: `### Route Context` block from `qrspi-fast-impl-verify`. On `test-sync`: usually `None.`; non-`None.` when `qrspi-simplify-pass` is running the post-wave simplification pass for `qrspi-implement`, in which case the block begins with `MODE: simplify-sync` followed by the post-simplify file inventory and any deleted/renamed symbol hints from the simplify CODE return.
+13. **Fix Mode** — `yes` enables new tests for regression-target behaviors lacking stable coverage; `no` for fresh mode and for simplify-sync
+14. **Worktree Root** — absolute path to the task worktree, or `None.`
 
 ### Process
 
@@ -84,6 +85,8 @@ Do not write a test that:
 - `test-sync` with `simplify_sync = false`: repair mechanical mismatches only (imports, renamed symbols, updated signatures). **Do not delete tests in this mode**, even if they reference symbols absent from the post-CODE inventory: a refactor that removed a public symbol may have left orphaned coverage that the verifier or per-task code-review must adjudicate. Such tests will fail to load and be flagged in Step 7 as `HARNESS_NOISY` (see classification rule below); the verifier's `TEST_REPAIR` route and the test-quality reviewer's `DELETE` recommendations handle them downstream.
 - `test-sync` with `simplify_sync = true`: dispatch `build` to (a) delete tests asserting on symbols that the simplify CODE return removed and (b) repair mechanical mismatches (renamed symbols, removed wrappers, updated signatures). No assertion-shape changes, no new behavioral coverage.
 - `test-repair`: also repair tests flagged in Repair Context (non-behavioral assertions, wrong trigger shape, over-specified mocks).
+
+When `Repair Context` identifies test-only lint, import, syntax, or type errors and every implicated file matches `TEST FILE BOUNDARY`, treat that as an in-scope test repair. Apply the smallest safe test-only fix first and keep the repair local to the named test files unless the context proves a broader test harness issue.
 
 **Step 5 — Write missing.** For each uncovered task spec behavior, write one test using only the trigger and observable outcome in the spec. Prefer real in-process collaborators; fake only at genuine process boundaries. **Skip this step entirely when `simplify_sync = true`.** If a behavior would be uncovered after deletion, treat that as evidence the simplification changed semantics and return a backward loop with `Affected Artifact: plan` instead of writing the test.
 
@@ -115,6 +118,9 @@ Do not write a test that:
 === COMPLETED DEPENDENCIES ===
 [verbatim]
 
+=== TEST FILE BOUNDARY ===
+[verbatim]
+
 === ENTRY TYPE ===
 [verbatim]
 
@@ -137,6 +143,7 @@ Do not write a test that:
 [Exactly which tests to discover, classify, adopt, repair, or write.]
 If WORKTREE ROOT is not `None.`, perform all discovery, edits, and test runs inside that root.
 Do not modify production code.
+If REPAIR CONTEXT identifies test-only lint/import/syntax/type failures, repair those before broader behavioral test changes.
 Run each new or suspect test at least twice in isolation; inconsistent results → FLAKY.
 Return the test file inventory, evidence classification table, and a one-line summary.
 

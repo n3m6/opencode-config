@@ -70,9 +70,9 @@ Every event is one JSON object on one line (no trailing comma, no blank lines). 
 
 **`child.*`** must include: `child_agent`, `correlation_id`, `stage`. `child.returned` must also include `parent_event_id`, `artifacts`, and `context` with at least `{"status": "PASS"|"FAIL"}`.
 
-**`gate.*`** must include: `stage`. When deepwork synthesizes gate events from stage return telemetry, `artifacts`, `decision`, and `context` are optional and should be included only when the stage return provides them. If `gate_status` is `approved` and `gate_rounds = N`, synthesize `N + 1` `gate.presented` events, `N` `gate.rejected` events, and one `gate.approved` event. If `gate_status` is `rejected`, synthesize `max(gate_rounds, 1)` `gate.presented` / `gate.rejected` pairs.
+**`gate.*`** must include: `stage`. When deepwork synthesizes gate events from stage return telemetry, `artifacts`, `decision`, `context`, and `timing` are optional and should be included only when the stage return provides them. If `gate_round_details` is present in the stage telemetry context, synthesize one `gate.presented` plus one terminal `gate.rejected` or `gate.approved` event per entry, using each round's `presented_at` / `responded_at` timestamps. If `gate_round_details` is absent and `gate_status` is `approved` with `gate_rounds = N`, synthesize `N + 1` `gate.presented` events, `N` `gate.rejected` events, and one `gate.approved` event. If `gate_round_details` is absent and `gate_status` is `rejected`, synthesize `max(gate_rounds, 1)` `gate.presented` / `gate.rejected` pairs.
 
-**`backward_loop.*`** must include: `stage`, `phase`, `decision` (for `decided` and `deferred`). `backward_loop.decided` must include `context.loop_target`, `context.deleted_artifacts`, `context.archived_artifacts`.
+**`backward_loop.*`** must include: `stage`, `phase`, `decision` (for `decided` and `deferred`). `backward_loop.decided` must include `context.loop_target`, `context.deleted_artifacts`, `context.archived_artifacts`. When the user keeps the run moving without routing the issue back through the normal fix path, include `context.local_fix_override:true`. When the user explicitly defers follow-up work, include `context.deferred_remediation:true`. Do not emit `backward_loop.requested` for the automatic Stage 9 verify-fix pre-pass; emit it only when deepwork is handing a real backward-loop request to the protocol, including the preselected Plan/Replan loop-back path.
 
 **`checkpoint.created`** must include: `stage`, `git.message`, `git.commit` (the short SHA if available, otherwise "clean-worktree").
 
@@ -99,7 +99,7 @@ Deepwork maintains a `telemetry_seq` integer counter throughout its execution.
 4. Overwrite `.pipeline/<run-id>/telemetry/events.jsonl` with the current content plus the new JSON line appended (one line per event, no blank lines).
 5. Increment `telemetry_seq`.
 
-**For `stage.started` / terminal `stage.*` events:** capture the started-at timestamp before dispatch. Capture the ended-at timestamp after receiving the stage return or deciding to skip. Use the same `stage_instance` on the `stage.started` event and the corresponding terminal `stage.*` event for that attempt. Compute `duration_s` as the difference in seconds if possible, otherwise omit it. For `stage.skipped`, it is valid for `started_at` and `ended_at` to be identical. Retries and other re-entries must emit a fresh `stage.started` with an incremented `stage_instance`.
+**For `stage.started` / terminal `stage.*` events:** capture the started-at timestamp before dispatch. Capture the ended-at timestamp after receiving the stage return or deciding to skip. Use the same `stage_instance` on the `stage.started` event and the corresponding terminal `stage.*` event for that attempt. Compute `duration_s` as the difference in seconds if possible, otherwise omit it. For `stage.skipped`, it is valid for `started_at` and `ended_at` to be identical. Retries and other re-entries must emit a fresh `stage.started` with an incremented `stage_instance`, including nested re-entries such as Stage 7 `verify-fix` and the follow-up Stage 9 re-verify pass.
 
 ---
 
@@ -113,25 +113,25 @@ Every stage orchestrator appends a `### Telemetry` section to its structured ret
 
 The parent orchestrator (deepwork or a nested orchestrator) reads this line, parses the JSON, and stores it as the `context` payload of the corresponding `stage.completed`, `stage.failed`, or `child.returned` event.
 
-When deepwork synthesizes `gate.*` events for stage-local human gates, it relies on `gate_status` and `gate_rounds` from this section. Treat `gate_rounds` as the count of rejected gate rounds. If the final `gate_status` is `approved`, that count is the number of rejections before approval. Gate artifact paths and decision reasons are optional and included only when the stage return carries them.
+When deepwork synthesizes `gate.*` events for stage-local human gates, it relies on `gate_status` and `gate_rounds` from this section. Treat `gate_rounds` as the count of rejected gate rounds. If the final `gate_status` is `approved`, that count is the number of rejections before approval. Gate artifact paths and decision reasons are optional and included only when the stage return carries them. Stage agents may also return `gate_round_details` and `gate_wait_time_s` so the parent can distinguish human wait time from active stage work without changing routing behavior.
 
 Stages without a local human gate may still return `gate_status: "none"` and `gate_rounds: 0` as compatibility fields so parent orchestrators do not need a stage-specific parsing branch.
 
 **Standard context fields by stage:**
 
-| Stage           | Telemetry context fields                                                                                                                                                                                                 |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Goals (1)       | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                            |
-| Questions (2)   | `review_rounds`, `gate_status` (always `none`), `gate_rounds` (always `0`; compatibility field), `terminal_review_state`                                                                                                 |
-| Research (3)    | `question_count`, `codebase_count`, `web_count`, `hybrid_count`, `review_rounds`, `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                     |
-| Design (4)      | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                            |
-| Structure (5)   | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `terminal_review_state`                                                                                                                            |
-| Plan (6)        | `task_count`, `review_rounds`, `task_spec_review_rounds` (total across tasks), `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                        |
-| Implement (7)   | `mode` (`phase` \| `verify-fix`), `wave_count`, `task_count`, `e2e_remediation_rounds`, `regression_remediation_rounds`, `evidence_quality` (object), `coverage_status` (PASS/FAIL/NOT CONFIGURED/SKIPPED, when present) |
-| Accept-Test (8) | `acceptance_loop_rounds`, `criteria_count`, `criteria_passed`, `backward_loop_requested`, `failure_reasons` (object: `blocking_review`, `reconciliation`, `blocked_action`, `executed_failed`)                           |
-| Replan (8.5)    | `review_rounds`, `backward_loop_requested`, `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                                                           |
-| Verify (9)      | `verify_rounds`, `verify_status`, `code_health` (optional digest object)                                                                                                                                                 |
-| Report (10)     | — (no internal loops)                                                                                                                                                                                                    |
+| Stage           | Telemetry context fields                                                                                                                                                                                                        |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Goals (1)       | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `gate_wait_time_s` (optional), `gate_round_details` (optional), `terminal_review_state`                                                                   |
+| Questions (2)   | `review_rounds`, `gate_status` (always `none`), `gate_rounds` (always `0`; compatibility field), `terminal_review_state`                                                                                                        |
+| Research (3)    | `question_count`, `codebase_count`, `web_count`, `hybrid_count`, `review_rounds`, `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                            |
+| Design (4)      | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `gate_wait_time_s` (optional), `gate_round_details` (optional), `terminal_review_state`                                                                   |
+| Structure (5)   | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `gate_wait_time_s` (optional), `gate_round_details` (optional), `terminal_review_state`                                                                   |
+| Plan (6)        | `task_count`, `review_rounds`, `task_spec_review_rounds` (total across tasks), `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                               |
+| Implement (7)   | `mode` (`phase` \| `verify-fix`), `wave_count`, `task_count`, `e2e_remediation_rounds`, `regression_remediation_rounds`, `evidence_quality` (object), `coverage_status` (PASS/FAIL/NOT CONFIGURED/SKIPPED, when present)        |
+| Accept-Test (8) | `acceptance_loop_rounds`, `criteria_count`, `criteria_passed`, `backward_loop_requested`, `boundary_violation` (optional), `failure_reasons` (object: `blocking_review`, `reconciliation`, `blocked_action`, `executed_failed`) |
+| Replan (8.5)    | `review_rounds`, `backward_loop_requested`, `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                                                                  |
+| Verify (9)      | `verify_rounds`, `verify_status`, `code_health` (optional digest object)                                                                                                                                                        |
+| Report (10)     | — (no internal loops)                                                                                                                                                                                                           |
 
 **`evidence_quality` object** (Stage 7):
 
@@ -157,6 +157,21 @@ Stages without a local human gate may still return `gate_status: "none"` and `ga
   "executed_failed": <int>
 }
 ```
+
+**`gate_round_details` object array** (human-gated stages, optional):
+
+```
+[
+  {
+    "round": <int starting at 1>,
+    "decision": "approved" | "rejected",
+    "presented_at": "<YYYY-MM-DDTHH:MM:SSZ>",
+    "responded_at": "<YYYY-MM-DDTHH:MM:SSZ>"
+  }
+]
+```
+
+When present, `gate_wait_time_s` is the total elapsed human wait time across all entries in `gate_round_details`. Parent orchestrators may derive more specific wait metrics from the per-round timestamps.
 
 **`terminal_review_state`** is the final terminal state of the stage's automated review loop:
 

@@ -63,6 +63,7 @@ Use `cat`/`ls` (scoped to `.pipeline/<run-id>/`) to bind these context strings b
 | `PLAN_REVIEW_STATUS`     | the `## Review Status` block at the bottom of the task file                                                                                                                                                                                                                                         |
 | `DESIGN_CONTEXT`         | for full route: `cat .pipeline/<run-id>/design.md` followed by `cat .pipeline/<run-id>/structure.md`. For quick-fix: `N/A`                                                                                                                                                                          |
 | `COMPLETED_DEPENDENCIES` | for each dependency ID in **Dependency Pointers**, a one-line summary built from that task's row in `cat .pipeline/<run-id>/<phase-dir>/execution-manifest.md` (Files Modified + Files Created + Summary truncated). If the manifest is missing or has no row for that ID, use `task-<id>: pending` |
+| `TEST_FILE_BOUNDARY`     | `test_globs` from `cat .pipeline/<run-id>/config.md` when present; otherwise the default globs `**/test/**`, `**/tests/**`, `**/__tests__/**`, `**/*.test.*`, `**/*.spec.*`                                                                                                                         |
 
 Bind these once at entry. Re-read **only** the task file and execution-manifest after re-entry cycles, in case Stage 7 fix-mode dispatches updated them. `WORKTREE ROOT` is execution-only context and is never used for `.pipeline` reads in this agent.
 
@@ -102,6 +103,9 @@ Build each `cycle_log` entry from the verify result because its inventory is aut
 
 === COMPLETED DEPENDENCIES ===
 [COMPLETED_DEPENDENCIES]
+
+=== TEST FILE BOUNDARY ===
+[TEST_FILE_BOUNDARY]
 
 === WORKTREE ROOT ===
 [WORKTREE_ROOT]

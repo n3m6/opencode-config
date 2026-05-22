@@ -96,6 +96,9 @@ When dispatching the coverage planner or any reviewer, always include these sect
 === STRUCTURE CONTEXT ===
 [paste structure context verbatim, or `N/A`]
 
+=== TEST FILE BOUNDARY ===
+[paste the effective test globs verbatim]
+
 === PHASE-SCOPED CRITERIA ===
 [paste the criteria assigned to the current phase]
 ```
@@ -198,6 +201,9 @@ Dispatch `build`:
 === PRIOR ROUND CRITERION MAPPING ===
 [previous round's criterion mapping verbatim, or `None.` on round 1]
 
+=== TEST FILE BOUNDARY ===
+[effective test globs verbatim]
+
 === INSTRUCTIONS ===
 Write or revise only the acceptance tests described in the coverage plan.
 - `reuse`: keep the mapped test file unchanged; confirm it still proves the criterion.
@@ -218,6 +224,9 @@ Return:
 ### Test Files Revised — list or `None.`
 ### Test Files Created — list
 ### Test Files Deleted — list or `None.`
+### Files Modified — list or `None.`
+### Files Created — list or `None.`
+### Boundary Violations — list of files outside TEST FILE BOUNDARY, or `None.`
 ### Criterion Mapping — markdown table with columns: #, Criterion, Action, Test File
 ### Summary — one paragraph
 ```
@@ -230,8 +239,11 @@ Compare the current round's coverage plan and writer output against the prior ro
 - Any prior-round active test file that no longer maps to a current-phase criterion must appear under `### Test Files Deleted`.
 - Any file in `### Test Files Reused`, `### Test Files Revised`, or `### Test Files Created` must map to at least one current-phase criterion.
 - If a current-phase criterion maps to multiple active test files without explicit justification in the coverage plan, treat that as duplicate active coverage.
+- Any file in `### Files Modified` or `### Files Created` that falls outside `### TEST FILE BOUNDARY` is a contract violation. Do not proceed to execution when this occurs.
 
 If reconciliation leaves orphaned or duplicate active coverage, do not dispatch `build` to run tests. Record reconciliation defects as persistent failures, populate `### Acceptance Results` with FAIL rows for every criterion without an execution result (`Test File` = `None.`, `Failure Reason` = `reconciliation`, reconciliation defect in `Details`), and stop the inner loop.
+
+If `### Boundary Violations` is not `None.`, or if any path in `### Files Modified` / `### Files Created` falls outside `### TEST FILE BOUNDARY`, do not dispatch `build` to run tests. Record a persistent failure for the current round describing the acceptance boundary violation, populate `### Acceptance Results` with FAIL rows for every criterion without an execution result (`Test File` = `None.`, `Failure Reason` = `executed_failed`, boundary violation in `Details`), set `### Boundary Violations` in the final output, and stop the inner loop.
 
 #### Step 5 — Run the Planned Tests
 
@@ -280,6 +292,9 @@ For each eligible acceptance-test repair, dispatch `build`:
 === CURRENT CRITERION MAPPING ===
 [current round's criterion mapping verbatim]
 
+=== TEST FILE BOUNDARY ===
+[effective test globs verbatim]
+
 === INSTRUCTIONS ===
 Before applying any fix, write one sentence identifying the root cause.
 Return `UNCHANGED` without modifying code if the failure comes from `Action = blocked`, unresolved review gating, or reconciliation defects.
@@ -292,6 +307,8 @@ Return:
 ### Root Cause — [one sentence]
 ### Fix Status — FIXED or UNCHANGED
 ### Files Modified — list
+### Files Created — list or `None.`
+### Boundary Violations — list of files outside TEST FILE BOUNDARY, or `None.`
 ### Acceptance Results — markdown table with columns: #, Criterion, Test File, Status, Failure Reason, Details
 ### Remaining Failures — list or table, or `None.`
 ### Summary — one paragraph
@@ -360,6 +377,9 @@ Produce one artifact block per round, labeled exactly as shown:
 
 ### Persistent Failures
 [list or table of failures that still remain after the final round, or `None.`]
+
+### Boundary Violations
+[list of files outside TEST FILE BOUNDARY that were modified or created during acceptance authoring/repair, or `None.`]
 
 ### Stage Summary
 [N/M] current-phase acceptance criteria passed after [R] round(s). Failure reasons: blocking_review=<n>, reconciliation=<n>, blocked_action=<n>, executed_failed=<n>. [If failures remain, say how many remain, whether writing or execution was skipped because of blocking defects, and that loop classification is deferred.]

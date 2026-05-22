@@ -51,12 +51,13 @@ You are the QRSPI fast verification agent. You own targeted verification, the pe
 5. **Plan Review Status** — state and outstanding concerns from Stage 6
 6. **Design Context** — design and structure context, or `N/A`
 7. **Completed Dependencies** — one-line summaries of prerequisite task outputs
-8. **Cycle** — outer loop cycle number (0-indexed)
-9. **Code Result** — full most recent `qrspi-fast-impl-code` response
-10. **Test Result** — full most recent `qrspi-fast-impl-test` response
-11. **Prior Verify Result** — most recent prior verify response, or `None.` on cycle 0
-12. **Regression Evidence** — regression targets from Stage 7 fix mode, or `None.` in fresh mode
-13. **Worktree Root** — absolute path to the task worktree, or `None.`
+8. **Test File Boundary** — effective test-file globs from `config.md.test_globs`, or default globs
+9. **Cycle** — outer loop cycle number (0-indexed)
+10. **Code Result** — full most recent `qrspi-fast-impl-code` response
+11. **Test Result** — full most recent `qrspi-fast-impl-test` response
+12. **Prior Verify Result** — most recent prior verify response, or `None.` on cycle 0
+13. **Regression Evidence** — regression targets from Stage 7 fix mode, or `None.` in fresh mode
+14. **Worktree Root** — absolute path to the task worktree, or `None.`
 
 ### Process
 
@@ -72,7 +73,7 @@ The test agent self-classifies and exits without an external sanity check. Valid
 
 When `WORKTREE ROOT` is not `None.`, resolve every production file path relative to that root before reading. Otherwise resolve against the current checkout.
 
-1. Compute the **production file set**: `Files Modified` ∪ `Files Created`, excluding any path that matches the project test globs (use `config.md.test_globs` if present; otherwise default `**/test/**`, `**/tests/**`, `**/__tests__/**`, `**/*.test.*`, `**/*.spec.*`).
+1. Compute the **production file set**: `Files Modified` ∪ `Files Created`, excluding any path that matches `TEST FILE BOUNDARY`.
 2. The claim is **acceptable** when every production file fits one of these categories:
    - TypeScript declaration only (`.d.ts`).
    - Type-only TS (no value declarations: only `type`, `interface`, or re-export of types).
@@ -110,6 +111,7 @@ Do not commit in this step.
 Return:
 ### Verification Status — PASS or FAIL
 ### Failing Tests — list of failing test names (or None. if all passed)
+### Failure Files — list of files directly named by the failing build/lint/test output (or None. if not available)
 ### Files Modified — complete current task inventory of modified files
 ### Files Created — complete current task inventory of created files
 ### Tests Written — list of test files with what they test (from Test Result, updated for any deletions)
@@ -119,15 +121,18 @@ Return:
 
 **Step 3 — On VERIFICATION FAIL: compute Route Hint and return immediately. Do not dispatch `qrspi-code-review`.**
 
+Use `TEST FILE BOUNDARY` when classifying `### Failure Files` as test-only.
+
 Apply this ordered decision tree; stop at the first match:
 
 1. Failure reveals a structural mismatch (missing interface, contradictory plan constraint, undefined dependency contract) → `BACKWARD_LOOP`
-2. Failure is a build/lint error → `CODE_REPAIR`
-3. `Regression Evidence` is not `None.` and a failing test is a named regression target absent from `### Evidence Classification` → `CODE_REPAIR`
-4. All failing tests in `### Evidence Classification` are DETERMINISTIC → `CODE_REPAIR`
-5. All failing tests are FLAKY, HARNESS_NOISY, or AMBIGUOUS → `TEST_REPAIR`
-6. Failing tests are a mix of DETERMINISTIC and unsafe evidence → `CODE_AND_TEST_REPAIR`
-7. `NO_TASK_AUTHORED_TESTS` and build/lint fails → `CODE_REPAIR`
+2. Failure is a build/lint error and every path in `### Failure Files` matches the effective test globs → `TEST_REPAIR`
+3. Failure is a build/lint error → `CODE_REPAIR`
+4. `Regression Evidence` is not `None.` and a failing test is a named regression target absent from `### Evidence Classification` → `CODE_REPAIR`
+5. All failing tests in `### Evidence Classification` are DETERMINISTIC → `CODE_REPAIR`
+6. All failing tests are FLAKY, HARNESS_NOISY, or AMBIGUOUS → `TEST_REPAIR`
+7. Failing tests are a mix of DETERMINISTIC and unsafe evidence → `CODE_AND_TEST_REPAIR`
+8. `NO_TASK_AUTHORED_TESTS` and build/lint fails → `CODE_REPAIR`
 
 Return using the FAIL template (see **Return**).
 
@@ -217,13 +222,13 @@ Commit using `build` with a descriptive commit message only when Route Hint = `P
 
 ### Route Hint Reference
 
-| Value                  | Meaning                                                                                                            |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `PASS`                 | Verification passed, review CLEAN. Task done.                                                                      |
-| `CODE_REPAIR`          | Behavior mismatch, production code quality/security finding, or build/lint failure on DETERMINISTIC-only evidence. |
-| `TEST_REPAIR`          | Unsafe-evidence failures, bad test structure, missing deterministic coverage, or test-quality findings.            |
-| `CODE_AND_TEST_REPAIR` | Mix of DETERMINISTIC failures (code-owned) and unsafe-evidence failures (test-owned) in the same cycle.            |
-| `BACKWARD_LOOP`        | Structural mismatch, missing upstream interface, contradictory plan constraint, or BACKWARD_LOOP review finding.   |
+| Value                  | Meaning                                                                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `PASS`                 | Verification passed, review CLEAN. Task done.                                                                                          |
+| `CODE_REPAIR`          | Behavior mismatch, production code quality/security finding, or build/lint failure on DETERMINISTIC-only evidence.                     |
+| `TEST_REPAIR`          | Unsafe-evidence failures, bad test structure, missing deterministic coverage, test-quality findings, or test-only build/lint failures. |
+| `CODE_AND_TEST_REPAIR` | Mix of DETERMINISTIC failures (code-owned) and unsafe-evidence failures (test-owned) in the same cycle.                                |
+| `BACKWARD_LOOP`        | Structural mismatch, missing upstream interface, contradictory plan constraint, or BACKWARD_LOOP review finding.                       |
 
 ### Return
 
@@ -234,7 +239,7 @@ Return exactly this schema:
 ### Final Verification Status — PASS or FAIL
 ### Route Hint — PASS | CODE_REPAIR | TEST_REPAIR | CODE_AND_TEST_REPAIR | BACKWARD_LOOP
 ### Route Context
-Failure Type: [behavior_mismatch | test_flaky | test_harness_noisy | test_missing_coverage | review_unresolved_production | review_unresolved_test_quality | upstream_ambiguity | none]
+Failure Type: [behavior_mismatch | test_flaky | test_harness_noisy | test_missing_coverage | test_only_build_error | review_unresolved_production | review_unresolved_test_quality | upstream_ambiguity | none]
 Affected Files: [sorted list of files involved in the failure, or none]
 Description: [one sentence describing the specific failure]
 ### Files Modified — complete current task inventory of modified files

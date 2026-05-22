@@ -92,6 +92,9 @@ Invoke `qrspi-acceptance-tester` as a subagent:
 === STRUCTURE CONTEXT ===
 [paste structure.md verbatim, or `N/A`]
 
+=== TEST FILE BOUNDARY ===
+[paste `config.md.test_globs` when present, otherwise `**/test/**`, `**/tests/**`, `**/__tests__/**`, `**/*.test.*`, `**/*.spec.*`]
+
 === INSTRUCTIONS ===
 Run your Stage 8 inner loop exactly as defined in your agent prompt.
 Scope acceptance coverage to criteria assigned to the current phase in `phase-manifest.md` only. Do not invent criteria.
@@ -105,6 +108,8 @@ Parse the tester's return and write:
 - `### Coverage Plan` → `.pipeline/<run-id>/<phase-dir>/coverage-plan.md` (preserve action and action-rationale fields)
 - `### Acceptance Results` → `.pipeline/<run-id>/<phase-dir>/acceptance-results.md`
 - Each block from `### Review Round Artifacts` → `.pipeline/<run-id>/reviews/acceptance-phase-[PP]-review-round-NN.md` (use current phase number for PP)
+
+If `### Boundary Violations` is not `None.`, write `.pipeline/<run-id>/<phase-dir>/boundary-violations.md` with the tester's boundary-violation block. Then treat that as an immediate Stage 8 contract violation. Do not dispatch the backward-loop detector. Write `stage8-summary.md` describing the non-test file writes and return FAIL.
 
 ### Step D — Dispatch Backward-Loop Detector When Needed
 
@@ -151,7 +156,7 @@ Write its full output to `.pipeline/<run-id>/<phase-dir>/backward-loop-analysis.
 
 ### Step E — Write Stage Summary
 
-Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` with `### Status — PASS` (or `### Status — FAIL` on failure) as the first line of the file, mirroring this stage's return Status. The resume protocol parses this line to distinguish a halted-with-FAIL run from a completed phase. Then cover: phase number, acceptance round count, passed/failed criteria counts, **a Failure Reason breakdown line summarizing per-reason counts (`blocking_review`, `reconciliation`, `blocked_action`, `executed_failed`) parsed from `### Acceptance Results`**, whether persistent failures remained, and the detector's loop recommendation (target or none). Describe only the current phase.
+Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` with `### Status — PASS` (or `### Status — FAIL` on failure) as the first line of the file, mirroring this stage's return Status. The resume protocol parses this line to distinguish a halted-with-FAIL run from a completed phase. Then cover: phase number, acceptance round count, passed/failed criteria counts, **a Failure Reason breakdown line summarizing per-reason counts (`blocking_review`, `reconciliation`, `blocked_action`, `executed_failed`) parsed from `### Acceptance Results`**, whether persistent failures remained, whether any acceptance boundary violation occurred, and the detector's loop recommendation (target or none). Describe only the current phase.
 
 ### Return
 
@@ -162,7 +167,7 @@ Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` with `### Status — PA
 ### Phase — [current phase number]
 ### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/stage8-summary.md
 ### Summary — Phase [N]: all assigned acceptance criteria passed.
-### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": false, "failure_reasons": {"blocking_review": 0, "reconciliation": 0, "blocked_action": 0, "executed_failed": 0}}
+### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": false, "boundary_violation": false, "failure_reasons": {"blocking_review": 0, "reconciliation": 0, "blocked_action": 0, "executed_failed": 0}}
 ```
 
 **Persistent failures + detector recommends a loop** — Status is PASS because Stage 8 completed its analysis; deepwork owns the routing decision:
@@ -173,7 +178,17 @@ Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` with `### Status — PA
 ### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/backward-loop-analysis.md, <phase-dir>/stage8-summary.md
 ### Backward Loop Request — [paste detector's Backward Loop Request verbatim]
 ### Summary — Phase [N]: follow-up routing requested: [brief description].
-### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": true, "failure_reasons": {"blocking_review": <n>, "reconciliation": <n>, "blocked_action": <n>, "executed_failed": <n>}}
+### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": true, "boundary_violation": false, "failure_reasons": {"blocking_review": <n>, "reconciliation": <n>, "blocked_action": <n>, "executed_failed": <n>}}
+```
+
+**Acceptance boundary violation:**
+
+```
+### Status — FAIL
+### Phase — [current phase number]
+### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/boundary-violations.md, <phase-dir>/stage8-summary.md
+### Summary — Phase [N]: acceptance contract violation — non-test files were modified or created during Stage 8.
+### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": false, "boundary_violation": true, "failure_reasons": {"blocking_review": <n>, "reconciliation": <n>, "blocked_action": <n>, "executed_failed": <n>}}
 ```
 
 **Persistent failures + detector recommends `NO_LOOP`:**
@@ -183,7 +198,7 @@ Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` with `### Status — PA
 ### Phase — [current phase number]
 ### Files Written — <phase-dir>/coverage-plan.md, <phase-dir>/acceptance-results.md, reviews/acceptance-phase-[PP]-review-round-*.md, <phase-dir>/backward-loop-analysis.md, <phase-dir>/stage8-summary.md
 ### Summary — Phase [N]: [N] of [M] acceptance criteria still failed; no structural backward loop was recommended.
-### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": false, "failure_reasons": {"blocking_review": <n>, "reconciliation": <n>, "blocked_action": <n>, "executed_failed": <n>}}
+### Telemetry — {"acceptance_loop_rounds": <N>, "criteria_count": <N>, "criteria_passed": <N>, "backward_loop_requested": false, "boundary_violation": false, "failure_reasons": {"blocking_review": <n>, "reconciliation": <n>, "blocked_action": <n>, "executed_failed": <n>}}
 ```
 
 **Unrecoverable error at any step:**
@@ -193,5 +208,5 @@ Write `.pipeline/<run-id>/<phase-dir>/stage8-summary.md` with `### Status — PA
 ### Phase — [current phase number]
 ### Files Written — [list files written before failure]
 ### Summary — Phase [N]: [description of what went wrong]
-### Telemetry — {"acceptance_loop_rounds": <N completed>, "criteria_count": <N>, "criteria_passed": <N>, "failure_reasons": {"blocking_review": <n>, "reconciliation": <n>, "blocked_action": <n>, "executed_failed": <n>}}
+### Telemetry — {"acceptance_loop_rounds": <N completed>, "criteria_count": <N>, "criteria_passed": <N>, "boundary_violation": false, "failure_reasons": {"blocking_review": <n>, "reconciliation": <n>, "blocked_action": <n>, "executed_failed": <n>}}
 ```
