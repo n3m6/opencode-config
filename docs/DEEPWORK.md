@@ -40,52 +40,45 @@
                                    reviews/goals-review-round-NN.md
                                         │
                                         ▼
-                          ┌──────────────────────────────┐
-                          │  STAGE 2 — Questions        │
-                          │                              │
-                          │  ┌────────────────────────┐  │
-                          │  │qrspi-question-generator│  │
-                          │  └────────────────────────┘  │
-                          │  ┌────────────────────────┐  │
-                          │  │qrspi-question-leakage- │  │
-                          │  │reviewer                │  │
-                          │  └────────────────────────┘  │
-                          │  ┌────────────────────────┐  │
-                          │  │qrspi-question-quality- │  │
-                          │  │reviewer                │  │  (parallel dual review, max 2)
-                          │  └────────────────────────┘  │
-                          └─────────────┬────────────────┘
-                                        │
-                          Outputs: questions.md,
-                                   question-leakage-review.md,
-                                   question-quality-review.md
-                                        │
-                                        ▼
-                          ┌──────────────────────────────┐
-                          │  STAGE 3 — Research         │
-                          │  ⚠️ Strict Isolation         │
-                          │  (goals.md NEVER passed)     │
-                          │                              │
-                          │  Per-question parallel:      │
-                          │  ┌────────────────────────┐  │
-                          │  │qrspi-codebase-researcher│ │  (codebase-tagged)
-                          │  └────────────────────────┘  │
-                          │  ┌────────────────────────┐  │
-                          │  │ qrspi-web-researcher   │  │  (web-tagged)
-                          │  └────────────────────────┘  │
-                          │                              │
-                          │  ┌────────────────────────┐  │
-                          │  │qrspi-research-synthesizer││  (combine findings)
-                          │  └────────────────────────┘  │
-                          │  ┌────────────────────────┐  │
-                          │  │ qrspi-research-reviewer│  │  (up to 2 rounds)
-                          │  └────────────────────────┘  │
-                          └─────────────┬────────────────┘
-                                        │
-                          Outputs: research/q-*.md,
-                                   research/summary.md,
-                                   reviews/research-review-round-NN.md
-                                        │
+                         ┌──────────────────────────────┐
+                         │  STAGE 2 — Research         │
+                         │  (merged Questions + Research)
+                         │                              │
+                         │  ┌────────────────────────┐  │
+                         │  │   qrspi-questions      │  │  (initial or follow-up batch)
+                         │  └────────────────────────┘  │
+                         │    ├─ qrspi-question-     │  │
+                         │    │  generator           │  │
+                         │    ├─ qrspi-question-     │  │
+                         │    │  leakage-reviewer    │  │
+                         │    └─ qrspi-question-     │  │
+                         │       quality-reviewer    │  │
+                         │                              │
+                         │  ┌────────────────────────┐  │
+                         │  │  qrspi-research-pass   │  │  (one batch at a time)
+                         │  └────────────────────────┘  │
+                         │    ├─ qrspi-codebase-     │  │
+                         │    │  researcher          │  │
+                         │    ├─ qrspi-web-          │  │
+                         │    │  researcher          │  │
+                         │    ├─ qrspi-research-     │  │
+                         │    │  synthesizer         │  │
+                         │    └─ qrspi-research-     │  │
+                         │       reviewer            │  │
+                         │                              │
+                         │  Outer loop rebuilds the    │
+                         │  cumulative summary and     │
+                         │  follow-up question set     │
+                         └─────────────┬────────────────┘
+                                 │
+                         Outputs: questions.md,
+                              question-*-review.md,
+                              research/iterations/round-*/...,
+                              research/question-ledger.md,
+                              research/open-questions.md,
+                              research/summary.md,
+                              reviews/research-review-round-NN.md
+                                 │
                              ┌──────────┴──────────┐
                              │                     │
                          Full route            Quick-fix
@@ -317,11 +310,15 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 | `config.md`                                             | Stage 1                      | Route, run_id, and metadata                                                          |
 | `requirements.md`                                       | Stage 1                      | Verbatim user task or PRD preserved for downstream reference                         |
 | `goals.md`                                              | Stage 1                      | Distilled intent, requirements, constraints, non-goals, acceptance criteria          |
-| `questions.md`                                          | Stage 2                      | Tagged research questions                                                            |
-| `question-leakage-review.md`                            | Stage 2                      | Independent review of question neutrality                                            |
-| `question-quality-review.md`                            | Stage 2                      | Independent review of question coverage and tagging quality                          |
-| `research/q-NN.md`                                      | Stage 3                      | Per-question research findings                                                       |
-| `research/summary.md`                                   | Stage 3                      | Unified research summary                                                             |
+| `questions.md`                                          | Stage 2                      | Latest active question-batch snapshot for compatibility consumers                    |
+| `question-leakage-review.md`                            | Stage 2                      | Latest question-batch leakage-review snapshot for compatibility consumers            |
+| `question-quality-review.md`                            | Stage 2                      | Latest question-batch quality-review snapshot for compatibility consumers            |
+| `research/iterations/round-NN/questions.md`             | Stage 2                      | Round-local active question-batch snapshot for merged research                       |
+| `research/iterations/round-NN/q-NN.md`                  | Stage 2                      | Round-local per-question research findings                                           |
+| `research/iterations/round-NN/summary.md`               | Stage 2                      | Round-local research summary                                                         |
+| `research/question-ledger.md`                           | Stage 2                      | Cumulative audit trail of every asked research question                              |
+| `research/open-questions.md`                            | Stage 2                      | Latest unresolved-question snapshot for follow-up or stalled exit                    |
+| `research/summary.md`                                   | Stage 2                      | Unified cumulative research summary                                                  |
 | `design.md`                                             | Stage 4                      | Architecture, vertical slices, phases, replan gates, test strategy                   |
 | `structure.md`                                          | Stage 5                      | File mapping, interfaces, create/modify, Mermaid diagram                             |
 | `plan.md`                                               | Stage 6, 8.5                 | Current remaining-work implementation plan                                           |
@@ -424,7 +421,7 @@ route: full
 current_phase: 1
 total_phases: 1
 last_completed_stage: goals
-next_stage: questions
+next_stage: research
 stages_completed:
   - goals
 phase_history:
@@ -478,30 +475,30 @@ If both `state.md` and the artifact set imply the run is already complete, prese
 
 Every alignment and planning stage runs an internal automated review loop before human review or downstream consumption. Each loop caps at a maximum to prevent infinite loops; the minimum is 1 round (PASS at any round terminates).
 
-| Stage         | Reviewer Agent                                                                         | Max Rounds | Failure Action                                                                     |
-| ------------- | -------------------------------------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------------- |
-| 1 — Goals     | `qrspi-goals-reviewer`                                                                 | 5          | Re-dispatch synthesizer with review feedback                                       |
-| 2 — Questions | Dual (parallel): `qrspi-question-leakage-reviewer` + `qrspi-question-quality-reviewer` | 2          | Re-dispatch generator once; auto-continue on cap                                   |
-| 3 — Research  | `qrspi-research-reviewer`                                                              | 2          | Re-dispatch affected researchers + synthesizer once; auto-continue on cap          |
-| 4 — Design    | `qrspi-design-reviewer`                                                                | 5          | Re-dispatch design synthesizer with feedback                                       |
-| 5 — Structure | `qrspi-structure-reviewer`                                                             | 5          | Re-dispatch structure mapper with feedback                                         |
-| 6 — Plan      | `qrspi-plan-reviewer`                                                                  | 6          | Re-dispatch plan writer with feedback; stable-cap if same `Fix Guidance` repeats   |
-| 8.5 — Replan  | `qrspi-replan-reviewer`                                                                | 5          | Re-dispatch replan writer with feedback; stable-cap if same `Fix Guidance` repeats |
+| Stage         | Reviewer Agent             | Max Rounds | Failure Action                                                                     |
+| ------------- | -------------------------- | ---------- | ---------------------------------------------------------------------------------- |
+| 1 — Goals     | `qrspi-goals-reviewer`     | 5          | Re-dispatch synthesizer with review feedback                                       |
+| 2 — Research  | `qrspi-research-reviewer`  | unbounded  | Generate incremental follow-up batches until clean or stalled                      |
+| 4 — Design    | `qrspi-design-reviewer`    | 5          | Re-dispatch design synthesizer with feedback                                       |
+| 5 — Structure | `qrspi-structure-reviewer` | 5          | Re-dispatch structure mapper with feedback                                         |
+| 6 — Plan      | `qrspi-plan-reviewer`      | 6          | Re-dispatch plan writer with feedback; stable-cap if same `Fix Guidance` repeats   |
+| 8.5 — Replan  | `qrspi-replan-reviewer`    | 5          | Re-dispatch replan writer with feedback; stable-cap if same `Fix Guidance` repeats |
 
 Review loop logic:
 
 - If the reviewer returns `PASS` at any round, the loop terminates immediately with `clean`. The previous "min 2" confirmation re-review has been removed (it cost a full reviewer round per clean stage without ever changing the outcome).
 - If the reviewer returns `FAIL` and the maximum has not been reached, re-dispatch the synthesizer/writer with review feedback, then re-review.
-- For Stage 3 (Research), Stage 6 (Plan), and Stage 8.5 (Replan): if two consecutive FAIL rounds emit identical `### Fix Guidance` (whitespace-normalized), terminate with `stable-cap`; the rerun loop is not converging and additional rounds will not help.
+- For Stage 2 (Research), the outer loop keeps running until the cumulative reviewer returns `clean` or the unresolved-question snapshot stalls. A research `stable-cap` now means the loop stopped making a meaningful delta, not that it hit a fixed round cap.
+- For Stage 6 (Plan) and Stage 8.5 (Replan): if two consecutive FAIL rounds emit identical `### Fix Guidance` (whitespace-normalized), terminate with `stable-cap`; the rerun loop is not converging and additional rounds will not help.
 - If the reviewer returns `FAIL` at the maximum round cap, terminate with `unclean-cap`.
 
 Terminal review states:
 
 - `clean` — the final review round passed.
-- `stable-cap` — Research/Plan/Replan only; consecutive identical `Fix Guidance`. For Research, the stage continues automatically to Design with the remaining concerns captured in `reviews/research-review-round-NN.md`. For Plan/Replan, downstream still runs only after deepwork raises a question gate before continuing.
-- `unclean-cap` — reached the maximum with outstanding concerns. For Goals/Design/Structure, this surfaces in the human gate. For Questions and Research, the stage continues automatically to the next stage with the remaining concerns captured in the latest review artifact. For Plan/Replan (no human gate), deepwork raises a question gate before continuing to the next stage.
+- `stable-cap` — Research/Plan/Replan only. For merged Research, the unresolved-question snapshot stalled without a meaningful delta, so the stage continues automatically to Design with the remaining concerns captured in `research/open-questions.md` and `reviews/research-review-round-NN.md`. For Plan/Replan, downstream still runs only after deepwork raises a question gate before continuing.
+- `unclean-cap` — reached the maximum with outstanding concerns. For Goals/Design/Structure, this surfaces in the human gate. For Plan/Replan (no human gate), deepwork raises a question gate before continuing to the next stage.
 
-Stage 3 (Research) now follows the non-blocking cap pattern used by Questions: if the review loop reaches the 2-round cap with unresolved material issues, the stage returns `PASS` with `terminal_review_state` set to `stable-cap` or `unclean-cap`, and deepwork proceeds using the latest research review artifact as the record of remaining concerns.
+Stage 2 (Research) now owns both question generation and research. It alternates between incremental question-batch generation and research passes until the cumulative research state is clean or the unresolved-question snapshot stalls. A stalled loop returns `PASS` with `terminal_review_state = stable-cap`, preserving the latest unresolved items for downstream design and planning.
 
 Stage 6 (Plan) runs two review layers: a plan-level review loop (max 6 rounds, with stable-cap detection) where `qrspi-plan-reviewer` reads the current plan artifacts from the pipeline run directory, followed by a per-task review loop (max 3 rounds) where `qrspi-task-spec-reviewer` repairs each task spec in place and loads sibling task specs from the canonical top-level `tasks/` directory for cross-task checks. Unresolved task-spec failures or cross-task conflicts at round 3 are blocking and stop Stage 6. After both loops pass, Stage 6 appends the final review status block (`clean`, `stable-cap`, or `unclean-cap`) to every `tasks/task-NN.md`.
 
@@ -513,7 +510,7 @@ Stage 6 (Plan) runs two review layers: a plan-level review loop (max 6 rounds, w
 - Its edit permission is limited to pipeline state files inside `.pipeline/qrspi-<run-id>/`. The only repository commands deepwork may run itself are narrowly scoped git checkpoint commands (at stage boundaries) and pipeline-directory management commands required to manage stage boundaries.
 - After each subagent dispatch, the deepwork agent stops and waits for the subagent response before continuing.
 - Inter-stage state lives in pipeline files, not in todo metadata. The `todowrite` tool is only for the user-visible progress checklist.
-- Research isolation is structurally enforced: `goals.md` is never passed to any researcher, reviewer, or synthesizer in Stage 3. Researchers receive only the question text from `questions.md`.
+- Research isolation is structurally enforced: `goals.md` is never passed to any researcher, reviewer, or synthesizer in Stage 2. Researchers receive only the question text from the active round-local question-batch snapshot under `research/iterations/round-NN/questions.md`; the top-level `questions.md` file remains a compatibility snapshot.
 - Stage 2 includes independent question leakage and question quality reviews before any research begins.
 - Stage 6 records a pre-implementation baseline so later verification can distinguish known failures from new regressions.
 - Stage 6 writes the canonical initial `tasks/` directory, maintains `tasks/inactive/`, `tasks/outlines/inactive/`, and `reviews/task-spec/inactive/` as archives for superseded artifacts, and deepwork creates `phases/phase-01/tasks/` as a symlink to that canonical task set after Plan completes.
@@ -656,31 +653,31 @@ Reviews `goals.md` independently for intent clarity, constraint specificity, sco
 
 ---
 
-### Stage 2 — Questions
-
-#### qrspi-questions
-
-Stage orchestrator. Dispatches the question generator, runs dual independent reviews (leakage and quality), and automatically continues to Research after a clean review or a 2-round `unclean-cap`. No human gate runs in this stage.
-
-#### qrspi-question-generator
-
-Performs a shallow repo orientation (ls, README, manifests, 2-level tree, goal-keyword greps) to ground questions in the actual codebase. Builds an internal investigation map — one zone per affected subsystem, named dependency, acceptance criterion, and risk area — then drafts one question per zone (two for high-risk zones). Targets 5–15 questions with a `Count justification:` line when outside that range. Every question carries four fields: `Tag` (codebase/web/hybrid), `Covers` (phrase from goals.md), `Answer shape` (concrete bounded deliverable), `Decision unblocked` (downstream design/plan decision). Applies a two-bullet neutrality contract: MAY reference existing systems/files/libs; MUST NOT reference the intended change, feature names, outcomes, or implementation direction. Incorporates reviewer feedback from prior automated review rounds. Read-only.
-
-#### qrspi-question-leakage-reviewer
-
-Independently reviews `questions.md` question text against `goals.md` and flags any question that leaks the requested change to a goal-blind researcher. Applies the same two-bullet neutrality contract (MAY/MUST NOT). Judgment is scoped to question text only — `Covers`, `Answer shape`, and `Decision unblocked` are internal planning fields and are not evaluated for leakage. Produces per-question SAFE or LEAKS status with rewrite guidance. Read-only.
-
-#### qrspi-question-quality-reviewer
-
-Independently reviews `questions.md` against `goals.md` for: per-question field completeness (all four fields present), Covers accuracy, Answer shape concreteness, Decision unblocked relevance, tag accuracy, hybrid necessity, objectivity, and specificity; and set-level: traceability matrix (every FR/NFR/constraint/AC in goals.md covered by at least one Covers), dependency validation coverage, comprehensiveness, redundancy, answerability, and count-justification verification. Emits a `### Traceability Matrix` in every review output. Read-only.
-
----
-
-### Stage 3 — Research
+### Stage 2 — Research
 
 #### qrspi-research
 
-Stage orchestrator. Dispatches codebase and web researchers per question tag in parallel, collects findings into per-question artifacts, dispatches the research synthesizer, and runs up to 2 automated review rounds. Enforces strict goal isolation. If the review loop caps at round 2 with `stable-cap` or `unclean-cap`, it still returns PASS and lets deepwork proceed to Design while preserving the latest research review artifact.
+Merged stage orchestrator. Dispatches `qrspi-questions` to generate the initial batch, then alternates between batch-local research passes and cumulative review. It preserves strict goal isolation for all researcher-facing work, keeps the compatibility snapshots (`questions.md`, `question-*-review.md`) plus the cumulative research summary (`research/summary.md`), and continues generating incremental follow-up batches until the cumulative findings are clean or the unresolved-question snapshot stalls. A stalled loop returns PASS with `stable-cap` and preserves the latest unresolved items in `research/open-questions.md` and `reviews/research-review-round-NN.md`.
+
+#### qrspi-questions
+
+Internal question-batch orchestrator. Supports `initial` and `follow-up` modes, dispatches the question generator, runs dual independent reviews (leakage and quality), and writes both the latest compatibility snapshots and a round-local question batch file. No human gate runs in this stage.
+
+#### qrspi-question-generator
+
+Performs a shallow repo orientation to ground the batch in the actual codebase. In `initial` mode it uses the normalized goal inventory as the completeness contract. In `follow-up` mode it uses unresolved open questions plus the question ledger as the batch contract and emits only new incremental questions. Every question carries four fields: `Tag`, `Covers`, `Answer shape`, and `Decision unblocked`. Read-only.
+
+#### qrspi-question-leakage-reviewer
+
+Independently reviews initial and follow-up question batches against `goals.md` and flags any question text that leaks the requested change to a goal-blind researcher. Judgment is scoped to question text only — `Covers`, `Answer shape`, and `Decision unblocked` remain out of scope. Read-only.
+
+#### qrspi-question-quality-reviewer
+
+Independently reviews question batches for per-question completeness, boundedness, objectivity, tag accuracy, and decision relevance. In `initial` mode it checks full normalized-goal coverage. In `follow-up` mode it checks open-question coverage, non-duplication against the ledger, and incremental-scope discipline. Emits a `### Traceability Matrix` in every review output. Read-only.
+
+#### qrspi-research-pass
+
+Internal batch-local research runner. Takes one active question batch, dispatches codebase and web researchers per tag, applies the greenfield fallback when codebase findings are empty or low-signal, writes round-local `q-NN.md` artifacts and a round-local summary, and runs a bounded batch review loop before returning control to the outer research stage.
 
 #### qrspi-codebase-researcher
 
@@ -692,11 +689,11 @@ Researches a single question using web search (webfetch). Returns factual findin
 
 #### qrspi-research-synthesizer
 
-Combines per-question research findings into a unified summary organized by topic. Deduplicates overlapping findings and cross-references related discoveries. Does not add opinions or recommendations. Read-only.
+Combines supplied per-question research findings into a batch or cumulative summary organized by topic. Deduplicates overlapping findings, cross-references supported discoveries, and emits an explicit `## Open Questions` section that lists only material unresolved areas or `None.`. Read-only.
 
 #### qrspi-research-reviewer
 
-Reviews the complete research set (per-question artifacts and synthesis) for objectivity, citation quality, factual coverage, synthesis fidelity, and cross-reference validity. Identifies which specific artifacts need re-research and provides targeted fix guidance. Read-only.
+Reviews research artifacts in two modes. `batch-pass` validates one researched batch and decides whether that batch must be rerun or is ready for the outer loop. `cumulative-loop` validates cumulative findings, identifies unresolved material questions, and recommends `clean`, `generate-follow-up-questions`, or `stalled`. Read-only.
 
 ---
 

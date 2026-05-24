@@ -13,11 +13,11 @@ If the user provides a run ID, asks to resume, or points at an existing `.pipeli
    - Read `config.md` to confirm the route.
    - Check pre-phase completion markers:
      - Goals complete if `goals.md` exists
-     - Questions complete if `questions.md` exists
      - Research complete if `research/summary.md` exists
      - Design complete if `design.md` exists, or the route is quick-fix
      - Structure complete if `structure.md` exists, or the route is quick-fix
      - Plan complete if `baseline-results.md` exists
+   - The merged Research stage owns all intermediate question-generation artifacts. If any of `goal-inventory.md`, `questions.md`, `question-leakage-review.md`, `question-quality-review.md`, `research/open-questions.md`, `research/question-ledger.md`, or `research/iterations/` exist without `research/summary.md`, treat Research as in-progress and restart `next_stage: research` from the beginning of the merged stage.
    - If any pre-phase stage is incomplete, resume at the first incomplete stage and force `current_phase: 1`.
    - Otherwise read `phase-manifest.md` to determine `total_phases`.
    - Scan only active phase directories with `ls .pipeline/qrspi-<run-id>/phases/phase-*/`. Ignore anything under `phases/archive/`.

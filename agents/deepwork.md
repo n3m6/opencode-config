@@ -21,7 +21,6 @@ permission:
   task:
     "*": deny
     "qrspi-goals": allow
-    "qrspi-questions": allow
     "qrspi-research": allow
     "qrspi-design": allow
     "qrspi-structure": allow
@@ -70,11 +69,11 @@ You are a **thin dispatcher**. Each stage subagent handles its own internal logi
 ```
 Full Pipeline:
 
-  ┌─────────┐    ┌───────────┐    ┌──────────┐    ┌────────┐    ┌───────────┐    ┌──────┐
-  │  Goals  │──▶│ Questions │──▶│ Research │──▶│ Design │──▶│ Structure │──▶│ Plan │
-  │   (1)   │    │    (2)    │    │   (3)    │    │  (4)   │    │    (5)    │    │ (6)  │
-  └─────────┘    └───────────┘    └──────────┘    └────────┘    └───────────┘    └──────┘
-   🔒 Gate                                         🔒 Gate       🔒 Gate          │
+  ┌─────────┐    ┌──────────────────┐    ┌────────┐    ┌───────────┐    ┌──────┐
+  │  Goals  │──▶│ Research          │──▶│ Design │──▶│ Structure │──▶│ Plan │
+  │   (1)   │    │ (merged Q + R)   │    │  (4)   │    │    (5)    │    │ (6)  │
+  └─────────┘    └──────────────────┘    └────────┘    └───────────┘    └──────┘
+   🔒 Gate                                  🔒 Gate       🔒 Gate          │
                                                                                    │
       ┌────────────────────────────────────────────────────────────────────────────┘
       ▼
@@ -95,7 +94,7 @@ Full Pipeline:
 
 Quick-Fix Pipeline (single-phase; skips Stages 4, 5, and 8.5):
 
-  Goals → Questions → Research → Plan → Implement → Accept-Test → Verify → Report
+  Goals → Research → Plan → Implement → Accept-Test → Verify → Report
 ```
 
 > **State storage:** All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`, not through `todowrite` keys. The `todowrite` tool is used only for the user-visible progress checklist. Deepwork persists recovery state in `.pipeline/qrspi-<run-id>/state.md`.
@@ -112,8 +111,7 @@ Each stage is handled by a dedicated subagent that:
 | Stage           | Agent             | Human Gate | Leaf Subagents Called                                                                                                                                                                                                                                              |
 | --------------- | ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 1 — Goals       | `qrspi-goals`     | Yes        | `qrspi-goals-synthesizer`                                                                                                                                                                                                                                          |
-| 2 — Questions   | `qrspi-questions` | No         | `qrspi-question-generator`, `qrspi-question-leakage-reviewer`, `qrspi-question-quality-reviewer`                                                                                                                                                                   |
-| 3 — Research    | `qrspi-research`  | No         | `qrspi-codebase-researcher`, `qrspi-web-researcher`, `qrspi-research-synthesizer`, `qrspi-research-reviewer`                                                                                                                                                       |
+| 2 — Research    | `qrspi-research`  | No         | `qrspi-questions`, `qrspi-research-pass`, `qrspi-research-synthesizer`, `qrspi-research-reviewer`                                                                                                                                                                  |
 | 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`, `qrspi-design-reviewer`                                                                                                                                                                                                                |
 | 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`, `qrspi-structure-reviewer`                                                                                                                                                                                                               |
 | 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-task-spec-writer`, `qrspi-task-spec-reviewer`, `qrspi-plan-reviewer`, `qrspi-baseline-checker`                                                                                                                                         |
@@ -324,7 +322,7 @@ route: full
 current_phase: 1
 total_phases: 1
 last_completed_stage: goals
-next_stage: questions
+next_stage: research
 stages_completed:
   - goals
 phase_history:
@@ -388,12 +386,12 @@ Each pipeline run writes state files to `.pipeline/qrspi-<run-id>/`. The run ID 
 ├── config.md                          Written: Stage 1   — Route (full/quick-fix), metadata
 ├── requirements.md                    Written: Stage 1   — Verbatim user task or PRD preserved for downstream reference
 ├── goals.md                           Written: Stage 1   — Distilled intent, requirements, constraints, non-goals, and acceptance criteria
-├── questions.md                       Written: Stage 2   — Tagged research questions
-├── question-leakage-review.md         Written: Stage 2   — Independent review of question neutrality
-├── question-quality-review.md         Written: Stage 2   — Independent review of question coverage and tagging quality
+├── questions.md                       Written: Stage 2   — Latest active research-question batch (compatibility path)
+├── question-leakage-review.md         Written: Stage 2   — Latest question-neutrality review snapshot (compatibility path)
+├── question-quality-review.md         Written: Stage 2   — Latest question-quality review snapshot (compatibility path)
 ├── research/
-│   ├── q-01.md ... q-NN.md           Written: Stage 3   — Per-question findings
-│   └── summary.md                    Written: Stage 3   — Unified research summary
+│   ├── q-01.md ... q-NN.md           Written: Stage 2   — Latest per-question findings (compatibility path)
+│   └── summary.md                    Written: Stage 2   — Unified cumulative research summary
 ├── design.md                          Written: Stage 4   — Architecture, vertical slices, test strategy
 ├── structure.md                       Written: Stage 5   — File mapping, interfaces, create/modify
 ├── plan.md                            Written: Stage 6   — Overall plan document; updated by Replan for remaining work
@@ -508,8 +506,7 @@ Phase handling rules:
 
 ```
 Stage 1  — Capture goals
-Stage 2  — Generate questions
-Stage 3  — Research
+Stage 2  — Research
 Stage 4  — Design
 Stage 5  — Structure
 Stage 6  — Plan
@@ -540,34 +537,13 @@ When `qrspi-goals` completes:
 - Parse `### Status`. If FAIL, follow **Error Handling**.
 - Parse `### Route` to determine the pipeline route (`full` or `quick-fix`). Store this for subsequent stage dispatch decisions.
 - Mark Stage 1 as complete in `todowrite`.
-- Overwrite `state.md` with `route`, `last_completed_stage: goals`, `next_stage: questions`, `current_phase: 1`, and updated `stages_completed` / `phase_history`.
+- Overwrite `state.md` with `route`, `last_completed_stage: goals`, `next_stage: research`, `current_phase: 1`, and updated `stages_completed` / `phase_history`.
 - **Telemetry:** Parse `### Telemetry` from the return. Emit synthesized `gate.*` events for the human gate using `gate_round_details` when present, otherwise `gate_status` and `gate_rounds`, then emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 1 goals complete`.
 - Regenerate `telemetry/run-log.md`.
 - Proceed to **Stage 2**.
 
-### Stage 2 — Questions
-
-**Telemetry:** Emit `stage.started` (`stage: "questions"`, `stage_instance: <current stage instance>`; use `1` on first entry) and record `started_at` before dispatch.
-
-Invoke `qrspi-questions` as a subagent:
-
-```
-=== RUN ID ===
-<run-id>
-```
-
-When `qrspi-questions` completes:
-
-- Parse `### Status`. If FAIL, follow **Error Handling**.
-- Mark Stage 2 as complete in `todowrite`.
-- Overwrite `state.md` with `last_completed_stage: questions` and `next_stage: research`.
-- **Telemetry:** Parse `### Telemetry` from the return. If the telemetry reports a gate outcome, emit synthesized `gate.*` events using `gate_round_details` when present, otherwise `gate_status` and `gate_rounds`, then emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Questions should return `gate_status: "none"`, so no `gate.*` events are expected here. Emit `checkpoint.created` after the git commit.
-- Create the stage-boundary git checkpoint with message `qrspi: stage 2 questions complete`.
-- Regenerate `telemetry/run-log.md`.
-- Proceed to **Stage 3**.
-
-### Stage 3 — Research
+### Stage 2 — Research
 
 **Telemetry:** Emit `stage.started` (`stage: "research"`, `stage_instance: <current stage instance>`; use `1` on first entry) and record `started_at` before dispatch.
 
@@ -581,10 +557,10 @@ Invoke `qrspi-research` as a subagent:
 When `qrspi-research` completes:
 
 - Parse `### Status`. If FAIL, follow **Error Handling**.
-- Mark Stage 3 as complete in `todowrite`.
+- Mark Stage 2 as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: research` and `next_stage: design` or `plan` for quick-fix.
 - **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
-- Create the stage-boundary git checkpoint with message `qrspi: stage 3 research complete`.
+- Create the stage-boundary git checkpoint with message `qrspi: stage 2 research complete`.
 - Regenerate `telemetry/run-log.md`.
 - Proceed to **Stage 4**.
 

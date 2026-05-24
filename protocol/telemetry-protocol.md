@@ -27,7 +27,7 @@ Only the currently active orchestrator may append to `events.jsonl`. This preven
 | Orchestrator      | Events it writes directly                                                                                                                                |
 | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `deepwork`        | `run.*`, `stage.*`, `gate.*` (including stage-local human gates synthesized from stage return telemetry), `backward_loop.*`, `checkpoint.*`, `metrics.*` |
-| `qrspi-research`  | `child.*` for researcher dispatches inside Stage 3                                                                                                       |
+| `qrspi-research`  | `child.*` for question-batch, research-pass, synthesizer, and reviewer dispatches inside merged Stage 2                                                  |
 | `qrspi-plan`      | `child.*` for plan-writer, task-spec-writer, task-spec-reviewer, plan-reviewer, baseline-checker dispatches inside Stage 6                               |
 | `qrspi-implement` | `phase.*`, `child.*` for wave task-loop dispatches and post-wave checker dispatches inside Stage 7                                                       |
 | `qrspi-accept`    | `child.*` for acceptance-tester and backward-loop-detector dispatches inside Stage 8                                                                     |
@@ -122,8 +122,7 @@ Stages without a local human gate may still return `gate_status: "none"` and `ga
 | Stage           | Telemetry context fields                                                                                                                                                                                                        |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Goals (1)       | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `gate_wait_time_s` (optional), `gate_round_details` (optional), `terminal_review_state`                                                                   |
-| Questions (2)   | `review_rounds`, `gate_status` (always `none`), `gate_rounds` (always `0`; compatibility field), `terminal_review_state`                                                                                                        |
-| Research (3)    | `question_count`, `codebase_count`, `web_count`, `hybrid_count`, `review_rounds`, `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                            |
+| Research (2)    | `question_count`, `codebase_count`, `web_count`, `hybrid_count`, `review_rounds` (completed cumulative research cycles / outer-loop reviews), `terminal_review_state` (`clean` \| `stable-cap`)                                 |
 | Design (4)      | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `gate_wait_time_s` (optional), `gate_round_details` (optional), `terminal_review_state`                                                                   |
 | Structure (5)   | `review_rounds`, `gate_status`, `gate_rounds` (rejected gate rounds), `gate_wait_time_s` (optional), `gate_round_details` (optional), `terminal_review_state`                                                                   |
 | Plan (6)        | `task_count`, `review_rounds`, `task_spec_review_rounds` (total across tasks), `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                               |
@@ -132,6 +131,8 @@ Stages without a local human gate may still return `gate_status: "none"` and `ga
 | Replan (8.5)    | `review_rounds`, `backward_loop_requested`, `terminal_review_state` (`clean` \| `stable-cap` \| `unclean-cap`)                                                                                                                  |
 | Verify (9)      | `verify_rounds`, `verify_status`, `code_health` (optional digest object)                                                                                                                                                        |
 | Report (10)     | — (no internal loops)                                                                                                                                                                                                           |
+
+For Research, `review_rounds` counts completed cumulative-loop review cycles at the stage boundary. It does not include the nested batch-pass review rounds reported by `qrspi-research-pass` child telemetry.
 
 **`evidence_quality` object** (Stage 7):
 
@@ -176,5 +177,5 @@ When present, `gate_wait_time_s` is the total elapsed human wait time across all
 **`terminal_review_state`** is the final terminal state of the stage's automated review loop:
 
 - `clean` — final review round PASSed.
-- `stable-cap` — Research/Plan/Replan only; consecutive identical `Fix Guidance` triggered early termination. For Research, the stage still returns PASS and deepwork proceeds to Design. For Plan/Replan, deepwork raises an unclean-cap question gate after observing this state.
-- `unclean-cap` — reached the maximum round cap with outstanding concerns. For Goals/Design/Structure, the state feeds the stage-local human gate. For Questions and Research, the stage auto-continues downstream while preserving the latest review artifact. For Plan/Replan, deepwork raises an unclean-cap question gate after observing this state.
+- `stable-cap` — Research/Plan/Replan only. For merged Research, the cumulative open-question loop stalled without a meaningful delta, so the stage still returns PASS and deepwork proceeds to Design while preserving the latest unresolved questions. For Plan/Replan, repeated reviewer guidance triggered early termination and deepwork raises an unclean-cap question gate after observing this state.
+- `unclean-cap` — reached the maximum round cap with outstanding concerns. For Goals/Design/Structure, the state feeds the stage-local human gate. For Plan/Replan, deepwork raises an unclean-cap question gate after observing this state.
