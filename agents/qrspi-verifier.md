@@ -128,12 +128,11 @@ Return these sections in order:
 **`### Code Health Summary`** — derived from `EXECUTION MANIFESTS` and `STAGE 7 SUMMARIES`. Format:
 
 ```
-| Phase | Tasks | Deterministic | Flaky | Harness Noisy | Ambiguous | Redundant | No-Test Tasks | No-Test Audit Overrides | Simplifier (HIGH/MED) Applied | Simplifier (HIGH/MED) Reverted | Outstanding Concerns |
+| Phase | Tasks | Deterministic | Flaky | Harness Noisy | Ambiguous | Redundant | No-Test Tasks | No-Test Audit Overrides | Outstanding Concerns |
 ```
 
 - Tasks — task count for the phase.
 - Categorical counters — sum of per-task `Evidence Summary` from the execution manifest. When a task's row reports `NO_TASK_AUTHORED_TESTS: yes (audit-overridden)`, count it under No-Test Audit Overrides; otherwise `yes` counts under No-Test Tasks.
-- Simplifier columns — count rows with `Simplification = applied` and `attempted-reverted` respectively.
 - Outstanding Concerns — number of tasks whose row in the execution manifest has `Review Status ≠ CLEAN`. If the per-phase `stage7-summary.md` `## Phase Evidence Quality` block already lists these counts, prefer those values.
 
 After the table, add up to three plain-text lines:
