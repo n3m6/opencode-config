@@ -19,7 +19,7 @@ This pass is bypassed when the user has already triggered a backward loop in thi
 When this protocol is invoked:
 
 1. Read the backward loop request details.
-2. If the caller already has a user-chosen option from the Plan/Replan unclean-cap escalation gate, skip the prompt in step 2 entirely. Treat that earlier answer as the protocol decision, continue directly with the matching option handler below, and do not emit a second `backward-loop-decision` gate pair; the original Plan/Replan gate already captured the wait time and choice.
+2. If the caller already has a user-chosen option from the Plan/Replan unclean-cap escalation gate, or an automated preselected option from a noninteractive run, skip the prompt in step 2 entirely. Treat that earlier choice as the protocol decision, continue directly with the matching option handler below, and do not emit a second `backward-loop-decision` gate pair; the original gate already captured the wait time and choice.
 3. Otherwise, present the issue to the user via `question`:
 
    ```
@@ -114,7 +114,7 @@ f. Re-enter the pipeline at **Stage 1** and include the contents of `feedback/go
 Telemetry events are emitted by deepwork around the protocol steps above:
 
 - **Before presenting the decision to the user:** Emit `backward_loop.requested` with `stage`, `phase`, and `context` containing the loop request details.
-- **When invoked with a preselected Plan/Replan loop-back target:** Deepwork still emits `backward_loop.requested` before entering the protocol, but skips the extra backward-loop decision prompt and emits the corresponding `backward_loop.decided` event directly from the preselected choice after the loop-back artifacts are determined.
+- **When invoked with a preselected Plan/Replan loop-back target or an automated noninteractive loop target:** Deepwork still emits `backward_loop.requested` before entering the protocol, but skips the extra backward-loop decision prompt and emits the corresponding `backward_loop.decided` event directly from the preselected choice after the loop-back artifacts are determined.
 - **After the user decides:**
   - Options A, B, C (loop-back): Emit `backward_loop.decided` with `decision.choice` (A/B/C), `decision.reason` (user input or inferred), `context.loop_target` (design/structure/plan), `context.deleted_artifacts` (list of deleted top-level artifacts), and `context.archived_artifacts` (list of archived phase directories).
   - Option D (defer): Emit `backward_loop.deferred` with `decision.choice: "D"` and `decision.reason`.

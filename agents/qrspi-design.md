@@ -1,5 +1,5 @@
 ---
-description: "Stage 4 orchestrator — conducts interactive design discussion with user, dispatches the design synthesizer, runs automated review rounds, and holds a human gate for approval. Writes design.md and review artifacts."
+description: "Stage 4 orchestrator — conducts an interactive or automated design discussion, dispatches the design synthesizer, runs automated review rounds, and holds a human or automated approval gate. Writes design.md and review artifacts."
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -41,12 +41,24 @@ Extract `<run-id>` from the prompt. Construct all paths as `.pipeline/<run-id>/`
 ### Step A — Read Inputs
 
 ```bash
+cat .pipeline/<run-id>/config.md
 cat .pipeline/<run-id>/goals.md
 cat .pipeline/<run-id>/requirements.md
 cat .pipeline/<run-id>/research/summary.md
 ```
 
 ### Step B — Interactive Design Discussion
+
+Read `interaction_mode` and `failure_policy` from `config.md` before continuing.
+
+If `interaction_mode = automated`, do not call `question`. Instead, derive a design decision log directly from `goals.md`, `requirements.md`, and `research/summary.md` using this policy:
+
+- choose the lowest-assumption approach consistent with the documented goals and research
+- decompose into vertical slices, never horizontal layers
+- define phase grouping and replan gates conservatively from the stated goals and dependencies
+- record any omitted user preference as `None specified.` instead of inventing it
+
+If multiple materially different architectures remain plausible and the choice would change public behavior or core architecture without grounding in the artifacts, return FAIL instead of guessing.
 
 Use `question` to present 2–3 approaches (name, trade-offs, fit) with a recommendation. Ask the user to confirm:
 
@@ -119,6 +131,21 @@ Before each `question` call in this step, run `date -u +%Y-%m-%dT%H:%M:%SZ` and 
 
 Also maintain `gate_wait_time_s` as the total elapsed seconds across all human-gate rounds. These values are returned in `### Telemetry` only; do not write them into pipeline artifacts.
 
+If `interaction_mode = automated`:
+
+1. Read `design.md`.
+2. If `terminal_state = unclean-cap` and `failure_policy = fail-closed`, return FAIL immediately:
+
+```
+### Status — FAIL
+### Files Written — design.md, reviews/design-review-round-{NN}.md
+### Summary — Design review reached the 5-round cap in automated fail-closed mode.
+### Telemetry — {"review_rounds": <N>, "gate_status": "none", "gate_mode": "automated", "gate_rounds": 0, "gate_wait_time_s": 0, "gate_round_details": [], "terminal_review_state": "unclean-cap"}
+```
+
+3. Otherwise run `date -u +%Y-%m-%dT%H:%M:%SZ` once and use that timestamp for both `presented_at` and `responded_at`.
+4. Treat the gate as auto-approved, set `gate_wait_time_s = 0`, and proceed to Return.
+
 Read `design.md` and present via `question`:
 
 ```
@@ -157,7 +184,7 @@ On success:
 ### Status — PASS
 ### Files Written — design.md, reviews/design-review-round-{NN}.md
 ### Summary — Design approved. Approach: [name]. Final review state: [clean|unclean-cap].
-### Telemetry — {"review_rounds": <N>, "gate_status": "approved", "gate_rounds": <rejections before approval>, "gate_wait_time_s": <seconds>, "gate_round_details": [{"round": 1, "decision": "approved", "presented_at": "<ts>", "responded_at": "<ts>"}]}
+### Telemetry — {"review_rounds": <N>, "gate_status": "approved", "gate_mode": "human|automated", "gate_rounds": <rejections before approval>, "gate_wait_time_s": <seconds>, "gate_round_details": [{"round": 1, "decision": "approved", "presented_at": "<ts>", "responded_at": "<ts>"}], "terminal_review_state": "clean|unclean-cap"}
 ```
 
 On unrecoverable failure (missing required input, malformed child return, or failed file operation):
@@ -166,5 +193,5 @@ On unrecoverable failure (missing required input, malformed child return, or fai
 ### Status — FAIL
 ### Files Written — [files written before failure]
 ### Summary — [description of what failed]
-### Telemetry — {"review_rounds": <N completed>, "gate_status": "none", "gate_rounds": 0, "gate_wait_time_s": 0, "gate_round_details": []}
+### Telemetry — {"review_rounds": <N completed>, "gate_status": "none", "gate_mode": "human|automated", "gate_rounds": 0, "gate_wait_time_s": 0, "gate_round_details": [], "terminal_review_state": "clean|unclean-cap"}
 ```

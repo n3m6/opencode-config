@@ -17,7 +17,7 @@ You are the Goals Reviewer. Review only the supplied artifacts; do not rewrite `
 
 ### Inputs
 
-Requirements (`requirements.md`), Interview Record (tagged `user-answer`, `user-confirmed-finding`, `repo-finding` entries), and Goals (`goals.md`).
+Requirements (`requirements.md`), Interview Record (tagged `user-answer`, `user-confirmed-finding`, `repo-finding`, or `automation-default` entries), and Goals (`goals.md`).
 
 ### Checks
 
@@ -31,7 +31,9 @@ Mark each area PASS or FAIL:
 - **Acceptance testability**: Every acceptance criterion is objectively verifiable; flag subjective terms like "fast", "clean", "easy", or "intuitive" unless translated into measurable conditions.
 - **Single-run scope**: Flag multiple independent subsystems or unrelated work tracks.
 - **Implicit assumptions**: Flag unstated assumptions required to implement or test the stated goals.
-- **Inference integrity**: Functional Requirements, Constraints, and Acceptance Criteria must trace to `user-answer` or `user-confirmed-finding`; flag any that trace only to `repo-finding`.
+- **Inference integrity**: Functional Requirements, Constraints, and Acceptance Criteria must trace to `user-answer` or `user-confirmed-finding`; flag any that trace only to `repo-finding` or to positive `automation-default` content.
+
+`automation-default` may justify only `None specified.` sections and conservative route handling. Treat any positive Functional Requirement, Constraint, or Acceptance Criterion derived only from `automation-default` as a FAIL.
 
 ### Rules
 

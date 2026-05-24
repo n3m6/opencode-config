@@ -23,7 +23,7 @@
                                          ▼
                           ┌──────────────────────────────┐
                           │  STAGE 1 — Goals            │
-                          │  🔒 Human Gate               │
+                          │  🔒 Human/Auto Gate          │
                           │                              │
                           │  Interactive dialogue via    │
                           │  question tool               │
@@ -86,7 +86,7 @@
                              ▼                    ▼
                           ┌──────────────────────────────┐
                           │  STAGE 4 — Design           │
-                          │  🔒 Human Gate               │
+                          │  🔒 Human/Auto Gate          │
                           │  (SKIP on quick-fix)         │
                           │                              │
                           │  Interactive design          │
@@ -105,7 +105,7 @@
                                         ▼
                           ┌──────────────────────────────┐
                           │  STAGE 5 — Structure        │
-                          │  🔒 Human Gate               │
+                          │  🔒 Human/Auto Gate          │
                           │  (SKIP on quick-fix)         │
                           │                              │
                           │  ┌────────────────────────┐  │
@@ -289,6 +289,15 @@ Goals → Questions → Research → Plan → Implement → Accept-Test → Veri
 
 Route is determined during Stage 1 (Goals) and written to `config.md`. Route changes are allowed before Stage 6 (Plan). After Plan is written, the route is locked.
 
+### Execution Modes
+
+Deepwork supports two run-level interaction modes:
+
+- `interactive` — the default. Goals, Design, Structure, controller escalation gates, backward-loop choices, and retry/abort handling use the `question` tool.
+- `automated` — opt-in. The pipeline suppresses question-based prompts, resolves stage-local approval gates automatically, and uses deterministic controller defaults. `failure_policy` then controls whether controller-level unresolved states continue best-effort or abort conservatively.
+
+`interaction_mode` and `failure_policy` are persisted in both `state.md` and `config.md` so resume recovery and downstream stages can preserve the same behavior.
+
 Phase handling rules:
 
 - Full route reads its phase count from `phase-manifest.md` after Stage 6.
@@ -306,8 +315,8 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 
 | File                                                    | Written By                   | Purpose                                                                              |
 | ------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------ |
-| `state.md`                                              | Deepwork                     | Recovery state and next-stage cursor (YAML frontmatter)                              |
-| `config.md`                                             | Stage 1                      | Route, run_id, and metadata                                                          |
+| `state.md`                                              | Deepwork                     | Recovery state, automation policy, and next-stage cursor (YAML frontmatter)          |
+| `config.md`                                             | Stage 1                      | Route, run_id, automation policy, and metadata                                       |
 | `requirements.md`                                       | Stage 1                      | Verbatim user task or PRD preserved for downstream reference                         |
 | `goals.md`                                              | Stage 1                      | Distilled intent, requirements, constraints, non-goals, acceptance criteria          |
 | `questions.md`                                          | Stage 2                      | Latest active question-batch snapshot for compatibility consumers                    |
@@ -393,7 +402,7 @@ Leaf agents (every agent not listed as an orchestrator) never write `events.json
 | `run.*`           | deepwork             | `run.started`, `run.resumed`, `run.completed`, `run.aborted`                                        |
 | `stage.*`         | deepwork             | `stage.started`, `stage.completed`, `stage.failed`, `stage.skipped`, `stage.retried`                |
 | `phase.*`         | qrspi-implement      | `phase.started`, `phase.completed`                                                                  |
-| `gate.*`          | deepwork             | `gate.presented`, `gate.approved`, `gate.rejected`                                                  |
+| `gate.*`          | deepwork             | `gate.presented`, `gate.approved`, `gate.rejected` for both human and automated gate decisions      |
 | `child.*`         | nested orchestrators | `child.dispatched`, `child.returned`                                                                |
 | `review.*`        | nested orchestrators | `review.round_started`, `review.round_completed`                                                    |
 | `backward_loop.*` | deepwork             | `backward_loop.requested`, `backward_loop.decided`, `backward_loop.deferred`, `backward_loop.reset` |
@@ -429,6 +438,8 @@ phase_history:
     completed_stages:
       - goals
 backward_loops: 0
+interaction_mode: interactive
+failure_policy: fail-closed
 resume_source: state
 ---
 ```
@@ -439,6 +450,8 @@ Rules:
 - `total_phases` is `1` for quick-fix, and `0` until Plan produces `phase-manifest.md` for full route.
 - Phase directory names are always zero-padded two-digit identifiers: `phases/phase-01`, `phases/phase-02`, ..., `phases/phase-NN`.
 - `resume_source` is `state` when recovered from `state.md`, `artifacts` when reconstructed from files on disk, and `fresh` on a brand-new run.
+- `interaction_mode` persists whether the run is interactive or fully automated.
+- `failure_policy` persists whether automated controller gates continue best-effort or fail closed.
 - `stages_completed` may include `replan` once any phase transition completes.
 - `phase_history` records per-phase stage-boundary completion. For single-phase runs, keep one entry.
 - Recovery is stage-level only. If the run is interrupted mid-stage, restart that stage from the beginning instead of resuming a substep.
@@ -449,7 +462,7 @@ If the user provides a run ID, asks to resume, or points at an existing `.pipeli
 
 1. Resolve the run directory: `.pipeline/qrspi-<run-id>/`
 2. Read `.pipeline/qrspi-<run-id>/state.md`
-3. If `state.md` exists and is coherent, use it as the authoritative recovery record: recover `route`, `current_phase`, `total_phases`, and `next_stage`.
+3. If `state.md` exists and is coherent, use it as the authoritative recovery record: recover `route`, `current_phase`, `total_phases`, `interaction_mode`, `failure_policy`, and `next_stage`.
 4. If `state.md` is missing or inconsistent, reconstruct progress from disk:
    - read `config.md` to confirm the route
    - use top-level markers for Goals, Questions, Research, Design, Structure, and Plan
