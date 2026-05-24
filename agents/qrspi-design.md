@@ -60,7 +60,7 @@ If `interaction_mode = automated`, do not call `question`. Instead, derive a des
 
 If multiple materially different architectures remain plausible and the choice would change public behavior or core architecture without grounding in the artifacts, return FAIL instead of guessing.
 
-Use `question` to present 2–3 approaches (name, trade-offs, fit) with a recommendation. Ask the user to confirm:
+If `interaction_mode = interactive`, use `question` to present 2–3 approaches (name, trade-offs, fit) with a recommendation. Ask the user to confirm:
 
 1. Chosen approach
 2. Vertical slice decomposition
@@ -146,7 +146,7 @@ If `interaction_mode = automated`:
 3. Otherwise run `date -u +%Y-%m-%dT%H:%M:%SZ` once and use that timestamp for both `presented_at` and `responded_at`.
 4. Treat the gate as auto-approved, set `gate_wait_time_s = 0`, and proceed to Return.
 
-Read `design.md` and present via `question`:
+If `interaction_mode = interactive`, read `design.md` and present via `question`:
 
 ```
 ### Design — Review

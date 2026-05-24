@@ -35,6 +35,7 @@ Parse from the prompt: Run ID, Route, Completed Phase, Completed Phase Dir, Next
 ### Step A — Read Inputs
 
 **Core context:**
+
 - `.pipeline/<run-id>/goals.md`
 - `.pipeline/<run-id>/design.md`
 - `.pipeline/<run-id>/structure.md`
@@ -42,6 +43,7 @@ Parse from the prompt: Run ID, Route, Completed Phase, Completed Phase Dir, Next
 - `.pipeline/<run-id>/phase-manifest.md`
 
 **Completed phase evidence:**
+
 - `.pipeline/<run-id>/<completed-phase-dir>/execution-manifest.md`
 - `.pipeline/<run-id>/<completed-phase-dir>/integration-results.md`
 - `.pipeline/<run-id>/<completed-phase-dir>/acceptance-results.md`
@@ -179,9 +181,54 @@ Do not delete completed-phase task files. They remain as audit artifacts.
 
 - If the reviewer returns `### Status — PASS`, stop the review loop. Terminal state: `clean`.
 - If the reviewer returns `### Status — FAIL` and `review_round >= 2` and the current round's `### Fix Guidance` is identical to the prior round's after whitespace normalization (collapse runs of whitespace, strip leading/trailing whitespace per line), stop the review loop. Terminal state: `stable-cap`. Do not regenerate again — the writer is not converging.
-- If the reviewer returns `### Status — FAIL` and `review_round < 5`, extract the single most important defect as `ROOT CAUSE OF FAILURE`, write one sentence as `MUTATION INSTRUCTION`, and re-dispatch `qrspi-replan-writer` with the rejected draft plus:
+- If the reviewer returns `### Status — FAIL` and `review_round < 5`, extract the single most important defect as `ROOT CAUSE OF FAILURE`, write one sentence as `MUTATION INSTRUCTION`, and re-dispatch `qrspi-replan-writer` with the rejected draft plus the same base context from Step C:
 
   ```
+  === GOALS ===
+  [contents of goals.md]
+
+  === DESIGN ===
+  [contents of design.md]
+
+  === STRUCTURE ===
+  [contents of structure.md]
+
+  === CURRENT PLAN ===
+  [contents of plan.md]
+
+  === CURRENT PHASE MANIFEST ===
+  [contents of phase-manifest.md]
+
+  === EXECUTION MANIFEST ===
+  [contents of <completed-phase-dir>/execution-manifest.md]
+
+  === INTEGRATION RESULTS ===
+  [contents of <completed-phase-dir>/integration-results.md]
+
+  === ACCEPTANCE RESULTS ===
+  [contents of <completed-phase-dir>/acceptance-results.md]
+
+  === STAGE 7 SUMMARY ===
+  [contents of <completed-phase-dir>/stage7-summary.md]
+
+  === STAGE 8 SUMMARY ===
+  [contents of <completed-phase-dir>/stage8-summary.md]
+
+  === COMPLETED PHASE TASK SPECS ===
+  [contents of all <completed-phase-dir>/tasks/task-NN.md files]
+
+  === CURRENT REMAINING TASK SPECS ===
+  [contents of task-NN.md files in <next-phase-dir>/tasks/, or `None.` if none were written]
+
+  === COMPLETED PHASE ===
+  [completed phase number]
+
+  === DEFERRED REPLAN FEEDBACK ===
+  [deferred replan feedback, or `None.`]
+
+  === PRIOR COMPLETED PHASE SUMMARIES ===
+  [summaries from each prior completed phase, or `None.` if this is Phase 1]
+
   === CURRENT REPLAN DRAFT PLAN ===
   [contents of plan.md]
 

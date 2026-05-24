@@ -124,8 +124,10 @@ If `interaction_mode = automated`:
 3. Otherwise run `date -u +%Y-%m-%dT%H:%M:%SZ` once and use that timestamp for both `presented_at` and `responded_at`.
 4. Treat the gate as auto-approved, set `gate_wait_time_s = 0`, and proceed to Return.
 
-5. `cat .pipeline/<run-id>/structure.md`
-6. Ask via the `question` tool:
+If `interaction_mode = interactive`:
+
+1. `cat .pipeline/<run-id>/structure.md`
+2. Ask via the `question` tool:
 
 ```
 ### Structure — Review

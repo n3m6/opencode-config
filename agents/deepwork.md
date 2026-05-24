@@ -14,6 +14,8 @@ permission:
     "ln -s *": allow
     "mv .pipeline/*": allow
     "rm -rf .pipeline/*": allow
+    "git diff *": allow
+    "git log *": allow
     "git status*": allow
     "git add *": allow
     "git commit *": allow
@@ -813,7 +815,7 @@ When `qrspi-replan` completes:
   - If `interaction_mode = automated` and `failure_policy = fail-closed`, do not call `question`. Follow **Error Handling** immediately using the Stage 8.5 summary and telemetry context from this attempt; Error Handling owns the retry or abort decision.
   - If `interaction_mode = interactive`, pause via `question` before continuing:
 
-  > Stage 8.5 (Replan) reached the review cap with unresolved concerns (`<terminal_review_state>` after <N> rounds). The replan reviewer's last `Fix Guidance` is in `.pipeline/<run-id>/<phase-dir>/reviews/replan-review-round-<N>.md`. Continue, or loop back to revise upstream context?
+  > Stage 8.5 (Replan) reached the review cap with unresolved concerns (`<terminal_review_state>` after <N> rounds). The replan reviewer's last `Fix Guidance` is in `.pipeline/<run-id>/reviews/replan-review-round-<N>.md`. Continue, or loop back to revise upstream context?
   >
   > A) Continue (accept the cap and proceed to the next phase)
   > B) Loop back to Stage 5 (Structure)
@@ -857,6 +859,7 @@ When `qrspi-verify` completes:
      - If `### Status` is FAIL without a backward loop, follow **Error Handling**. In this branch, Error Handling applies to the Stage 7 verify-fix attempt; retry means re-dispatch `qrspi-implement` with the same `verify-fix` inputs.
      - On PASS, emit `stage.completed` for the Stage 7 verify-fix attempt with `phase`, `context` from `### Telemetry`, and `artifacts` from `### Files Written`, regenerate `telemetry/run-log.md`, increment Stage 9's `stage_instance`, capture a fresh `started_at`, emit a fresh `stage.started` for `stage: "verify"`, and re-dispatch `qrspi-verify`.
   5. Process the re-dispatched Verify return through this same Stage 9 handler, but do not enter the auto-fix branch a second time. Re-runs only happen once per FAIL. If the second Stage 9 attempt also returns FAIL, emit `stage.failed` for that attempt and invoke the **Backward Loop Protocol** with the new verify evidence as the loop request body so the user picks the next step.
+  6. This auto-fix branch is terminal for the original failed Verify attempt. After entering it, do not continue with the common Stage 9 completion steps below unless the re-dispatched Verify attempt returned PASS or PARTIAL and that new return is now the active Verify result. If the verify-fix attempt entered **Error Handling** or the second Verify attempt invoked the **Backward Loop Protocol**, stop Stage 9 handling immediately after that path completes.
 - Mark Stage 9 as complete in `todowrite`.
 - Overwrite `state.md` with `last_completed_stage: verify`, `next_stage: report`, and the existing `interaction_mode` / `failure_policy`.
 - **Telemetry:** Parse `### Telemetry` from the return and add `verify_status` from `### Status` into the emitted `context`. Emit `stage.completed` for `PASS`, emit `stage.completed` with warning status for `PARTIAL`, and emit `stage.failed` for `FAIL`. Include `artifacts` from `### Files Written` in all cases. Emit `checkpoint.created` after the git commit.

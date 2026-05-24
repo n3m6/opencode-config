@@ -40,10 +40,10 @@ Received from deepwork:
 
 1. **Run ID** — `qrspi-<timestamp>` pipeline run identifier
 2. **Route** — `full` or `quick-fix`
-3. **Next Remaining Phase** *(optional)* — earliest incomplete phase on loopback re-entry; default `1`
-4. **Prior Phase Manifest** *(optional)* — completed-phase manifest to preserve unchanged
-5. **Completed Phases Context** *(optional)* — execution, integration, and acceptance summaries for completed phases
-6. **Failure Context** *(optional)* — backward-loop analysis and loop feedback from the triggering phase
+3. **Next Remaining Phase** _(optional)_ — earliest incomplete phase on loopback re-entry; default `1`
+4. **Prior Phase Manifest** _(optional)_ — completed-phase manifest to preserve unchanged
+5. **Completed Phases Context** _(optional)_ — execution, integration, and acceptance summaries for completed phases
+6. **Failure Context** _(optional)_ — backward-loop analysis and loop feedback from the triggering phase
 
 When any loopback field is present: treat completed phases as immutable historical facts; rewrite only remaining work from Next Remaining Phase onward.
 
@@ -51,13 +51,13 @@ When any loopback field is present: treat completed phases as immutable historic
 
 After Step A, bind these variables and substitute them verbatim in every child dispatch below.
 
-| Variable | Value |
-|---|---|
-| `GOALS` | contents of `goals.md` |
-| `REQUIREMENTS` | contents of `requirements.md` |
-| `RESEARCH` | contents of `research/summary.md` |
-| `AGENTS_GUIDANCE` | contents of `AGENTS.md` at repo root, or `None.` |
-| `DESIGN_OR_NA` | contents of `design.md` (full route only), else `N/A` |
+| Variable          | Value                                                    |
+| ----------------- | -------------------------------------------------------- |
+| `GOALS`           | contents of `goals.md`                                   |
+| `REQUIREMENTS`    | contents of `requirements.md`                            |
+| `RESEARCH`        | contents of `research/summary.md`                        |
+| `AGENTS_GUIDANCE` | contents of `AGENTS.md` at repo root, or `None.`         |
+| `DESIGN_OR_NA`    | contents of `design.md` (full route only), else `N/A`    |
 | `STRUCTURE_OR_NA` | contents of `structure.md` (full route only), else `N/A` |
 
 `LOOPBACK` block — include as-is in every dispatch that accepts loopback context:
@@ -195,9 +195,24 @@ Write reviewer output to `.pipeline/<run-id>/reviews/plan-review-round-NN.md`.
 - FAIL and `review_round < 6`:
   1. Extract the single most important defect as `ROOT CAUSE OF FAILURE`. Tie-break order: blocking correctness > missing coverage > vague outlines > style.
   2. Write one sentence on what must change as `MUTATION INSTRUCTION`.
-  3. Re-dispatch `qrspi-plan-writer` with the mutation prompt:
+  3. Re-dispatch `qrspi-plan-writer` with the mutation prompt. Use the same route-appropriate upstream context as Step C.1; for `quick-fix`, continue omitting `=== DESIGN ===` and `=== STRUCTURE ===`.
 
      ```
+     === GOALS ===
+     [GOALS]
+
+     === REQUIREMENTS ===
+     [REQUIREMENTS]
+
+     === RESEARCH SUMMARY ===
+     [RESEARCH]
+
+     === DESIGN ===
+     [DESIGN_OR_NA]
+
+     === STRUCTURE ===
+     [STRUCTURE_OR_NA]
+
      === RUN ID ===
      [run ID]
 
@@ -228,6 +243,7 @@ Write reviewer output to `.pipeline/<run-id>/reviews/plan-review-round-NN.md`.
   4. Archive any `tasks/outlines/task-NN.outline` files absent from the returned outline set into `tasks/outlines/inactive/`.
   5. Write updated `plan.md`, `phase-manifest.md`, and `tasks/outlines/task-NN.outline` files.
   6. Increment `review_round` and continue the loop.
+
 - FAIL and `review_round = 6`: stop. Terminal state: `unclean-cap`. Continue to task-spec generation; deepwork escalates this state via the Stage 6 unclean-cap question gate.
 
 ### Step D — Task Spec Generation and Review
@@ -369,7 +385,7 @@ On success:
 
 ```
 ### Status — PASS
-### Files Written — plan.md, phase-manifest.md, tasks/task-01.md, ..., tasks/task-NN.md, reviews/plan-review-round-NN.md, baseline-results.md
+### Files Written — plan.md, phase-manifest.md, tasks/outlines/task-01.outline, ..., tasks/outlines/task-NN.outline, tasks/task-01.md, ..., tasks/task-NN.md, reviews/plan-review-round-NN.md, reviews/task-spec/task-NN-review-round-MM.md, baseline-results.md
 ### Summary — Plan written with [N] tasks. Plan review: [clean | stable-cap | unclean-cap] (round NN). Task-spec review: [task_spec_clean | skipped (plan review state: <stable-cap|unclean-cap>)]. Baseline: [CLEAN/DIRTY].
 ### Telemetry — {"task_count": <N>, "review_rounds": <N>, "task_spec_review_rounds": <total rounds across all task specs, or 0 if skipped>, "terminal_review_state": "<clean|stable-cap|unclean-cap>"}
 ```
@@ -395,6 +411,7 @@ The following defects cause Stage 6 FAIL if unresolved after the plan review cap
 - The quick-fix route has more than one task.
 
 Why each maps to a real mechanism:
+
 - Explicit dependency fields are required because the implement stage builds task waves from them; missing or wrong edges produce incorrect execution order.
 - Exact file paths are required because the task spec writer is forbidden from inventing paths not in the outline.
 - Acceptance criteria must be named per outline because the accept stage traces each criterion back to a specific task.

@@ -16,6 +16,8 @@ When `qrspi-verify` returns FAIL, deepwork attempts **one** Stage 7 fix-mode pas
 
 This pass is bypassed when the user has already triggered a backward loop in this stage instance, or when `qrspi-implement` itself returned a `### Backward Loop Request`.
 
+When this protocol is invoked from the second Stage 9 FAIL after that single fix-mode pass has already completed, do not run the precondition again. Treat the verify-fix pass as already consumed and continue directly with the backward-loop decision flow.
+
 When this protocol is invoked:
 
 1. Read the backward loop request details.
@@ -105,7 +107,7 @@ d. Continue the current stage as non-blocking. The next Replan stage must read a
 a. Create the feedback directory if needed: `mkdir -p .pipeline/qrspi-<run-id>/feedback`
 b. Write `.pipeline/qrspi-<run-id>/feedback/goals-reset-context.md` containing the backward-loop request, current phase, and a concise summary of what was learned before the reset.
 c. Delete every pipeline artifact except `feedback/`, including all active and archived `phases/` directories. Do NOT delete the `telemetry/` directory — preserve it as a diagnostic record of the failed run state.
-d. Recreate `state.md` with `route: unknown`, `current_phase: 1`, `total_phases: 0`, `last_completed_stage: none`, `next_stage: goals`, incremented `backward_loops`, and `resume_source: state`.
+d. Recreate `state.md` with `route: unknown`, `current_phase: 1`, `total_phases: 0`, `last_completed_stage: none`, `next_stage: goals`, incremented `backward_loops`, the preserved `interaction_mode` / `failure_policy` from the current run, and `resume_source: state`.
 e. Reset the visible checklist to the initial pre-plan state.
 f. Re-enter the pipeline at **Stage 1** and include the contents of `feedback/goals-reset-context.md` as `=== PRIOR RUN LEARNINGS ===` in the Goals dispatch.
 

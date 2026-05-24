@@ -12,6 +12,8 @@ If the user provides a run ID, asks to resume, or points at an existing `.pipeli
 - recover `interaction_mode`
 - recover `failure_policy`
 - recover `next_stage`
+- before re-dispatching that recovered `next_stage`, check whether the corresponding summary artifact for the same stage/phase already exists on disk and parses as `### Status — FAIL`
+- if such a failed summary exists, do not silently restart; surface it through the existing Error Handling path for that recovered stage instead
 
 4. If `state.md` is missing or inconsistent, reconstruct progress from artifacts on disk using this phase-aware algorithm:
 
@@ -28,7 +30,7 @@ If the user provides a run ID, asks to resume, or points at an existing `.pipeli
 - Scan only active phase directories with `ls .pipeline/qrspi-<run-id>/phases/phase-*/`. Ignore anything under `phases/archive/`.
 - For each Stage 7 / 8 / 8.5 / 9 summary artifact found, parse the first `### Status` heading of the file to classify the artifact:
   - `### Status — PASS` (also `### Status — PARTIAL` for `stage9-summary.md`) → stage **complete**; treat the artifact as authoritative.
-  - `### Status — FAIL` → stage **incomplete with explicit failure on disk**; do not advance past it. Surface to the user via the existing Error Handling path with retry stage / abort run / invoke backward loop options before continuing recovery.
+  - `### Status — FAIL` → stage **incomplete with explicit failure on disk**; do not advance past it. Surface to the user via the existing Error Handling path with retry stage or abort run options before continuing recovery.
   - Missing `### Status` first heading, malformed Status, or unrecognized value → treat the same as FAIL (stage incomplete; surface via Error Handling). This includes summary files written by older pipeline versions that predate this contract.
 - Throughout the rules below, "X is complete" means the corresponding summary file exists **and** parses as PASS (or PARTIAL for Stage 9) per the Status rule above. Files that parse as FAIL or missing-Status do not satisfy completion and trigger Error Handling instead.
 - For each active phase directory in numeric order:

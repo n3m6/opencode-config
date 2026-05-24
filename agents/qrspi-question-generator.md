@@ -57,7 +57,7 @@ Run bounded read-only shell commands. Limit to single-digit calls; skip vendored
 2. Read the top-level README if present (`README.md`, `README.rst`, or `README`).
 3. Read present top-level package manifests: `package.json`, `pyproject.toml`, `setup.py`, `go.mod`, `Cargo.toml`, `pom.xml`, `build.gradle`.
 4. `find . -maxdepth 2 -not -path './.git/*' -not -path './node_modules/*' -not -path './.pipeline/*'` — shallow tree.
-5. Select up to 5 repo-facing nouns from the active completeness contract and current-system terms. For each: `grep -r --include='*.{ts,js,py,go,rs,java,rb,php,cs}' -l '<term>' . 2>/dev/null | head -10`.
+5. Select up to 5 repo-facing nouns from the active completeness contract and current-system terms. For each: `grep -r -l --include='*.ts' --include='*.js' --include='*.py' --include='*.go' --include='*.rs' --include='*.java' --include='*.rb' --include='*.php' --include='*.cs' '<term>' . 2>/dev/null | head -10`.
 
 **Step 1 — Build the batch coverage map (internal scratchpad; not emitted)**
 

@@ -67,7 +67,7 @@ Run read-only shell commands to ground the interview. Limit to at most 5 keyword
 2. `cat README.md` (or `README.rst`/`README`; skip if absent)
 3. Read any manifests present: `package.json`, `pyproject.toml`, `setup.py`, `go.mod`, `Cargo.toml`, `pom.xml`, `build.gradle`
 4. `find . -maxdepth 2 -not -path './.git/*' -not -path './node_modules/*' -not -path './.pipeline/*'`
-5. For each noun or system name in the user task: `grep -r --include='*.{ts,js,py,go,rs,java,rb,php,cs}' -l '<keyword>' . 2>/dev/null | head -10` (stop after 5 keywords)
+5. For each noun or system name in the user task: `grep -r -l --include='*.ts' --include='*.js' --include='*.py' --include='*.go' --include='*.rs' --include='*.java' --include='*.rb' --include='*.php' --include='*.cs' '<keyword>' . 2>/dev/null | head -10` (stop after 5 keywords)
 
 Tag each finding `repo-finding`. Surface findings to the user only when they materially shape a recommendation, route judgment, or scope decision.
 
@@ -215,8 +215,10 @@ If `interaction_mode = automated`:
 3. Otherwise run `date -u +%Y-%m-%dT%H:%M:%SZ` once and use that timestamp for both `presented_at` and `responded_at`.
 4. Treat the gate as auto-approved, set `gate_wait_time_s = 0`, and proceed to Return.
 
-5. Read: `cat .pipeline/<run-id>/goals.md`
-6. Present via `question`:
+If `interaction_mode = interactive`:
+
+1. Read: `cat .pipeline/<run-id>/goals.md`
+2. Present via `question`:
 
 ```
 ### Goals — Review
