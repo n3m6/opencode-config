@@ -815,7 +815,7 @@ Post-all-waves baseline regression gate. Diffs the current build, lint, typechec
 
 #### qrspi-accept
 
-Stage orchestrator. Dispatches the acceptance tester to run a phase-scoped inner review/revise/write/run loop (max 3 rounds) against the acceptance criteria assigned to the current phase. It blocks test generation until blocking review findings clear, reconciles reused/revised/created/deleted tests before execution, forbids production/source fixes, and if persistent failures remain dispatches the backward-loop detector to classify them and recommend next steps. Writes phase-local coverage, acceptance, summary, and backward-loop analysis artifacts plus phase-scoped review history.
+Stage orchestrator. Dispatches the acceptance tester to run a phase-scoped acceptance loop against the acceptance criteria assigned to the current phase. On reuse-only coverage, the tester may take a lighter execution-only path that reuses mapped acceptance suites without planner-review fan-out or test authoring. Otherwise it runs the full review/revise/write/run loop (max 3 rounds). It forbids production/source fixes, and if persistent failures remain dispatches the backward-loop detector to classify them and recommend next steps. Writes phase-local coverage, acceptance, summary, and backward-loop analysis artifacts plus phase-scoped review history.
 
 #### qrspi-coverage-planner
 
@@ -823,7 +823,12 @@ Drafts or revises the current phase's acceptance coverage plan for a single roun
 
 #### qrspi-acceptance-tester
 
-Runs the acceptance test inner loop: dispatches the coverage planner, dispatches 3 acceptance reviewers in parallel to detect plan issues, blocks test generation until blocking review findings clear, writes or reconciles the active acceptance tests, validates that stale coverage was deleted before execution, and allows up to 2 acceptance-test-only repair attempts per round for harness, import, command, flake, or assertion defects. Production/source defects are recorded as persistent failures for Stage 7 fix/review routing or backward-loop classification. Tests only the acceptance criteria assigned to the current phase in `phase-manifest.md`. Reports per-criterion PASS or FAIL.
+Runs the acceptance test inner loop. It always starts with the coverage planner, then chooses between two paths:
+
+- `lite` reuse-only path: when every current-phase criterion maps to an existing acceptance suite with `Action: reuse`, it skips planner review and test authoring, executes the mapped suites directly, and still reports per-criterion PASS or FAIL.
+- `full` path: dispatches the acceptance reviewers, blocks test generation until blocking review findings clear, writes or reconciles the active acceptance tests, validates that stale coverage was deleted before execution, and allows up to 2 acceptance-test-only repair attempts per round for harness, import, command, flake, or assertion defects.
+
+Production/source defects are recorded as persistent failures for Stage 7 fix/review routing or backward-loop classification. Tests only the acceptance criteria assigned to the current phase in `phase-manifest.md`. Reports per-criterion PASS or FAIL.
 
 #### qrspi-backward-loop-detector
 
