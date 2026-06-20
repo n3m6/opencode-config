@@ -52,7 +52,7 @@ For `full` route, also read:
 
 1. Read the task outline — stop and FAIL if missing.
 2. Read route-appropriate upstream artifacts — stop and FAIL on any missing required file.
-3. For `full` route: if `skeleton-results.md` exists and its first line is `### Status — PASS`, read the `## Plan Handoff` section and extract the `### Completed Files` list. These files were created by Stage 5.5 and are already committed; any file in this task's `## Files` that appears in that list must be marked `MODIFY` (not `CREATE`), and the `## Description` must note that the file was created by the skeleton foundation.
+3. For `full` route: if `skeleton-results.md` exists and its first line is `### Status — PASS`, read the `## Plan Handoff` section and extract the `### Completed Files` list. These files were created by Stage 4.5 and are already committed; any file in this task's `## Files` that appears in that list must be marked `MODIFY` (not `CREATE`), and the `## Description` must note that the file was created by the skeleton foundation.
 4. Apply Task Review Feedback if provided.
 5. Expand the outline into a spec using the schema below.
 6. Check the Quality Checklist before writing.

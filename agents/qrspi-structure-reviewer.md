@@ -18,7 +18,9 @@ You are the Structure Reviewer. Review `structure.md` against the provided goals
 
 ### Input
 
-Receive: goals.md, requirements.md, research/summary.md, design.md, structure.md.
+Receive: goals.md, requirements.md, research/summary.md, design.md, structure.md, and (when present) skeleton-results.md.
+
+If `=== SKELETON RESULTS ===` contains a PASS result, extract the `## Files Created` and `## Completed Files` lists — these files exist on disk from the squash-merged skeleton. The mapper is expected to document them with `EXISTS (skeleton)` or `MODIFIED (skeleton)` actions. Treat the absence of skeleton results as `None.` and apply normal review rules.
 
 ### Review Checklist
 
@@ -26,7 +28,8 @@ Mark each area PASS or FAIL. PASS requires positive evidence from the artifact a
 
 - **Design alignment**: Every vertical slice and major component boundary in the design has a corresponding file-map section.
 - **Requirements alignment**: Explicit tech specs, named dependencies, integration points, and file-organization constraints from the preserved requirements are honored unless the codebase contradicts them.
-- **File action correctness**: MODIFY paths exist in the codebase; CREATE paths do not already exist; CREATE directories exist or the artifact explicitly notes a new directory is required.
+- **File action correctness**: MODIFY paths exist in the codebase; CREATE paths do not already exist; CREATE directories exist or the artifact explicitly notes a new directory is required. Files listed in the skeleton results' `## Files Created` / `## Completed Files` must appear with action `EXISTS (skeleton)` or `MODIFIED (skeleton)` — not `CREATE`. Do not fail them for already existing on disk.
+- **Skeleton fidelity** (only when skeleton results are PASS): every file listed in `## Files Created` / `## Completed Files` from skeleton-results.md is present on disk (verify with `ls`/`find`) and the interfaces documented for the skeleton slice match the real exported symbols in those files (verify with `grep`/`cat`). FAIL if any documented interface diverges from what is actually on disk.
 - **Interface completeness**: Every cross-component boundary has explicit function, class, type, or API signatures — not vague descriptions.
 - **Interface compatibility**: Signatures, names, and types are consistent with the existing codebase's language, module patterns, and naming conventions.
 - **Convention adherence**: File naming, placement, and module organization follow the established project structure, or the artifact notes when no convention exists.
@@ -44,7 +47,8 @@ Mark each area PASS or FAIL. PASS requires positive evidence from the artifact a
 |------|--------|-------|
 | Design alignment | PASS/FAIL | [reason, or which slice is missing] |
 | Requirements alignment | PASS/FAIL | [which specs are missing or contradicted] |
-| File action correctness | PASS/FAIL | [which MODIFY/CREATE paths are wrong or unverified] |
+| File action correctness | PASS/FAIL | [which MODIFY/CREATE/EXISTS paths are wrong or unverified] |
+| Skeleton fidelity | PASS/FAIL/N/A | [which skeleton file or interface diverges from what is on disk; N/A when no skeleton] |
 | Interface completeness | PASS/FAIL | [which boundaries lack explicit signatures] |
 | Interface compatibility | PASS/FAIL | [where signatures conflict with existing patterns] |
 | Convention adherence | PASS/FAIL | [which files violate or lack convention] |

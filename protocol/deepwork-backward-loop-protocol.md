@@ -2,7 +2,7 @@
 
 This protocol is invoked from any of the following:
 
-- A stage subagent (`qrspi-implement`, `qrspi-accept`, `qrspi-replan`) returns a `### Backward Loop Request`.
+- A stage subagent (`qrspi-skeleton`, `qrspi-implement`, `qrspi-accept`, `qrspi-replan`) returns a `### Backward Loop Request`. When invoked from `qrspi-skeleton` (Stage 4.5), option A (Design) is always pre-selected by the caller — the multi-option prompt is skipped (see caller note in deepwork.md Stage 4.5 handler).
 - `qrspi-verify` returns FAIL and the **auto Stage 7 fix-mode pass** (see precondition below) does not recover. In that case deepwork synthesizes a backward-loop request from the verifier's failing rows before invoking this protocol.
 - The Plan/Replan **unclean-cap or stable-cap escalation gate** in deepwork yields a "loop back" answer; deepwork synthesizes a backward-loop request from the reviewer's final `### Fix Guidance` and invokes this protocol with the user-chosen target.
 

@@ -22,8 +22,9 @@ You are the Structure Mapper. Produce `# Structure` — a file-level contract th
 2. **Requirements** — requirements.md (preserved user spec)
 3. **Research Summary** — unified research findings
 4. **Design** — design.md with vertical slices and architectural patterns
-5. **Review Feedback** (optional) — automated review findings to correct
-6. **Feedback History** (optional) — prior rejected artifacts and user notes
+5. **Skeleton Results** (optional) — skeleton-results.md when the skeleton PASS'd; lists files already on disk
+6. **Review Feedback** (optional) — automated review findings to correct
+7. **Feedback History** (optional) — prior rejected artifacts and user notes
 
 ### Procedure
 
@@ -33,26 +34,33 @@ Execute these steps in order.
 
 2. **Apply requirements.** Where the codebase is silent, use explicit tech stack choices, framework names, library names, or file-organization rules from requirements.md to guide file placement and interface shapes.
 
-3. **Map every design slice to files.** For each vertical slice:
+3. **Document the skeleton slice (when Skeleton Results are PASS).** If `=== SKELETON RESULTS ===` contains a PASS result, the skeleton squash-merged real code onto the branch before this stage ran. For the skeleton slice:
+   - Use `ls`, `find`, and `cat` to read the actual files on disk.
+   - Document each skeleton-created file with action `EXISTS (skeleton)` instead of `CREATE`. Capture real exported interfaces and function signatures from the code using `grep` and `cat`.
+   - Document each skeleton-modified file with action `MODIFIED (skeleton)`.
+   - Use these real, verified interfaces as the ground truth for that slice's `#### Interfaces` section.
+   - For remaining (non-skeleton) slices, extrapolate the same file-naming and interface-shape conventions the skeleton established, then apply the normal CREATE/MODIFY rules.
+
+4. **Map every design slice to files.** For each vertical slice (skip the skeleton slice — it is already documented in step 3):
    - List every file that must change (MODIFY) or be created (CREATE).
    - Confirm MODIFY targets exist (`ls`/`find`); confirm CREATE targets do not already exist.
    - Place CREATE files under existing directories following project conventions. If a new directory is required, note it explicitly in `Convention Notes`.
    - If a slice touches more than 5 files, either split it into sub-slices or add a one-sentence justification.
 
-4. **Define typed interfaces.** For each component boundary within a slice:
+5. **Define typed interfaces.** For each component boundary within a slice:
    - Write explicit function signatures (name, parameters, return type).
    - Add type/class definitions and API contracts (endpoint, request/response shapes) where applicable.
    - Signatures must be consistent with the project's language, type system, and existing naming and export conventions.
    - Placeholders (`any`, `object`, `unknown`, `TBD`) are invalid unless the codebase already uses them and the artifact explains why.
    - Include signatures and contracts only — no implementation bodies.
 
-5. **Document cross-slice dependencies.** Name the concrete shared modules, import boundaries, and data flows that connect slices. Phrases like "shared validation" without a named module or signature are invalid.
+6. **Document cross-slice dependencies.** Name the concrete shared modules, import boundaries, and data flows that connect slices. Phrases like "shared validation" without a named module or signature are invalid.
 
-6. **Produce a Mermaid diagram.** Show file/module layout, interface boundaries, CREATE vs. MODIFY touch points, and the main request/data flow. A missing or isolated-nodes-only diagram is invalid.
+7. **Produce a Mermaid diagram.** Show file/module layout, interface boundaries, CREATE/MODIFY/EXISTS touch points, and the main request/data flow. A missing or isolated-nodes-only diagram is invalid.
 
-7. **Incorporate feedback.** If Review Feedback or Feedback History is present, address every objection explicitly. Do not carry forward unresolved items.
+8. **Incorporate feedback.** If Review Feedback or Feedback History is present, address every objection explicitly. Do not carry forward unresolved items.
 
-8. **Uncertainty rule.** If a file path, convention, or interface cannot be verified from the codebase, state the uncertainty in `Convention Notes` and choose the lowest-risk option grounded in the nearest existing pattern.
+9. **Uncertainty rule.** If a file path, convention, or interface cannot be verified from the codebase, state the uncertainty in `Convention Notes` and choose the lowest-risk option grounded in the nearest existing pattern.
 
 ### Output Format
 
@@ -109,6 +117,7 @@ Revise before returning if any of the following are true:
 - A file-map entry names a directory or vague bucket (`src/routes/`, `Various`) instead of a specific file path.
 - A MODIFY file does not exist at the stated path.
 - A CREATE file already exists at the stated path.
+- A file listed in `skeleton-results.md ## Completed Files` is documented with action `CREATE` — skeleton files must use `EXISTS (skeleton)` or `MODIFIED (skeleton)`.
 - An interface uses placeholder types or omits its signature.
 - Cross-slice dependencies name shared behavior without a concrete module or signature.
 - The Mermaid diagram is absent or shows only isolated nodes.

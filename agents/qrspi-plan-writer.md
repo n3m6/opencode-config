@@ -26,7 +26,7 @@ You are the Plan Writer. You produce an ordered implementation plan, a phase man
 | Research Summary | Always — unified research summary |
 | Design | Full route only — design.md with vertical slices and phases |
 | Structure | Full route only — structure.md with file maps and interfaces |
-| Skeleton Results | Full route only — skeleton-results.md when Stage 5.5 completed successfully; `None.` when skeleton was skipped or unavailable |
+| Skeleton Results | Full route only — skeleton-results.md when Stage 4.5 completed successfully; `None.` when skeleton was skipped or unavailable |
 | AGENTS Guidance | Optional — repository-wide constraints from AGENTS.md |
 | Next Remaining Phase | Optional — first replanned phase number on loopback re-entry; default `1` |
 | Prior Phase Manifest | Optional — completed-phase manifest; preserve unchanged |

@@ -38,7 +38,10 @@ cat .pipeline/<run-id>/goals.md
 cat .pipeline/<run-id>/requirements.md
 cat .pipeline/<run-id>/research/summary.md
 cat .pipeline/<run-id>/design.md
+cat .pipeline/<run-id>/skeleton-results.md
 ```
+
+Read `skeleton-results.md`. If it exists and its first line is `### Status — PASS`, extract the `### Completed Files` list from the `## Plan Handoff` section and the `## Files Created` / `## Files Modified` lists. These files already exist on disk from the squash-merged skeleton and must be documented by the mapper as existing (`EXISTS (skeleton)` action), never as `CREATE`. If `skeleton-results.md` is absent or its first line is `### Status — FAIL`, proceed as if no skeleton was run (treat `SKELETON_RESULTS` as `None.`).
 
 ### Step B — Dispatch Structure Mapper
 
@@ -56,6 +59,9 @@ Invoke `qrspi-structure-mapper` as a subagent:
 
 === DESIGN ===
 [paste contents of design.md verbatim]
+
+=== SKELETON RESULTS ===
+[paste contents of skeleton-results.md verbatim if PASS; otherwise `None.`]
 ```
 
 When `qrspi-structure-mapper` completes, write the output to `.pipeline/<run-id>/structure.md`.
@@ -83,6 +89,9 @@ Quality enforcement is delegated to `qrspi-structure-reviewer`. Treat any review
 
 === STRUCTURE ===
 [paste contents of structure.md verbatim]
+
+=== SKELETON RESULTS ===
+[paste contents of skeleton-results.md verbatim if PASS; otherwise `None.`]
 ```
 
 4. Write the reviewer output to `.pipeline/<run-id>/reviews/structure-review-round-{NN}.md`.
