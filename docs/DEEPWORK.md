@@ -84,7 +84,7 @@
                              ┌──────────┴──────────┐
                              │                     │
                          Full route            Quick-fix
-                             │                     │          (Stages 4 & 5 self-skip)
+                             │                     │          (Stages 4 & 4.5 self-skip)
                              ▼                    ▼
                           ┌──────────────────────────────┐
                           │  STAGE 4 — Design           │
@@ -106,7 +106,8 @@
                                         │
                                         ▼
                           ┌──────────────────────────────┐
-                          │  STAGE 4.5 — Skeleton       │
+                          │  STAGE 4.5 — Skeleton +     │
+                          │  Structure                   │
                           │  (SKIP on quick-fix)         │
                           │                              │
                           │  ┌────────────────────────┐  │
@@ -114,28 +115,21 @@
                           │  └────────────────────────┘  │
                           │       (dispatches             │
                           │   qrspi-fast-impl-loop once  │
-                          │   in a git worktree)         │
-                          │  ↺ backward loop → Design    │
-                          └─────────────┬────────────────┘
-                                        │
-                          Outputs: skeleton-results.md
-                                   (PASS → code squash-merged)
-                                        │
-                                        ▼
-                          ┌──────────────────────────────┐
-                          │  STAGE 5 — Structure        │
-                          │  🔒 Human/Auto Gate          │
-                          │  (SKIP on quick-fix)         │
-                          │                              │
+                          │   in a git worktree, then    │
+                          │   runs structure mapping     │
+                          │   and review loop)           │
                           │  ┌────────────────────────┐  │
                           │  │ qrspi-structure-mapper │  │
                           │  └────────────────────────┘  │
                           │  ┌────────────────────────┐  │
                           │  │qrspi-structure-reviewer│  │  (max 5 rounds)
                           │  └────────────────────────┘  │
+                          │  ↺ backward loop → Design    │
                           └─────────────┬────────────────┘
                                         │
-                          Outputs: structure.md,
+                          Outputs: skeleton-results.md
+                                   (PASS → code squash-merged),
+                                   structure.md,
                                    reviews/structure-review-round-NN.md
                                         │
                                         ▼
@@ -316,10 +310,10 @@
 **Full pipeline** — for features, new products, and anything requiring architectural design. May be single-phase or multi-phase. Question generation is owned internally by the merged Stage 2 (Research):
 
 ```
-Goals → Research → Design → Skeleton → Structure → Plan → [Implement → Accept-Test → Replan]* → Verify → Report
+Goals → Research → Design → Skeleton+Structure → Plan → [Implement → Accept-Test → Replan]* → Verify → Report
 ```
 
-**Quick-fix** — for targeted bug fixes, small changes, and 1–3 file modifications. Always single-phase. It still reaches Stages 4, 4.5, and 5, but those stages self-skip and mark themselves skipped before continuing to Stage 6:
+**Quick-fix** — for targeted bug fixes, small changes, and 1–3 file modifications. Always single-phase. It still reaches Stages 4 and 4.5, but those stages self-skip and mark themselves skipped before continuing to Stage 6:
 
 ```
 Goals → Research → Plan → Implement → Accept-Test → Verify → Report
@@ -331,7 +325,7 @@ Route is determined during Stage 1 (Goals) and written to `config.md`. Route cha
 
 Deepwork supports two run-level interaction modes:
 
-- `interactive` — the default. Goals, Design, Structure, controller escalation gates, backward-loop choices, and retry/abort handling use the `question` tool.
+- `interactive` — the default. Goals, Design, controller escalation gates, backward-loop choices, and retry/abort handling use the `question` tool.
 - `automated` — opt-in. The pipeline suppresses question-based prompts, resolves stage-local approval gates automatically, and uses deterministic controller defaults. `failure_policy` then controls whether controller-level unresolved states continue best-effort or abort conservatively.
 
 `interaction_mode` and `failure_policy` are persisted in both `state.md` and `config.md` so resume recovery and downstream stages can preserve the same behavior.
@@ -369,7 +363,7 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 | `research/summary.md`                                   | Stage 2                      | Unified cumulative research summary                                                  |
 | `reviews/research/round-NN/research-pass-review-round-MM.md` | Stage 2                 | Round-local batch-pass review history for `qrspi-research-pass`                       |
 | `design.md`                                             | Stage 4                      | Approach, slice inventory + dependency DAG, phases, replan gates, test strategy      |
-| `structure.md`                                              | Stage 5                      | File mapping, interfaces, system architecture diagram, file/module Mermaid diagram   |
+| `structure.md`                                              | Stage 4.5                    | File mapping, interfaces, system architecture diagram, file/module Mermaid diagram   |
 | `skeleton-results.md`                                       | Stage 4.5                    | Skeleton PASS/FAIL, squash-merged files, plan handoff section (Completed Files)      |
 | `skeleton-task.md`                                          | Stage 4.5                    | Ephemeral task spec used by the skeleton implementation loop                         |
 | `skeleton/stage7-summary.md`                                | Stage 4.5                    | Skeleton execution summary kept outside `phases/phase-*` so resume does not treat it as a normal phase |
@@ -383,7 +377,7 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 | `tasks/outlines/inactive/task-NN.outline`                   | Stage 6                      | Superseded task outlines archived when plan-writer rewrites the outline set          |
 | `tasks/inactive/task-NN.md`                                 | Stage 6                      | Superseded task specs archived when the active task set is rewritten                 |
 | `reviews/task-spec/inactive/task-NN-review-round-MM.md`     | Stage 6                      | Superseded task-spec reviews archived alongside their associated inactive task specs |
-| `reviews/*.md`                                              | Stages 1, 2, 4, 5, 6, 8, 8.5 | Automated review history                                                            |
+| `reviews/*.md`                                              | Stages 1, 2, 4, 4.5, 6, 8, 8.5 | Automated review history                                                          |
 | `feedback/{step}-round-NN.md`                               | Any gate                     | Rejection feedback + rejected artifact                                               |
 | `feedback/feasibility-patch-round-NN.md`                    | Stage 6 / Deepwork           | Plan-patch audit note after a feasibility failure patch round                        |
 | `feedback/feasibility-patch-round-NN-escalation.md`         | Stage 6 / Deepwork           | Patcher escalation record when local patch is impossible                             |
@@ -500,7 +494,7 @@ Rules:
 - `total_phases` is `1` for quick-fix, and `0` until Plan produces `phase-manifest.md` for full route.
 - Phase directory names are always zero-padded two-digit identifiers: `phases/phase-01`, `phases/phase-02`, ..., `phases/phase-NN`.
 - `resume_source` is `state` when recovered from `state.md`, `artifacts` when reconstructed from files on disk, and `fresh` on a brand-new run.
-- Valid `next_stage` / `last_completed_stage` values: `goals`, `research`, `design`, `design-skipped`, `skeleton`, `skeleton-skipped`, `structure`, `structure-skipped`, `plan`, `implement`, `accept`, `replan`, `verify`, `report`, `done`. For quick-fix, `design-skipped`, `skeleton-skipped`, and `structure-skipped` are written instead of their full-route completion values.
+- Valid `next_stage` / `last_completed_stage` values: `goals`, `research`, `design`, `design-skipped`, `skeleton`, `skeleton-skipped`, `plan`, `implement`, `accept`, `replan`, `verify`, `report`, `done`. For quick-fix, `design-skipped` and `skeleton-skipped` are written instead of their full-route completion values.
 - `interaction_mode` persists whether the run is interactive or fully automated.
 - `failure_policy` persists whether automated controller gates continue best-effort or fail closed.
 - `stages_completed` may include `replan` once any phase transition completes.
@@ -516,7 +510,7 @@ If the user provides a run ID, asks to resume, or points at an existing `.pipeli
 3. If `state.md` exists and is coherent, use it as the authoritative recovery record: recover `route`, `current_phase`, `total_phases`, `interaction_mode`, `failure_policy`, and `next_stage`. Before re-dispatching the recovered `next_stage`, check whether the corresponding summary artifact for that stage/phase already exists on disk and parses as `### Status — FAIL`; if so, surface it via the existing Error Handling path instead of silently restarting.
 4. If `state.md` is missing or inconsistent, reconstruct progress from disk:
    - read `config.md` to confirm the route and recover `interaction_mode` / `failure_policy` when present
-   - use top-level markers for Goals, Research, Design, Skeleton, Structure, and Plan; treat `goal-inventory.md`, `questions.md`, the `question-*-review.md` snapshots, `research/open-questions.md`, `research/question-ledger.md`, and `research/iterations/` as in-progress markers that force a Research restart when `research/summary.md` is missing; treat `skeleton-results.md` with `### Status — PASS` as the Skeleton completion marker; a present-but-FAIL `skeleton-results.md` routes through Error Handling
+   - use top-level markers for Goals, Research, Design, Skeleton+Structure, and Plan; treat `goal-inventory.md`, `questions.md`, the `question-*-review.md` snapshots, `research/open-questions.md`, `research/question-ledger.md`, and `research/iterations/` as in-progress markers that force a Research restart when `research/summary.md` is missing; treat Stage 4.5 as complete when `structure.md` exists; if `skeleton-results.md` is PASS but `structure.md` is absent, resume at the structure mapping sub-step (the skeleton orchestrator's Step 0 handles this automatically); a present-but-FAIL `skeleton-results.md` routes through Error Handling
    - if pre-phase work is complete, read `phase-manifest.md` for `total_phases`
    - scan active phase directories under `phases/phase-*/` and ignore `phases/archive/`
    - treat `stage7-summary.md`, `stage8-summary.md`, and `replan/phase-NN-replan.md` inside each phase directory as the authoritative stage markers
@@ -545,8 +539,8 @@ Every alignment and planning stage runs an internal automated review loop before
 | 1 — Goals                     | `qrspi-goals-reviewer`                       | 5          | Re-dispatch synthesizer with review feedback                                             |
 | 2 — Research                  | `qrspi-research-reviewer`                    | unbounded  | Generate incremental follow-up batches until clean or stalled                            |
 | 4 — Design                    | `qrspi-design-reviewer`                      | 5          | Re-dispatch design synthesizer with feedback; checks slice DAG coherence and Architectural Patterns scope instead of Mermaid diagram |
-| 4.5 — Skeleton                | `qrspi-fast-impl-loop` (smoke check)         | 1          | FAIL → backward loop to Design or Error Handling                                         |
-| 5 — Structure                 | `qrspi-structure-reviewer`                   | 5          | Re-dispatch structure mapper with feedback                                               |
+| 4.5 — Skeleton (smoke check)  | `qrspi-fast-impl-loop` (smoke check)         | 1          | FAIL → backward loop to Design or Error Handling                                         |
+| 4.5 — Structure (mapping)     | `qrspi-structure-reviewer`                   | 5          | Re-dispatch structure mapper with feedback; `unclean-cap` at round 5 proceeds without a gate (no human review — Plan reviewer + feasibility checker are the downstream safety net) |
 | 6 — Plan (plan review)        | `qrspi-plan-reviewer`                        | 6          | Re-dispatch plan writer with feedback; stable-cap if same `Fix Guidance` repeats         |
 | 6 — Plan (task-spec review)   | `qrspi-task-spec-reviewer`                   | 3 per task | Repair in place; unresolved cross-task conflicts → Stage 6 FAIL                          |
 | 6 — Plan (feasibility + patch)| `qrspi-feasibility-checker` + `qrspi-plan-patcher` | 2   | Patch failing subgraph in place; after 2 rounds → `feasibility-unclean` escalation gate |
@@ -568,7 +562,7 @@ Terminal review states:
 
 Stage 2 (Research) now owns both question generation and research. It alternates between incremental question-batch generation and research passes until the cumulative research state is clean or the unresolved-question snapshot stalls. A stalled loop returns `PASS` with `terminal_review_state = stable-cap`, preserving the latest unresolved items for downstream design and planning.
 
-Stage 4.5 (Skeleton) runs between Design and Structure on the full route. It selects the thinnest end-to-end slice from `design.md` (preferring the Foundation Slice, otherwise the slice most depended on per the `## Slice Dependency DAG`), creates a single task spec via codebase recon (no structure.md dependency), dispatches `qrspi-fast-impl-loop` in a fresh git worktree, and smoke-checks the result. A PASS squash-merges the skeleton code onto the pipeline branch and writes `skeleton-results.md` with a `## Plan Handoff` section. Stage 5 (Structure) reads this to document already-created files as `EXISTS (skeleton)` instead of `CREATE` and to ground the authoritative system architecture diagram in verified skeleton/existing modules plus planned `CREATE` entries from the file map; Stage 6 (Plan) reads it to avoid re-assigning those files as fresh CREATE tasks. A FAIL with a backward loop request routes immediately back to Design — no Structure, plan, phases, or tasks exist yet, making this the cheapest possible validation point. Stage 4.5 is skipped on the quick-fix route.
+Stage 4.5 (Skeleton+Structure) runs between Design and Plan on the full route. It selects the thinnest end-to-end slice from `design.md` (preferring the Foundation Slice, otherwise the slice most depended on per the `## Slice Dependency DAG`), creates a single task spec via codebase recon (no structure.md dependency), dispatches `qrspi-fast-impl-loop` in a fresh git worktree, and smoke-checks the result. A PASS squash-merges the skeleton code onto the pipeline branch, writes `skeleton-results.md` with a `## Plan Handoff` section, then immediately dispatches `qrspi-structure-mapper` and runs an automated structure review loop (up to 5 rounds) to produce `structure.md`. Stage 6 (Plan) reads both `skeleton-results.md` (to avoid re-assigning skeleton files as fresh CREATE tasks) and `structure.md` (for the file map, interfaces, and system architecture diagram). A FAIL with a backward loop request from the skeleton build or structure mapper routes immediately back to Design — no plan, phases, or tasks exist yet, making this the cheapest possible validation point. Resume after a partial run uses `skeleton-results.md` as an internal checkpoint: if the build passed but `structure.md` is absent, the stage re-enters only at the structure mapping sub-step (no rebuild). Stage 4.5 is skipped on the quick-fix route.
 
 Stage 6 (Plan) now runs three review layers and a pre-implementation check: (1) a plan-level review loop (max 6 rounds, stable-cap detection) by `qrspi-plan-reviewer`; (2) a per-task spec review loop (max 3 rounds) by `qrspi-task-spec-reviewer` repairing each spec in place, gated on plan review being `clean`; (3) a feasibility check and bounded patch loop (max 2 rounds) by `qrspi-feasibility-checker` and `qrspi-plan-patcher`, gated on both reviews being clean. The feasibility check runs each task spec's `## Feasibility Checklist` items against the real codebase before any build. Failures trigger `qrspi-plan-patcher` which regenerates only the failing task subgraph in place (no deletions, stable IDs). After 2 rounds, unresolved feasibility failures are recorded as `feasibility-unclean` and surfaced to the user via deepwork's Stage 6 escalation gate — the same path as `unclean-cap`. After all three layers complete, `qrspi-baseline-checker` runs and the final review status block is appended to every `tasks/task-NN.md`.
 
@@ -594,13 +588,12 @@ Stage 6 (Plan) now runs three review layers and a pre-implementation check: (1) 
 
 ## Human Gates
 
-Three stages require human approval before proceeding:
+Two stages require human approval before proceeding:
 
-| Stage         | Artifact       | What the User Reviews                                  |
-| ------------- | -------------- | ------------------------------------------------------ |
-| 1 — Goals     | `goals.md`     | Intent, constraints, non-goals, acceptance criteria    |
-| 4 — Design    | `design.md`    | Approach, vertical slices + dependency DAG, phases, replan gates, tests |
-| 5 — Structure | `structure.md` | File mapping, interfaces, system architecture diagram, Mermaid file/module diagram |
+| Stage      | Artifact    | What the User Reviews                                                   |
+| ---------- | ----------- | ----------------------------------------------------------------------- |
+| 1 — Goals  | `goals.md`  | Intent, constraints, non-goals, acceptance criteria                     |
+| 4 — Design | `design.md` | Approach, vertical slices + dependency DAG, phases, replan gates, tests |
 
 All human gates present the automated review status to the user ("passed clean in round N" or "reached the N-round cap with remaining concerns documented in ...").
 
@@ -638,30 +631,30 @@ The deepwork agent presents the issue to the user with these options:
 
 **Full route options (LOOP_PLAN with patch budget remaining):**
 
-| Option | Action                                                                       |
-| ------ | ---------------------------------------------------------------------------- |
-| P      | **Incremental Plan Patch** ← Recommended (no deletion, bounded to 2 rounds)  |
-| A      | Loop back to **Design** (re-architect the approach)                          |
-| B      | Loop back to **Structure** (re-map files and interfaces)                     |
-| C      | Loop back to **Plan** (revise task specifications — heavy, archives phase)   |
-| D      | Defer to next **Replan** (record issue for phase boundary)                   |
-| E      | Attempt a **local fix** within the current stage                             |
-| F      | **Continue as-is** (accept the limitation)                                   |
-| G      | Full reset to **Goals** (restart with accumulated learnings)                 |
+| Option | Action                                                                                                            |
+| ------ | ----------------------------------------------------------------------------------------------------------------- |
+| P      | **Incremental Plan Patch** ← Recommended (no deletion, bounded to 2 rounds)                                       |
+| A      | Loop back to **Design** (re-architect the approach; deletes design.md + skeleton-results.md + structure.md + plan artifacts) |
+| B      | Loop back to **Structure mapping** (re-run only the structure mapping sub-step; preserves skeleton-results.md and the skeleton commit — cheap re-entry) |
+| C      | Loop back to **Plan** (revise task specifications — heavy, archives phase)                                        |
+| D      | Defer to next **Replan** (record issue for phase boundary)                                                        |
+| E      | Attempt a **local fix** within the current stage                                                                  |
+| F      | **Continue as-is** (accept the limitation)                                                                        |
+| G      | Full reset to **Goals** (restart with accumulated learnings)                                                      |
 
 **Full route options (non-LOOP_PLAN, or LOOP_PLAN with patch budget exhausted):**
 
-| Option | Action                                                       |
-| ------ | ------------------------------------------------------------ |
-| A      | Loop back to **Design** (re-architect the approach)          |
-| B      | Loop back to **Structure** (re-map files and interfaces)     |
-| C      | Loop back to **Plan** (revise task specifications)           |
-| D      | Defer to next **Replan** (record issue for phase boundary)   |
-| E      | Attempt a **local fix** within the current stage             |
-| F      | **Continue as-is** (accept the limitation)                   |
-| G      | Full reset to **Goals** (restart with accumulated learnings) |
+| Option | Action                                                                                                            |
+| ------ | ----------------------------------------------------------------------------------------------------------------- |
+| A      | Loop back to **Design** (re-architect the approach; deletes design.md + skeleton-results.md + structure.md + plan artifacts) |
+| B      | Loop back to **Structure mapping** (re-run only the structure mapping sub-step; preserves skeleton-results.md and the skeleton commit — cheap re-entry) |
+| C      | Loop back to **Plan** (revise task specifications)                                                                |
+| D      | Defer to next **Replan** (record issue for phase boundary)                                                        |
+| E      | Attempt a **local fix** within the current stage                                                                  |
+| F      | **Continue as-is** (accept the limitation)                                                                        |
+| G      | Full reset to **Goals** (restart with accumulated learnings)                                                      |
 
-**Quick-fix route options** (Design and Structure are skipped, so A and B are unavailable; Replan is skipped, so D is unavailable; P is unavailable):
+**Quick-fix route options** (Design and Structure mapping are skipped, so A and B are unavailable; Replan is skipped, so D is unavailable; P is unavailable):
 
 | Option | Action                                                       |
 | ------ | ------------------------------------------------------------ |
@@ -676,10 +669,12 @@ Loop-back mechanics (options A, B, C):
 2. Write `feedback/{stage}-loop-{NN}-evidence.md` with the triggering request, current phase artifacts, current plan/manifest, and task specs before moving or deleting anything.
 3. Preserve completed phase directories `phases/phase-01/` through `phases/phase-(N-1)/` unchanged.
 4. Archive the current incomplete phase directory under `phases/archive/failed-phase-NN-loop-{NN}/` and archive any unstarted future phase directories under `phases/archive/`.
-5. Delete the regenerated top-level artifacts owned by the loop target or later stages.
+5. Delete the regenerated top-level artifacts owned by the loop target or later stages:
+   - Option B (Structure mapping): `structure.md` plus all Plan artifacts. Preserve `skeleton-results.md` and the skeleton commit — only the mapping step re-runs.
+   - Option A (Design): `design.md`, `skeleton-results.md`, `structure.md`, plus all Plan artifacts. The skeleton commit stays on the branch; the feedback file notes that the branch contains skeleton code from the prior design iteration.
 6. Reset todo items for the target stage and all downstream stages, removing stale future-phase checklist entries.
-7. Overwrite `state.md` with the loop target, increment `backward_loops`, set `current_phase` to the earliest incomplete phase when completed phases are being preserved, and reset `current_phase` to `1` only when no completed phases remain or the loop target is before phased execution.
-8. Re-enter the pipeline at the target stage. For Phase 2 and later loopbacks to Design, Structure, or Plan, deepwork passes `NEXT REMAINING PHASE`, the prior `phase-manifest.md`, preserved completed-phase artifacts, the loop feedback file, and the loop evidence file as context.
+7. Overwrite `state.md` with the loop target as `next_stage` (Design → `design`, Structure mapping → `skeleton`, Plan → `plan`), increment `backward_loops`, set `current_phase` to the earliest incomplete phase when completed phases are being preserved, and reset `current_phase` to `1` only when no completed phases remain or the loop target is before phased execution.
+8. Re-enter the pipeline at the target stage. For Phase 2 and later loopbacks to Design, Structure mapping, or Plan, deepwork passes `NEXT REMAINING PHASE`, the prior `phase-manifest.md`, preserved completed-phase artifacts, the loop feedback file, and the loop evidence file as context.
 
 Defer to Replan (option D):
 
@@ -705,7 +700,7 @@ Before Stage 1 starts, the deepwork agent:
 3. Generates a run ID with `date +%Y%m%d-%H%M%S`, prefixed with `qrspi-`.
 4. Creates `.pipeline/qrspi-<run-id>/phases/` and `.pipeline/qrspi-<run-id>/telemetry/`, initializes an empty `telemetry/events.jsonl`, and checks out branch `qrspi/<run-id>` from `main`.
 5. Writes initial `state.md` with `route: unknown`, `next_stage: goals`, `interaction_mode`, `failure_policy`, and `resume_source: fresh`. Emits the `run.started` telemetry event with `route: "unknown"`.
-6. Creates the visible progress checklist using `todowrite` (ten items: Stage 1 Goals, Stage 2 Research, Stage 4 Design, Stage 4.5 Skeleton, Stage 5 Structure, Stage 6 Plan, Phase 1 Implement, Phase 1 Acceptance test, Stage 9 Verify, Stage 10 Report).
+6. Creates the visible progress checklist using `todowrite` (nine items: Stage 1 Goals, Stage 2 Research, Stage 4 Design, Stage 4.5 Skeleton+Structure, Stage 6 Plan, Phase 1 Implement, Phase 1 Acceptance test, Stage 9 Verify, Stage 10 Report).
 7. After Plan completes, creates `phases/phase-01/tasks/` as a symlink to `../../tasks/` and creates any additional empty planned phase directories.
 8. Immediately enters Stage 1.
 
@@ -800,7 +795,7 @@ Stage orchestrator. Conducts interactive design discussion with the user (2–3 
 
 #### qrspi-design-synthesizer
 
-Synthesizes a design document from goals, research summary, and the interactive design discussion. Structures the chosen approach, conceptual architectural patterns (no component/file detail), vertical slice decomposition with a slice dependency DAG, phases with replan gates, test strategy, and key decisions with trade-offs. Does not produce a Mermaid system diagram — that moves to Structure where it can reflect the merged skeleton code and approved file map. Handles feedback-driven re-generation. Read-only.
+Synthesizes a design document from goals, research summary, and the interactive design discussion. Structures the chosen approach, conceptual architectural patterns (no component/file detail), vertical slice decomposition with a slice dependency DAG, phases with replan gates, test strategy, and key decisions with trade-offs. Does not produce a Mermaid system diagram — that is produced by the structure mapper in Stage 4.5 where it can reflect the merged skeleton code and approved file map. Handles feedback-driven re-generation. Read-only.
 
 #### qrspi-design-reviewer
 
@@ -808,11 +803,11 @@ Reviews `design.md` independently for goals alignment, vertical slice quality, t
 
 ---
 
-### Stage 5 — Structure
+### Stage 4.5 — Skeleton + Structure
 
-#### qrspi-structure
+#### qrspi-skeleton
 
-Stage orchestrator. Dispatches the structure mapper, runs the automated structure review loop, and holds a human gate. Enforces guardrails against missing slice coverage, vague file maps, missing interfaces, missing diagrams, and system architecture components not grounded in either verified real modules or planned `CREATE` entries from the approved file map.
+Stage 4.5 orchestrator for the full route (skipped on quick-fix). Selects the thinnest end-to-end slice from `design.md` (`## Vertical Slices`, preferring the Foundation Slice), derives file paths via codebase recon (grep/find/ls/cat), writes a minimal ephemeral `skeleton-task.md`, creates a fresh git worktree, and dispatches `qrspi-fast-impl-loop` once using the non-phase `skeleton/` execution directory. On PASS with `Review Status: CLEAN`, squash-merges the skeleton code onto the pipeline branch, writes `skeleton-results.md`, then immediately dispatches `qrspi-structure-mapper` and runs the automated structure review loop (up to 5 rounds), producing `structure.md`. Stage 6 (Plan) reads both `skeleton-results.md` (to avoid re-assigning skeleton files as fresh tasks) and `structure.md` (for the file map, interfaces, and system architecture). On FAIL with a `### Backward Loop Request` from the skeleton build or structure mapper, the request routes back to Design only — the cheapest possible validation point since no plan, phases, or tasks exist yet. Resume uses `skeleton-results.md` as an internal checkpoint: PASS + missing `structure.md` re-enters only the mapping sub-step.
 
 #### qrspi-structure-mapper
 
@@ -857,14 +852,6 @@ Incremental plan-patch agent invoked when `qrspi-feasibility-checker` finds unsa
 #### qrspi-baseline-checker
 
 Records the pre-implementation build, lint, typecheck, E2E, and test baseline before Stage 7 begins. Produces `baseline-results.md`, capturing known pre-existing failures without attempting fixes and marking missing checks as `SKIPPED` or `NOT CONFIGURED`.
-
----
-
-### Stage 4.5 — Skeleton
-
-#### qrspi-skeleton
-
-Stage 4.5 orchestrator for the full route (skipped on quick-fix). Selects the thinnest end-to-end slice from `design.md` (`## Vertical Slices`, preferring the Foundation Slice), derives file paths via codebase recon (grep/find/ls/cat), writes a minimal ephemeral `skeleton-task.md`, creates a fresh git worktree, and dispatches `qrspi-fast-impl-loop` once using the non-phase `skeleton/` execution directory. On PASS with `Review Status: CLEAN`, squash-merges the skeleton code onto the pipeline branch and writes `skeleton-results.md`. Stage 5 (Structure) reads this to document already-created files as `EXISTS (skeleton)` rather than `CREATE`; Stage 6 (Plan) reads it to avoid re-assigning those files as fresh tasks. On FAIL with a `### Backward Loop Request`, the skeleton code is not merged and the request routes back to Design only — the cheapest possible validation point since no Structure, plan, phases, or tasks exist yet.
 
 ---
 

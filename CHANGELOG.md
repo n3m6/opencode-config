@@ -2,6 +2,25 @@
 
 This file records notable changes merged to `main` by date.
 
+## 2026-06-20
+
+Two changes landed today. The first folded the standalone Structure stage (Stage 5) into the Skeleton stage (Stage 4.5) so the combined stage builds the skeleton slice, then immediately maps files and interfaces and runs the automated structure review loop, all in one agent dispatch. The second was an end-to-end dry-run verification of the updated pipeline that found and fixed three residual inconsistencies.
+
+| Time (+0530) | Commit | Summary |
+| ------------ | ------ | ------- |
+| 18:30        | —      | Package 3: fold Stage 5 Structure into Stage 4.5 Skeleton, drop the Structure human gate, add internal resume checkpoint via skeleton-results.md. |
+| 23:15        | —      | Dry-run verification: fix telemetry protocol (Stage 5 row → 4.5 row, terminal_review_state note), fix qrspi-skeleton.md return templates (add skeleton-task.md, specify Step 0 resume return format). |
+
+### Package 3 — Fold Structure into the Skeleton Stage
+
+- **Merged stages.** `qrspi-skeleton` now orchestrates both the skeleton build and the structure mapping + review loop in a single stage (Stage 4.5 — Skeleton+Structure). The standalone `agents/qrspi-structure.md` orchestrator has been deleted.
+- **No Structure human gate.** Goals and Design remain the only two human gates. The structure review loop caps at 5 automated rounds; `unclean-cap` proceeds without a gate, with the Plan reviewer and feasibility checker as the downstream safety net.
+- **Internal resume checkpoint.** `skeleton-results.md` (PASS) is used as an internal sub-stage checkpoint. If the pipeline is interrupted after the skeleton build but before structure mapping completes, resume re-enters only the mapping sub-step (Step G) — the skeleton build and squash-merge do not re-run.
+- **Backward loop B re-wired.** Option B (loop back to Structure) now re-enters only the structure mapping sub-step: `structure.md` and Plan artifacts are deleted, `skeleton-results.md` and the skeleton commit are preserved, and `next_stage: skeleton` lets Step 0 route directly to Step G.
+- **Backward loop A updated.** Option A (loop back to Design) now also deletes `skeleton-results.md`. The squash-merged skeleton commit stays on the branch; the feedback file notes this for the Design re-run.
+- **quick-fix skip simplified.** The quick-fix route now skips Stages 4 and 4.5 (no more `structure-skipped` state value).
+- **Key files:** `agents/qrspi-skeleton.md` (expanded), `agents/qrspi-structure.md` (deleted), `agents/deepwork.md`, `protocol/deepwork-resume-protocol.md`, `protocol/deepwork-backward-loop-protocol.md`, `docs/DEEPWORK.md`.
+
 ## 2026-05-24
 
 Five commits landed on `main` today. The work focused on simplifying Stage 7, tightening Stage 8 acceptance rules, merging question generation into the research stage, adding automated pipeline policy, and then hardening the new automated flow.

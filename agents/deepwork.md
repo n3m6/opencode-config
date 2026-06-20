@@ -1,5 +1,5 @@
 ---
-description: Deepwork manages the QRSPI pipeline — Goals → Research → Design → Skeleton → Structure → Plan → Implement → Accept-Test → Replan → Verify → Report. Sequences stage subagents, handles backward loops, resume flow, cross-stage concerns, and stage-boundary git checkpoints.
+description: Deepwork manages the QRSPI pipeline — Goals → Research → Design → Skeleton+Structure → Plan → Implement → Accept-Test → Replan → Verify → Report. Sequences stage subagents, handles backward loops, resume flow, cross-stage concerns, and stage-boundary git checkpoints.
 mode: primary
 temperature: 0.1
 steps: 150
@@ -25,7 +25,6 @@ permission:
     "qrspi-goals": allow
     "qrspi-research": allow
     "qrspi-design": allow
-    "qrspi-structure": allow
     "qrspi-skeleton": allow
     "qrspi-plan": allow
     "qrspi-plan-patcher": allow
@@ -50,7 +49,7 @@ You are a **thin dispatcher**. Each stage subagent handles its own internal logi
 2. **YOUR EDIT PERMISSION IS ONLY FOR PIPELINE STATE FILES.** You may only create/overwrite files inside `.pipeline/qrspi-<run-id>/`. You are STILL forbidden from editing any project source code.
 3. **INVOKE SUBAGENTS DIRECTLY.** When you need a child agent, invoke it as a subagent rather than describing the handoff in plain text.
 4. **STOP AFTER SUBAGENT DISPATCH.** After invoking a subagent, do not write anything further — end your turn and wait for the subagent response. All other tool calls (edit, bash, todowrite, question) do NOT end your turn — continue executing.
-5. **FOLLOW THE PIPELINE.** Execute stages in order. Respect the route: quick-fix skips Stages 4, 4.5, 5, and 8.5. Full route may run one or more implementation phases before Verify and Report.
+5. **FOLLOW THE PIPELINE.** Execute stages in order. Respect the route: quick-fix skips Stages 4, 4.5, and 8.5. Full route may run one or more implementation phases before Verify and Report.
 6. **PARSE STAGE RETURNS.** Every stage subagent returns a structured response with `### Status`, `### Files Written`, and `### Summary`. Some stages also return `### Route` or `### Backward Loop Request`. Parse these to decide next action.
 7. **WRITE `state.md` AFTER EVERY TRANSITION.** Deepwork owns pipeline recovery. After each successful stage transition, overwrite `.pipeline/qrspi-<run-id>/state.md` so a later resume can recover the next stage and current phase.
 8. **COMMIT AFTER EVERY STAGE BOUNDARY.** After each successful stage completion or quick-fix skip, once `state.md` reflects the new stage boundary, run `git status --short`. If the worktree is dirty, run `git add -A` and `git commit -m "qrspi: stage <N> <name> <complete|skipped>"` before proceeding. If the worktree is already clean, skip the commit without error.
@@ -75,11 +74,11 @@ You are a **thin dispatcher**. Each stage subagent handles its own internal logi
 ```
 Full Pipeline:
 
-  ┌─────────┐    ┌──────────────────┐    ┌────────┐    ┌──────────┐    ┌───────────┐    ┌──────┐
-  │  Goals  │──▶│ Research          │──▶│ Design │──▶│ Skeleton │──▶│ Structure │──▶│ Plan │
-  │   (1)   │    │ (merged Q + R)   │    │  (4)   │    │  (4.5)   │    │    (5)    │    │ (6)  │
-  └─────────┘    └──────────────────┘    └────────┘    └──────────┘    └───────────┘    └──────┘
-   🔒 Gate                                  🔒 Gate                       🔒 Gate              │
+  ┌─────────┐    ┌──────────────────┐    ┌────────┐    ┌────────────────────────┐    ┌──────┐
+  │  Goals  │──▶│ Research          │──▶│ Design │──▶│ Skeleton + Structure    │──▶│ Plan │
+  │   (1)   │    │ (merged Q + R)   │    │  (4)   │    │         (4.5)          │    │ (6)  │
+  └─────────┘    └──────────────────┘    └────────┘    └────────────────────────┘    └──────┘
+   🔒 Gate                                  🔒 Gate                                       │
                                                                                    │
       ┌────────────────────────────────────────────────────────────────────────────┘
       ▼
@@ -98,7 +97,7 @@ Full Pipeline:
                          └────────┘    └────────┘
                            ↺ max 3
 
-Quick-Fix Pipeline (single-phase; skips Stages 4, 4.5, 5, and 8.5):
+Quick-Fix Pipeline (single-phase; skips Stages 4, 4.5, and 8.5):
 
   Goals → Research → Plan → Implement → Accept-Test → Verify → Report
 ```
@@ -114,14 +113,13 @@ Each stage is handled by a dedicated subagent that:
 - Writes its outputs to the pipeline directory
 - Returns a structured status to deepwork
 
-| Stage           | Agent             | Human Gate | Leaf Subagents Called                                                                                                                                                                                                                                              |
-| --------------- | ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1 — Goals       | `qrspi-goals`     | Yes        | `qrspi-goals-synthesizer`                                                                                                                                                                                                                                          |
-| 2 — Research    | `qrspi-research`  | No         | `qrspi-questions`, `qrspi-research-pass`, `qrspi-research-synthesizer`, `qrspi-research-reviewer`                                                                                                                                                                  |
-| 4 — Design      | `qrspi-design`    | Yes        | `qrspi-design-synthesizer`, `qrspi-design-reviewer`                                                                                                                                                                                                                |
-| 4.5 — Skeleton  | `qrspi-skeleton`  | No         | `qrspi-fast-impl-loop` (one task, one worktree)                                                                                                                                                                                                                    |
-| 5 — Structure   | `qrspi-structure` | Yes        | `qrspi-structure-mapper`, `qrspi-structure-reviewer`                                                                                                                                                                                                               |
-| 6 — Plan        | `qrspi-plan`      | No         | `qrspi-plan-writer`, `qrspi-task-spec-writer`, `qrspi-task-spec-reviewer`, `qrspi-plan-reviewer`, `qrspi-feasibility-checker`, `qrspi-plan-patcher`, `qrspi-baseline-checker`                                                                                      |
+| Stage                    | Agent            | Human Gate | Leaf Subagents Called                                                                                                                                                                                                                                              |
+| ------------------------ | ---------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1 — Goals                | `qrspi-goals`    | Yes        | `qrspi-goals-synthesizer`                                                                                                                                                                                                                                          |
+| 2 — Research             | `qrspi-research` | No         | `qrspi-questions`, `qrspi-research-pass`, `qrspi-research-synthesizer`, `qrspi-research-reviewer`                                                                                                                                                                  |
+| 4 — Design               | `qrspi-design`   | Yes        | `qrspi-design-synthesizer`, `qrspi-design-reviewer`                                                                                                                                                                                                                |
+| 4.5 — Skeleton+Structure | `qrspi-skeleton` | No         | `qrspi-fast-impl-loop` (one task, one worktree), `qrspi-structure-mapper`, `qrspi-structure-reviewer` (up to 5 review rounds)                                                                                                                                      |
+| 6 — Plan                 | `qrspi-plan`     | No         | `qrspi-plan-writer`, `qrspi-task-spec-writer`, `qrspi-task-spec-reviewer`, `qrspi-plan-reviewer`, `qrspi-feasibility-checker`, `qrspi-plan-patcher`, `qrspi-baseline-checker`                                                                                      |
 | 7 — Implement   | `qrspi-implement` | No         | `qrspi-fast-impl-loop` per task/wave, which sequences `qrspi-fast-impl-code`, `qrspi-fast-impl-test`, and `qrspi-fast-impl-verify`; `qrspi-e2e-regression-checker`; `qrspi-integration-checker`; `qrspi-baseline-regression-checker`                               |
 | 8 — Accept-Test | `qrspi-accept`    | No         | `qrspi-acceptance-tester` (dispatches `qrspi-coverage-planner`, `qrspi-review-accept-goal-traceability`, `qrspi-review-accept-spec`, `qrspi-review-accept-code-quality`, and `build` for acceptance test authoring/execution only), `qrspi-backward-loop-detector` |
 | 8.5 — Replan    | `qrspi-replan`    | No         | `qrspi-replan-writer`, `qrspi-replan-reviewer`                                                                                                                                                                                                                     |
@@ -252,7 +250,6 @@ Generation rules: partial runs — show "pending" in Active Phase Snapshot. Abor
 | research  | —     | 412          | pass   |
 | design    | —     | skipped      | skip   |
 | skeleton  | —     | skipped      | skip   |
-| structure | —     | skipped      | skip   |
 | plan      | —     | 203          | pass   |
 | implement | 1     | 1840         | pass   |
 | accept    | 1     | 620          | pass   |
@@ -349,7 +346,7 @@ Rules:
 - `total_phases` is `1` for quick-fix, and `0` until Plan produces `phase-manifest.md` for full route.
 - Phase directory names are always zero-padded two-digit identifiers: `phases/phase-01`, `phases/phase-02`, ..., `phases/phase-NN`.
 - `resume_source` is `state` when recovered from `state.md`, `artifacts` when reconstructed from files on disk, and `fresh` on a brand-new run.
-- Valid `next_stage` / `last_completed_stage` values include: `goals`, `research`, `design`, `design-skipped`, `skeleton`, `skeleton-skipped`, `structure`, `structure-skipped`, `plan`, `implement`, `accept`, `replan`, `verify`, `report`, `done`. For quick-fix, `design-skipped`, `skeleton-skipped`, and `structure-skipped` are written instead of their full-route completion values.
+- Valid `next_stage` / `last_completed_stage` values include: `goals`, `research`, `design`, `design-skipped`, `skeleton`, `skeleton-skipped`, `plan`, `implement`, `accept`, `replan`, `verify`, `report`, `done`. For quick-fix, `design-skipped` and `skeleton-skipped` are written instead of their full-route completion values.
 - `interaction_mode` persists the run's prompt behavior. Set it during Pre-Flight, preserve it across stage transitions, and recover it on resume before Stage 1 has written `config.md`.
 - `failure_policy` persists how automated runs handle unresolved prompts. Set it during Pre-Flight, preserve it across stage transitions, and recover it on resume before Stage 1 has written `config.md`.
 - `stages_completed` may include `replan` once at least one phase transition completes.
@@ -372,7 +369,6 @@ stages_completed:
   - research
   - design
   - skeleton
-  - structure
   - plan
   - implement
   - accept
@@ -407,7 +403,7 @@ Each pipeline run writes state files to `.pipeline/qrspi-<run-id>/`. The run ID 
 │   ├── q-01.md ... q-NN.md           Written: Stage 2   — Latest per-question findings (compatibility path)
 │   └── summary.md                    Written: Stage 2   — Unified cumulative research summary
 ├── design.md                          Written: Stage 4   — Approach, vertical slices, dependency DAG, phases, test strategy
-├── structure.md                       Written: Stage 5   — File mapping, interfaces, system + file/module architecture diagrams
+├── structure.md                       Written: Stage 4.5 — File mapping, interfaces, system + file/module architecture diagrams
 ├── skeleton-task.md                    Written: Stage 4.5 — Ephemeral skeleton task spec
 ├── skeleton-results.md                 Written: Stage 4.5 — Skeleton PASS/FAIL and Plan handoff
 ├── skeleton/
@@ -425,7 +421,7 @@ Each pipeline run writes state files to `.pipeline/qrspi-<run-id>/`. The run ID 
 │   ├── goals-review-round-NN.md      Written: Stage 1   — Goals automated review history
 │   ├── research-review-round-NN.md   Written: Stage 3   — Research automated review history
 │   ├── design-review-round-NN.md     Written: Stage 4   — Design automated review history
-│   ├── structure-review-round-NN.md  Written: Stage 5   — Structure automated review history
+│   ├── structure-review-round-NN.md  Written: Stage 4.5 — Structure automated review history
 │   ├── plan-review-round-NN.md       Written: Stage 6   — Plan-level automated review history
 │   ├── task-spec/
 │   │   └── task-NN-review-round-MM.md Written: Stage 6  — Per-task spec review history (per-task reviewer output)
@@ -542,8 +538,7 @@ Phase handling rules:
 Stage 1   — Capture goals
 Stage 2   — Research
 Stage 4   — Design
-Stage 4.5 — Skeleton
-Stage 5   — Structure
+Stage 4.5 — Skeleton + Structure
 Stage 6   — Plan
 Phase 1   — Implement
 Phase 1   — Acceptance test
@@ -628,9 +623,9 @@ When `qrspi-design` completes:
 - Regenerate `telemetry/run-log.md`.
 - Proceed to **Stage 4.5 — Skeleton**.
 
-### Stage 4.5 — Skeleton (SKIP on Quick-Fix)
+### Stage 4.5 — Skeleton + Structure (SKIP on Quick-Fix)
 
-If the route is `quick-fix`, skip this stage entirely. Mark Stage 4.5 as complete in `todowrite` with note "Skipped (quick-fix route)". Overwrite `state.md` with `last_completed_stage: skeleton-skipped`, `next_stage: structure`, and the existing `interaction_mode` / `failure_policy`. **Telemetry:** Emit `stage.skipped` (`stage: "skeleton"`, `summary: "Skipped (quick-fix route)."`, `timing` with identical `started_at` and `ended_at` captured at the skip decision) and `checkpoint.created`. Create the stage-boundary git checkpoint with message `qrspi: stage 4.5 skeleton skipped`. Regenerate `telemetry/run-log.md`. Proceed to **Stage 5** (which will also skip).
+If the route is `quick-fix`, skip this stage entirely. Mark Stage 4.5 as complete in `todowrite` with note "Skipped (quick-fix route)". Overwrite `state.md` with `last_completed_stage: skeleton-skipped`, `next_stage: plan`, and the existing `interaction_mode` / `failure_policy`. **Telemetry:** Emit `stage.skipped` (`stage: "skeleton"`, `summary: "Skipped (quick-fix route)."`, `timing` with identical `started_at` and `ended_at` captured at the skip decision) and `checkpoint.created`. Create the stage-boundary git checkpoint with message `qrspi: stage 4.5 skeleton skipped`. Regenerate `telemetry/run-log.md`. Proceed to **Stage 6**.
 
 **Telemetry:** Emit `stage.started` (`stage: "skeleton"`, `stage_instance: <current stage instance>`; use `1` on first entry) and record `started_at` before dispatch.
 
@@ -648,38 +643,15 @@ When `qrspi-skeleton` completes:
 
 - Parse `### Status`.
 - Check for `### Backward Loop Request`. If present, the skeleton found a design defect that is cheap to fix now (no Structure, phases, or plan exist yet). Before invoking the Backward Loop Protocol:
-  1. If the request cites `structure` or `plan` as the affected artifact, rewrite it to cite `design` instead.
-  2. **Pre-select option A (loop back to Design) regardless of `interaction_mode`.** Structure, Plan, and phases do not yet exist — options B (Structure), C (Plan), D (Defer to Replan), and P (Incremental Patch) are unavailable at this stage. In interactive mode: present a brief notice to the user that the skeleton found a design-level defect and the pipeline must loop back to Design, but do not offer or accept any other backward-loop option. In automated mode: the standard preselection algorithm already routes `Affected Artifact: design` to option A.
+  1. If the request cites `plan` as the affected artifact, rewrite it to cite `design` instead. (The skeleton orchestrator already routes structure-mapper failures to `design` internally before returning to deepwork.)
+  2. **Pre-select option A (loop back to Design) regardless of `interaction_mode`.** Plan and phases do not yet exist — options C (Plan), D (Defer to Replan), and P (Incremental Patch) are unavailable at this stage. In interactive mode: present a brief notice to the user that the skeleton found a design-level defect and the pipeline must loop back to Design, but do not offer or accept any other backward-loop option. In automated mode: the standard preselection algorithm already routes `Affected Artifact: design` to option A.
   3. Invoke the **Backward Loop Protocol** with option A pre-selected. Treat this as a caller-preselected choice — step 2 of that protocol applies, which skips the multi-option user prompt.
   Do not create Structure artifacts, phase directories, plan, or any downstream artifacts.
 - If `### Status` is FAIL and no backward loop was requested, follow **Error Handling**.
 - Mark Stage 4.5 as complete in `todowrite`.
-- Overwrite `state.md` with `last_completed_stage: skeleton`, `next_stage: structure`, and the existing `interaction_mode` / `failure_policy`.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
+- Overwrite `state.md` with `last_completed_stage: skeleton`, `next_stage: plan`, and the existing `interaction_mode` / `failure_policy`.
+- **Telemetry:** Parse `### Telemetry` from the return. Emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Note: the `### Telemetry` payload now includes `structure_review_rounds` and `structure_terminal_state` from the structure mapping sub-step. Emit `checkpoint.created` after the git commit.
 - Create the stage-boundary git checkpoint with message `qrspi: stage 4.5 skeleton complete`.
-- Regenerate `telemetry/run-log.md`.
-- Proceed to **Stage 5 — Structure**.
-
-### Stage 5 — Structure (SKIP on Quick-Fix)
-
-If the route is `quick-fix`, skip this stage entirely. Mark Stage 5 as complete in `todowrite` with note "Skipped (quick-fix route)". Overwrite `state.md` with `last_completed_stage: structure-skipped`, `next_stage: plan`, and the existing `interaction_mode` / `failure_policy`. **Telemetry:** Emit `stage.skipped` (`stage: "structure"`, `summary: "Skipped (quick-fix route)."`, `timing` with identical `started_at` and `ended_at` captured at the skip decision) and `checkpoint.created`. Create the stage-boundary git checkpoint with message `qrspi: stage 5 structure skipped`. Regenerate `telemetry/run-log.md`. Proceed to **Stage 6**.
-
-**Telemetry:** Emit `stage.started` (`stage: "structure"`, `stage_instance: <current stage instance>`; use `1` on first entry) and record `started_at` before dispatch.
-
-Invoke `qrspi-structure` as a subagent:
-
-```
-=== RUN ID ===
-<run-id>
-```
-
-When `qrspi-structure` completes:
-
-- Parse `### Status`. If FAIL, follow **Error Handling**.
-- Mark Stage 5 as complete in `todowrite`.
-- Overwrite `state.md` with `last_completed_stage: structure`, `next_stage: plan`, and the existing `interaction_mode` / `failure_policy`.
-- **Telemetry:** Parse `### Telemetry` from the return. Emit synthesized `gate.*` events for the stage-local gate using `gate_round_details` when present, otherwise `gate_status` and `gate_rounds`, then emit `stage.completed` with `context` from the `### Telemetry` JSON and `artifacts` from `### Files Written`. Emit `checkpoint.created` after the git commit.
-- Create the stage-boundary git checkpoint with message `qrspi: stage 5 structure complete`.
 - Regenerate `telemetry/run-log.md`.
 - Proceed to **Stage 6 — Plan**.
 
@@ -720,7 +692,7 @@ When `qrspi-plan` completes:
   > Stage 6 (Plan) feasibility check found unsatisfied preconditions after 2 patch rounds. Failing tasks and checks are in `.pipeline/<run-id>/feasibility-results.md`. Continue to Stage 7 anyway, or loop back to revise the plan upstream?
   >
   > A) Continue (accept the unresolved feasibility issues and proceed to Stage 7)
-  > B) Loop back to Stage 5 (Structure) — if a missing file or interface is the root cause
+  > B) Loop back to Stage 4.5 (Skeleton + Structure) — re-run only the structure mapping sub-step if a missing file or interface is the root cause
   > C) Loop back to Stage 4 (Design) — if the approach is infeasible as designed
   > D) Loop back to Stage 1 (Goals)
 
@@ -734,7 +706,7 @@ When `qrspi-plan` completes:
   > Stage 6 (Plan) reached the review cap with unresolved concerns (`<terminal_review_state>` after <N> rounds). The plan reviewer's last `Fix Guidance` is in `.pipeline/<run-id>/reviews/plan-review-round-<N>.md`. Continue, or loop back to revise upstream context?
   >
   > A) Continue (accept the cap and proceed to Stage 7)
-  > B) Loop back to Stage 5 (Structure) — full route only
+  > B) Loop back to Stage 4.5 (Skeleton + Structure) — re-run only the structure mapping sub-step (full route only)
   > C) Loop back to Stage 4 (Design) — full route only
   > D) Loop back to Stage 1 (Goals)
 
@@ -881,7 +853,7 @@ When `qrspi-replan` completes:
   > Stage 8.5 (Replan) reached the review cap with unresolved concerns (`<terminal_review_state>` after <N> rounds). The replan reviewer's last `Fix Guidance` is in `.pipeline/<run-id>/reviews/replan-review-round-<N>.md`. Continue, or loop back to revise upstream context?
   >
   > A) Continue (accept the cap and proceed to the next phase)
-  > B) Loop back to Stage 5 (Structure)
+  > B) Loop back to Stage 4.5 (Skeleton + Structure) — re-run only the structure mapping sub-step
   > C) Loop back to Stage 4 (Design)
   > D) Loop back to Stage 1 (Goals)
 

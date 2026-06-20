@@ -49,8 +49,8 @@ G) Full reset to **Goals** (restart the pipeline with accumulated learnings)]
 
 Options (for LOOP_PLAN with patch budget remaining — P appears first and is recommended):
 P) **Incremental Plan Patch** ⟵ Recommended for LOOP_PLAN (no deletion, no phase archive, patch budget: N remaining)
-A) Loop back to **Design** (re-architect the approach)
-B) Loop back to **Structure** (re-map files and interfaces)
+A) Loop back to **Design** (re-architect the approach; deletes design.md + skeleton-results.md + structure.md + plan artifacts)
+B) Loop back to **Structure mapping** (re-run only the structure mapping sub-step; preserves skeleton-results.md and the skeleton commit — cheap re-entry)
 C) Loop back to **Plan** (revise task specifications — deletes plan artifacts and phase, heavy)
 D) Defer to the next **Replan** (record the issue for the next phase boundary)
 E) Attempt a **local fix** within the current stage
@@ -58,8 +58,8 @@ F) **Continue as-is** (accept the limitation)
 G) Full reset to **Goals** (restart the pipeline with accumulated learnings)
 
 Options (for any other Affected Artifact, or LOOP_PLAN with patch budget exhausted):
-A) Loop back to **Design** (re-architect the approach)
-B) Loop back to **Structure** (re-map files and interfaces)
+A) Loop back to **Design** (re-architect the approach; deletes design.md + skeleton-results.md + structure.md + plan artifacts)
+B) Loop back to **Structure mapping** (re-run only the structure mapping sub-step; preserves skeleton-results.md and the skeleton commit — cheap re-entry)
 C) Loop back to **Plan** (revise task specifications)
 D) Defer to the next **Replan** (record the issue for the next phase boundary)
 E) Attempt a **local fix** within the current stage
@@ -70,7 +70,7 @@ Which option?
 
 ```
 
-Do not present Design or Structure as loop targets on the quick-fix route.
+Do not present Design or Structure mapping as loop targets on the quick-fix route.
 Do not present option P on the quick-fix route.
 
 4. **If the user (or automated policy) chooses P** (Incremental Plan Patch):
@@ -93,7 +93,7 @@ Do not present option P on the quick-fix route.
    i. **If feasibility FAIL:** Write the failure summary to `feedback/plan-patch-phase-[NN]-round-[RR]-failed.md`. Decrement effective patch budget. If budget is still > 0, re-enter step 4 (dispatch patcher again with the updated round count). If budget is exhausted (2 rounds consumed), emit `backward_loop.decided` with `decision.choice: "P"`, `context.exhausted: true`, and present the user with the remaining options (A, B, C, D, E, F, G).
 
 5. **If the user (or automated policy) chooses A, B, or C** (loop-back):
-a. Determine the loop target stage number (Design=4, Structure=5, Plan=6).
+a. Determine the loop target stage (Design=4, Structure mapping=4.5, Plan=6). For option B (Structure mapping), `next_stage` is set to `skeleton`; the skeleton orchestrator's Step 0 self-routes to the mapping sub-step without re-running the skeleton build.
 b. Create the feedback and archive directories if needed: `mkdir -p .pipeline/<run-id>/feedback` and `mkdir -p .pipeline/<run-id>/phases/archive`.
 c. Write loop feedback to `.pipeline/<run-id>/feedback/{stage}-loop-{NN}.md` with the backward loop request details using the edit tool.
 d. Before deleting or moving any active artifact, write `.pipeline/<run-id>/feedback/{stage}-loop-{NN}-evidence.md` containing:
@@ -107,12 +107,12 @@ f. Archive the current incomplete phase directory by moving it to `.pipeline/<ru
 g. Archive any unstarted future phase directories by moving them under `.pipeline/<run-id>/phases/archive/phase-NN/` before regenerating the remaining plan.
 h. Delete regenerated top-level artifacts based on the loop target:
   - Plan: `plan.md`, `phase-manifest.md`, `baseline-results.md`, `feasibility-results.md`, and `tasks/`
-  - Structure: all Plan artifacts plus `structure.md`
-  - Design: all Structure artifacts plus `design.md`
+  - Structure mapping (option B): `structure.md` plus all Plan artifacts. Preserve `skeleton-results.md` and the squash-merged skeleton commit — the skeleton build does not re-run, only the structure mapping step does. Set `next_stage: skeleton` so the orchestrator's Step 0 self-routes to the mapping sub-step (Step G).
+  - Design (option A): all Structure mapping artifacts plus `design.md` and `skeleton-results.md`. The squash-merged skeleton commit stays on the branch (a new skeleton build will run after Design re-runs); note this in the feedback file so the Design stage is aware the skeleton code on the branch is from a prior, now-replaced, design iteration.
 i. Reset the todo items for the target stage and all downstream stages to not-started, and remove stale unstarted phase entries that no longer match the active manifest.
-j. Overwrite `state.md` with the loop target as `next_stage`, increment `backward_loops`, set `current_phase` to the earliest incomplete phase number when completed phases are preserved, reset it to `1` only when no completed phases remain or the target is before phased execution, and preserve `phase_history` for already-completed phases.
+j. Overwrite `state.md` with the loop target as `next_stage` (Design → `design`, Structure mapping → `skeleton`, Plan → `plan`), increment `backward_loops`, set `current_phase` to the earliest incomplete phase number when completed phases are preserved, reset it to `1` only when no completed phases remain or the target is before phased execution, and preserve `phase_history` for already-completed phases.
 k. Re-enter the pipeline at the target stage. The re-run must receive the feedback file and evidence file as additional context.
-l. When re-entering Design, Structure, or Plan from Phase 2 or later, also include:
+l. When re-entering Design, Structure mapping, or Plan from Phase 2 or later, also include:
 
 ```
 
@@ -167,7 +167,7 @@ Telemetry events are emitted by deepwork around the protocol steps above:
 - **When invoked with a preselected Plan/Replan loop-back target or an automated noninteractive loop target:** Deepwork still emits `backward_loop.requested` before entering the protocol, but skips the extra backward-loop decision prompt and emits the corresponding `backward_loop.decided` event directly from the preselected choice after the loop-back artifacts are determined.
 - **After the user decides:**
   - Option P (incremental patch): Emit `backward_loop.decided` with `decision.choice: "P"`, `decision.reason`, `context.patch_tasks` (list of patched task IDs), `context.patch_round` (round number), `context.feasibility_status` (`pass`/`fail`/`exhausted`/`escalated`), `context.loop_target: "plan"`.
-  - Options A, B, C (loop-back): Emit `backward_loop.decided` with `decision.choice` (A/B/C), `decision.reason` (user input or inferred), `context.loop_target` (design/structure/plan), `context.deleted_artifacts` (list of deleted top-level artifacts), and `context.archived_artifacts` (list of archived phase directories).
+  - Options A, B, C (loop-back): Emit `backward_loop.decided` with `decision.choice` (A/B/C), `decision.reason` (user input or inferred), `context.loop_target` (design/structure-mapping/plan), `context.deleted_artifacts` (list of deleted top-level artifacts), and `context.archived_artifacts` (list of archived phase directories).
   - Option D (defer): Emit `backward_loop.deferred` with `decision.choice: "D"` and `decision.reason`.
   - Options E, F (local fix / continue): Emit `backward_loop.decided` with `decision.choice: "E"` or `"F"` and the reason.
   - Option G (full reset): Emit `backward_loop.reset` with `summary` (brief learnings summary) and `context.artifacts_deleted` (all deleted artifact paths). Note: telemetry files are NOT included in the deleted list.
