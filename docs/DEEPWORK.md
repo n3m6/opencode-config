@@ -71,12 +71,14 @@
                          │  follow-up question set     │
                          └─────────────┬────────────────┘
                                  │
-                         Outputs: questions.md,
+                         Outputs: goal-inventory.md,
+                              questions.md,
                               question-*-review.md,
                               research/iterations/round-*/...,
                               research/question-ledger.md,
                               research/open-questions.md,
                               research/summary.md,
+                              reviews/research/round-*/...,
                               reviews/research-review-round-NN.md
                                  │
                              ┌──────────┴──────────┐
@@ -199,6 +201,12 @@
    │  │  ┌────────────────────────┐  │                           │
    │  │  │qrspi-acceptance-tester │  │  (review/write/run loop)  │
    │  │  └────────────────────────┘  │                           │
+   │  │    ├─ qrspi-review-accept-│  │                           │
+   │  │    │  goal-traceability   │  │  (full mode only)         │
+   │  │    ├─ qrspi-review-accept-│  │                           │
+   │  │    │  spec                │  │  (full mode only)         │
+   │  │    └─ qrspi-review-accept-│  │                           │
+   │  │       code-quality        │  │  (full mode, new/revise)  │
   │  │  ┌────────────────────────┐  │                           │
   │  │  │qrspi-backward-loop-    │  │  (on persistent failures) │
   │  │  │detector                │  │                           │
@@ -211,6 +219,7 @@
      │           phases/phase-NN/acceptance-results.md,           │
      │           reviews/acceptance-phase-PP-review-round-NN.md,  │
      │           phases/phase-NN/backward-loop-analysis.md,       │
+     │           phases/phase-NN/boundary-violations.md,          │
      │           phases/phase-NN/stage8-summary.md                │
   │                │                                            │
   │                ▼                                            │
@@ -242,11 +251,15 @@
                                         ▼
                           ┌──────────────────────────────┐
                           │  STAGE 9 — Verify            │
-                          │  (max 3 iterations)          │
+                          │  (single pass + auto-fix     │
+                          │   re-verify on FAIL)         │
                           │                              │
                           │  ┌────────────────────────┐  │
                           │  │   qrspi-verifier       │  │
                           │  └────────────────────────┘  │
+                          │                              │
+                          │  FAIL → Stage 7 verify-fix  │
+                          │  pass, then re-verify once   │
                           │                              │
                           │  Result: PASS / PARTIAL /    │
                           │          FAIL                │
@@ -275,16 +288,16 @@
 
 ## Pipeline Routes
 
-**Full pipeline** — for features, new products, and anything requiring architectural design. May be single-phase or multi-phase:
+**Full pipeline** — for features, new products, and anything requiring architectural design. May be single-phase or multi-phase. Question generation is owned internally by the merged Stage 2 (Research):
 
 ```
-Goals → Questions → Research → Design → Structure → Plan → [Implement → Accept-Test → Replan]* → Verify → Report
+Goals → Research → Design → Structure → Plan → [Implement → Accept-Test → Replan]* → Verify → Report
 ```
 
 **Quick-fix** — for targeted bug fixes, small changes, and 1–3 file modifications. Always single-phase. It still reaches Stages 4 and 5, but those stages self-skip and mark themselves skipped before continuing to Stage 6:
 
 ```
-Goals → Questions → Research → Plan → Implement → Accept-Test → Verify → Report
+Goals → Research → Plan → Implement → Accept-Test → Verify → Report
 ```
 
 Route is determined during Stage 1 (Goals) and written to `config.md`. Route changes are allowed before Stage 6 (Plan). After Plan is written, the route is locked.
@@ -319,6 +332,7 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 | `config.md`                                             | Stage 1                      | Route, run_id, automation policy, and metadata                                       |
 | `requirements.md`                                       | Stage 1                      | Verbatim user task or PRD preserved for downstream reference                         |
 | `goals.md`                                              | Stage 1                      | Distilled intent, requirements, constraints, non-goals, acceptance criteria          |
+| `goal-inventory.md`                                     | Stage 2                      | Normalized goal inventory (FR/NFR/C/AC IDs) seeded once and reused across rounds     |
 | `questions.md`                                          | Stage 2                      | Latest active question-batch snapshot for compatibility consumers                    |
 | `question-leakage-review.md`                            | Stage 2                      | Latest question-batch leakage-review snapshot for compatibility consumers            |
 | `question-quality-review.md`                            | Stage 2                      | Latest question-batch quality-review snapshot for compatibility consumers            |
@@ -328,6 +342,7 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 | `research/question-ledger.md`                           | Stage 2                      | Cumulative audit trail of every asked research question                              |
 | `research/open-questions.md`                            | Stage 2                      | Latest unresolved-question snapshot for follow-up or stalled exit                    |
 | `research/summary.md`                                   | Stage 2                      | Unified cumulative research summary                                                  |
+| `reviews/research/round-NN/research-pass-review-round-MM.md` | Stage 2                 | Round-local batch-pass review history for `qrspi-research-pass`                       |
 | `design.md`                                             | Stage 4                      | Architecture, vertical slices, phases, replan gates, test strategy                   |
 | `structure.md`                                          | Stage 5                      | File mapping, interfaces, create/modify, Mermaid diagram                             |
 | `plan.md`                                               | Stage 6, 8.5                 | Current remaining-work implementation plan                                           |
@@ -339,7 +354,7 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 | `tasks/outlines/inactive/task-NN.outline`               | Stage 6                      | Superseded task outlines archived when plan-writer rewrites the outline set          |
 | `tasks/inactive/task-NN.md`                             | Stage 6                      | Superseded task specs archived when the active task set is rewritten                 |
 | `reviews/task-spec/inactive/task-NN-review-round-MM.md` | Stage 6                      | Superseded task-spec reviews archived alongside their associated inactive task specs |
-| `reviews/*.md`                                          | Stages 1, 3, 4, 5, 6, 8, 8.5 | Automated review history                                                             |
+| `reviews/*.md`                                          | Stages 1, 2, 4, 5, 6, 8, 8.5 | Automated review history                                                             |
 | `feedback/{step}-round-NN.md`                           | Any gate                     | Rejection feedback + rejected artifact                                               |
 | `feedback/deferred-replan-NN.md`                        | Deepwork                     | Deferred phase-boundary issues from backward loops                                   |
 | `feedback/goals-reset-context.md`                       | Deepwork                     | Accumulated learnings before a full reset to Goals                                   |
@@ -362,6 +377,7 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 | `phases/phase-NN/coverage-plan.md`              | Stage 8    | Per-phase acceptance coverage plan                                            |
 | `phases/phase-NN/acceptance-results.md`         | Stage 8    | Per-phase acceptance results                                                  |
 | `phases/phase-NN/backward-loop-analysis.md`     | Stage 8    | Per-phase backward-loop classification output when needed                     |
+| `phases/phase-NN/boundary-violations.md`        | Stage 8    | Per-phase record of non-test files written during acceptance authoring/repair |
 | `phases/phase-NN/stage8-summary.md`             | Stage 8    | Per-phase acceptance summary                                                  |
 | `phases/phase-NN/replan/phase-NN-replan.md`     | Stage 8.5  | Replan note describing the delta after that completed phase                   |
 | `telemetry/events.jsonl`                        | Deepwork   | Canonical append-only event stream (JSONL); never read by resume or recovery  |
@@ -462,20 +478,21 @@ If the user provides a run ID, asks to resume, or points at an existing `.pipeli
 
 1. Resolve the run directory: `.pipeline/qrspi-<run-id>/`
 2. Read `.pipeline/qrspi-<run-id>/state.md`
-3. If `state.md` exists and is coherent, use it as the authoritative recovery record: recover `route`, `current_phase`, `total_phases`, `interaction_mode`, `failure_policy`, and `next_stage`.
+3. If `state.md` exists and is coherent, use it as the authoritative recovery record: recover `route`, `current_phase`, `total_phases`, `interaction_mode`, `failure_policy`, and `next_stage`. Before re-dispatching the recovered `next_stage`, check whether the corresponding summary artifact for that stage/phase already exists on disk and parses as `### Status — FAIL`; if so, surface it via the existing Error Handling path instead of silently restarting.
 4. If `state.md` is missing or inconsistent, reconstruct progress from disk:
-   - read `config.md` to confirm the route
-   - use top-level markers for Goals, Questions, Research, Design, Structure, and Plan
+   - read `config.md` to confirm the route and recover `interaction_mode` / `failure_policy` when present
+   - use top-level markers for Goals, Research, Design, Structure, and Plan; treat `goal-inventory.md`, `questions.md`, the `question-*-review.md` snapshots, `research/open-questions.md`, `research/question-ledger.md`, and `research/iterations/` as in-progress markers that force a Research restart when `research/summary.md` is missing
    - if pre-phase work is complete, read `phase-manifest.md` for `total_phases`
    - scan active phase directories under `phases/phase-*/` and ignore `phases/archive/`
    - treat `stage7-summary.md`, `stage8-summary.md`, and `replan/phase-NN-replan.md` inside each phase directory as the authoritative stage markers
+   - for each summary artifact, parse its first `### Status` heading: `PASS` (and `PARTIAL` for `stage9-summary.md`) means the stage is complete; `FAIL`, missing, or malformed Status means the stage is incomplete and Error Handling owns the retry/abort decision
    - if no active phase directory has any stage artifact yet, resume at Implement for Phase 1
-   - if the highest active phase with artifacts has no `stage7-summary.md`, restart Implement for that phase
-   - if it has `stage7-summary.md` but no `stage8-summary.md`, restart Accept-Test for that phase
-   - if it has `stage8-summary.md` but no replan note, resume at Replan unless the route is quick-fix or that phase is now final, in which case resume at Verify
-   - if it has a replan note and more phases remain, resume Implement for the next phase
+   - if the highest active phase with artifacts has no complete `stage7-summary.md`, restart Implement for that phase
+   - if it has a complete `stage7-summary.md` but no complete `stage8-summary.md`, restart Accept-Test for that phase
+   - if it has a complete `stage8-summary.md` but no complete replan note, resume at Replan unless the route is quick-fix or that phase is now final, in which case resume at Verify
+   - if it has a complete replan note and more phases remain, resume Implement for the next phase
    - if a phase directory has partial artifacts but lacks its stage summary, restart that stage from the beginning
-   - let `stage9-summary.md` and `stage10-summary.md` override phase recovery when verification or reporting already completed
+   - let `stage9-summary.md` (PASS or PARTIAL) and `stage10-summary.md` override phase recovery when verification or reporting already completed; a `stage9-summary.md` parsed as FAIL or with a missing Status heading routes through Error Handling rather than advancing to Report
 5. Reconstruct `state.md` from recovered artifacts with `resume_source: artifacts` when disk recovery was needed.
 6. For quick-fix runs, force `current_phase: 1` and `total_phases: 1` during recovery.
 7. Rebuild the visible todo checklist from the refreshed `phase-manifest.md`, ignoring archived future phases.
@@ -513,7 +530,7 @@ Terminal review states:
 
 Stage 2 (Research) now owns both question generation and research. It alternates between incremental question-batch generation and research passes until the cumulative research state is clean or the unresolved-question snapshot stalls. A stalled loop returns `PASS` with `terminal_review_state = stable-cap`, preserving the latest unresolved items for downstream design and planning.
 
-Stage 6 (Plan) runs two review layers: a plan-level review loop (max 6 rounds, with stable-cap detection) where `qrspi-plan-reviewer` reads the current plan artifacts from the pipeline run directory, followed by a per-task review loop (max 3 rounds) where `qrspi-task-spec-reviewer` repairs each task spec in place and loads sibling task specs from the canonical top-level `tasks/` directory for cross-task checks. Unresolved task-spec failures or cross-task conflicts at round 3 are blocking and stop Stage 6. After both loops pass, Stage 6 appends the final review status block (`clean`, `stable-cap`, or `unclean-cap`) to every `tasks/task-NN.md`.
+Stage 6 (Plan) runs two review layers: a plan-level review loop (max 6 rounds, with stable-cap detection) where `qrspi-plan-reviewer` reads the current plan artifacts from the pipeline run directory, followed by a per-task review loop (max 3 rounds) where `qrspi-task-spec-reviewer` repairs each task spec in place and loads sibling task specs from the canonical top-level `tasks/` directory for cross-task checks. The per-task review loop is skipped entirely when the plan-level loop terminates in `stable-cap` or `unclean-cap` — reviewing task specs derived from a plan the reviewer just rejected adds 3N reviewer dispatches without resolving the upstream defect. Unresolved task-spec failures or cross-task conflicts at round 3 are blocking and stop Stage 6. After both loops complete (or task-spec review is skipped), Stage 6 still runs the baseline checker and appends the final review status block to every `tasks/task-NN.md`. The status block records `clean (round NN)` when both loops passed, or `skipped (plan review state: stable-cap|unclean-cap)` for the task-spec review when it was skipped — letting deepwork's escalation gate surface the upstream concern before Stage 7 begins.
 
 ---
 
@@ -527,7 +544,8 @@ Stage 6 (Plan) runs two review layers: a plan-level review loop (max 6 rounds, w
 - Stage 2 includes independent question leakage and question quality reviews before any research begins.
 - Stage 6 records a pre-implementation baseline so later verification can distinguish known failures from new regressions.
 - Stage 6 writes the canonical initial `tasks/` directory, maintains `tasks/inactive/`, `tasks/outlines/inactive/`, and `reviews/task-spec/inactive/` as archives for superseded artifacts, and deepwork creates `phases/phase-01/tasks/` as a symlink to that canonical task set after Plan completes.
-- Stage 7 includes a per-task code review gate (6 specialized reviewers), validates that every task listed for the current phase exists before implementation begins, writes phase-local execution artifacts including `regression-results.md` (post-all-waves baseline regression comparison), and remediates new regressions in up to 3 bounded rounds. Stage 7 also creates per-wave git checkpoints (`qrspi: phase [N] wave [N] complete`) and per-remediation-round git checkpoints (`qrspi: phase [N] remediation round [N]`).
+- Stage 7 includes a per-task code review gate (6 specialized reviewers), validates that every task listed for the current phase exists before implementation begins, writes phase-local execution artifacts including `regression-results.md` (post-all-waves baseline regression comparison), and remediates new regressions in up to 3 bounded rounds. Stage 7 also creates per-wave git checkpoints (`qrspi: phase [N] wave [N] complete`), per-task squash-merge commits (`qrspi: phase [N] task [T]`), per-remediation-round git checkpoints (`qrspi: phase [N] remediation round [N]`), and a post-remediation integration checkpoint when remediation succeeds (`qrspi: phase [N] post-remediation integration`).
+- Stage 7 runs each task dispatch in its own ephemeral git worktree under `<repo-parent>/.qrspi-worktrees/<run-id>/phase-NN/task-T` on a per-task branch (`qrspi-task/<run-id>/phase-NN/task-T`). Successful tasks are squash-merged back onto the pipeline branch in stable task order; failed tasks leave their worktree and branch in place for inspection. A squash conflict triggers a one-shot rebase-and-retry inside the worktree (driven by a fix-mode dispatch with `MODE: rebase-conflict` in the regression evidence) before the task is abandoned.
 - Stage 8 and Stage 8.5 write only to the active phase directory plus shared review history.
 - Stable task IDs are preserved across replans. Replan uses the current remaining task specs as the authoritative carry-forward source, writes the complete next-phase task set into `phases/phase-NN/tasks/`, and appends a review-status block before Stage 7 consumes it.
 - Verify and Report aggregate by enumerating `phases/phase-*/` rather than relying on top-level cumulative execution or acceptance files.
@@ -620,12 +638,13 @@ Full reset to Goals (option G):
 Before Stage 1 starts, the deepwork agent:
 
 1. Requires an actionable task description from the user. If no task is provided, asks for one. If too vague, asks clarifying questions.
-2. Generates a run ID with `date +%Y%m%d-%H%M%S`, prefixed with `qrspi-`.
-3. Creates `.pipeline/qrspi-<run-id>/phases/` and checks out branch `qrspi/<run-id>` from `main`.
-4. Writes initial `state.md` with `route: unknown`, `next_stage: goals`, `resume_source: fresh`.
-5. Creates the visible progress checklist using `todowrite` (ten items: Stage 1–6, Phase 1 Implement, Phase 1 Acceptance test, Stage 9, Stage 10).
-6. After Plan completes, creates `phases/phase-01/tasks/` as a symlink to `../../tasks/` and creates any additional empty planned phase directories.
-7. Immediately enters Stage 1.
+2. Determines the run-level automation policy: `interaction_mode` defaults to `interactive` and is set to `automated` only when the user explicitly asks for noninteractive execution; `failure_policy` defaults to `fail-closed` and is set to `best-effort` only when the user explicitly asks for best-effort automation.
+3. Generates a run ID with `date +%Y%m%d-%H%M%S`, prefixed with `qrspi-`.
+4. Creates `.pipeline/qrspi-<run-id>/phases/` and `.pipeline/qrspi-<run-id>/telemetry/`, initializes an empty `telemetry/events.jsonl`, and checks out branch `qrspi/<run-id>` from `main`.
+5. Writes initial `state.md` with `route: unknown`, `next_stage: goals`, `interaction_mode`, `failure_policy`, and `resume_source: fresh`. Emits the `run.started` telemetry event with `route: "unknown"`.
+6. Creates the visible progress checklist using `todowrite` (nine items: Stage 1 Goals, Stage 2 Research, Stage 4 Design, Stage 5 Structure, Stage 6 Plan, Phase 1 Implement, Phase 1 Acceptance test, Stage 9 Verify, Stage 10 Report).
+7. After Plan completes, creates `phases/phase-01/tasks/` as a symlink to `../../tasks/` and creates any additional empty planned phase directories.
+8. Immediately enters Stage 1.
 
 ---
 
@@ -746,7 +765,7 @@ Reviews `structure.md` independently for design alignment, file action correctne
 
 #### qrspi-plan
 
-Stage orchestrator. Reads route-appropriate inputs plus optional repository guidance from `AGENTS.md`, dispatches the plan writer to produce a draft plan and task outlines, runs the automated plan-level review loop (max 6 rounds, with stable-cap detection on repeated reviewer guidance), generates individual task specs from those outlines, runs a per-task review loop (max 3 rounds), blocks on unresolved task-spec failures or cross-task conflicts, appends final review status (`clean`, `stable-cap`, or `unclean-cap`) to each task spec, and dispatches the baseline checker. No human gate. Plan/Replan unclean-cap and stable-cap are surfaced via deepwork's escalation question gate before Stage 7 begins.
+Stage orchestrator. Reads route-appropriate inputs plus optional repository guidance from `AGENTS.md`, dispatches the plan writer to produce a draft plan and task outlines, runs the automated plan-level review loop (max 6 rounds, with stable-cap detection on repeated reviewer guidance), generates individual task specs from those outlines, runs a per-task review loop (max 3 rounds) when the plan-level loop terminated `clean`, blocks on unresolved task-spec failures or cross-task conflicts, appends final review status (plan: `clean`/`stable-cap`/`unclean-cap`; task-spec: `task_spec_clean` or `skipped`) to each task spec, and dispatches the baseline checker. When the plan-level loop terminates in `stable-cap` or `unclean-cap`, the per-task review loop is skipped entirely; the baseline checker still runs and deepwork's Stage 6 escalation gate surfaces the upstream concern before Stage 7 begins. No human gate.
 
 #### qrspi-plan-writer
 
@@ -774,7 +793,7 @@ Records the pre-implementation build, lint, typecheck, E2E, and test baseline be
 
 #### qrspi-implement
 
-Stage orchestrator. Analyzes current-phase task dependencies into waves, then dispatches `qrspi-fast-impl-loop` once per task in each wave. After each completed wave it runs a wave-level E2E regression gate and creates a git checkpoint (`qrspi: phase [N] wave [N] complete`). After all waves it runs integration and baseline regression checks, writing `regression-results.md`. If the baseline regression check returns new failures it enters a bounded remediation loop (up to 3 rounds), re-dispatching affected tasks in `fix` mode and re-running the regression checker per round, with a git checkpoint after each round (`qrspi: phase [N] remediation round [N]`). It validates that every task listed for the phase exists in `phases/phase-NN/tasks/`, records per-task review outcomes, and writes phase-local execution artifacts.
+Stage orchestrator. Analyzes current-phase task dependencies into waves, then dispatches `qrspi-fast-impl-loop` once per task in each wave. Each task dispatch executes in its own ephemeral git worktree (`<repo-parent>/.qrspi-worktrees/<run-id>/phase-NN/task-T`) on a per-task branch (`qrspi-task/<run-id>/phase-NN/task-T`); successful tasks are squash-merged back onto the pipeline branch in stable task order with `qrspi: phase [N] task [T]` commits. When a squash conflict occurs, Stage 7 attempts one rebase-and-retry inside the worktree via a fix-mode dispatch before abandoning the task. After each completed wave it runs a wave-level E2E regression gate and creates a git checkpoint (`qrspi: phase [N] wave [N] complete`); failed E2E rounds enter a bounded E2E remediation loop (up to 3 rounds). After all waves it runs integration and baseline regression checks in parallel and writes `regression-results.md`. If the baseline regression check returns new failures it enters a bounded remediation loop (up to 3 rounds), re-dispatching affected tasks in `fix` mode and re-running the regression checker per round, then re-running integration once remediation passes, with a git checkpoint after each round (`qrspi: phase [N] remediation round [N]` plus `qrspi: phase [N] post-remediation integration`). It validates that every task listed for the phase exists in `phases/phase-NN/tasks/`, records per-task review outcomes, and writes phase-local execution artifacts. In `verify-fix` mode it skips waves and the standard integration step, runs a single regression-remediation pass seeded with the Stage 9 verifier's failing rows (re-dispatching affected tasks in `fix` mode against fresh worktrees, then re-running the baseline regression and integration checkers), and appends a `## Verify-Fix Pass` section to `stage7-summary.md`. Verify-fix is single-shot — no multiple rounds and no further escalation inside Stage 7 itself.
 
 #### qrspi-e2e-regression-checker
 
@@ -813,7 +832,7 @@ The code simplifier is always non-blocking (advisory only).
 
 #### qrspi-integration-checker
 
-Runs a lightweight integration gate after all implementation waves complete. Checks changed-file build sanity, shared interface compatibility, and targeted smoke checks. Uses the review status summary as a risk signal when interpreting failures. Produces `integration-results.md` and `stage7-integration-summary.md`. Can trigger backward loops for structural mismatches.
+Runs a lightweight integration gate after all implementation waves complete. Checks changed-file build sanity, shared interface compatibility, generated-artifact parity for derived artifacts (schemas, docs, declarations, generated clients, manifests), and targeted smoke checks. Uses the review status summary as a risk signal when interpreting failures. Produces `integration-results.md` and `stage7-integration-summary.md`. Can trigger backward loops for structural mismatches.
 
 #### qrspi-baseline-regression-checker
 
@@ -825,7 +844,7 @@ Post-all-waves baseline regression gate. Diffs the current build, lint, typechec
 
 #### qrspi-accept
 
-Stage orchestrator. Dispatches the acceptance tester to run a phase-scoped acceptance loop against the acceptance criteria assigned to the current phase. On reuse-only coverage, the tester may take a lighter execution-only path that reuses mapped acceptance suites without planner-review fan-out or test authoring. Otherwise it runs the full review/revise/write/run loop (max 3 rounds). It forbids production/source fixes, and if persistent failures remain dispatches the backward-loop detector to classify them and recommend next steps. Writes phase-local coverage, acceptance, summary, and backward-loop analysis artifacts plus phase-scoped review history.
+Stage orchestrator. Dispatches the acceptance tester to run a phase-scoped acceptance loop against the acceptance criteria assigned to the current phase. The tester records each round as either `lite` (reuse-only execution path, no planner-review fan-out and no test authoring) or `full` (planner review + writer + run + repair loop, max 3 plan-review cycles per round with stable-cap detection). Acceptance mode is reported as `none`, `lite`, `full`, or `mixed` across the phase. The orchestrator forbids production/source fixes; writes outside the configured `TEST FILE BOUNDARY` immediately fail Stage 8 and write a `boundary-violations.md` audit file. If persistent failures remain, it dispatches the backward-loop detector to classify them and recommend next steps. Writes phase-local coverage, acceptance, summary, backward-loop analysis, and (on boundary violation) boundary-violations artifacts plus phase-scoped review history. Each criterion in `acceptance-results.md` carries a `Status` (`PASS`/`FAIL`) and a `Failure Reason` from a fixed enum: `none` (PASS), `blocking_review`, `reconciliation`, `blocked_action`, `boundary_violation`, or `executed_failed`.
 
 #### qrspi-coverage-planner
 
@@ -836,9 +855,21 @@ Drafts or revises the current phase's acceptance coverage plan for a single roun
 Runs the acceptance test inner loop. It always starts with the coverage planner, then chooses between two paths:
 
 - `lite` reuse-only path: when every current-phase criterion maps to an existing acceptance suite with `Action: reuse`, it skips planner review and test authoring, executes the mapped suites directly, and still reports per-criterion PASS or FAIL.
-- `full` path: dispatches the acceptance reviewers, blocks test generation until blocking review findings clear, writes or reconciles the active acceptance tests, validates that stale coverage was deleted before execution, and allows up to 2 acceptance-test-only repair attempts per round for harness, import, command, flake, or assertion defects.
+- `full` path: dispatches the acceptance-plan reviewers (`qrspi-review-accept-goal-traceability`, `qrspi-review-accept-spec`, and conditionally `qrspi-review-accept-code-quality`), blocks test generation until blocking review findings clear, writes or reconciles the active acceptance tests, validates that stale coverage was deleted before execution, and allows up to 2 acceptance-test-only repair attempts per round for harness, import, command, flake, or assertion defects.
 
-Production/source defects are recorded as persistent failures for Stage 7 fix/review routing or backward-loop classification. Tests only the acceptance criteria assigned to the current phase in `phase-manifest.md`. Reports per-criterion PASS or FAIL.
+Once a phase leaves `lite` mode the remaining rounds stay `full`. Each round is capped at 3 plan-review cycles; two consecutive cycles with the same blocking findings trigger a `stable-cap` early exit. Production/source defects are recorded as persistent failures for Stage 7 fix/review routing or backward-loop classification. Tests only the acceptance criteria assigned to the current phase in `phase-manifest.md`. Every criterion ends with a `Status` (`PASS`/`FAIL`) and a `Failure Reason` from a fixed enum: `none`, `blocking_review`, `reconciliation`, `blocked_action`, `boundary_violation`, or `executed_failed`.
+
+#### qrspi-review-accept-goal-traceability
+
+Read-only acceptance-plan reviewer dispatched by `qrspi-acceptance-tester` in `full` mode. Checks that each phase-scoped criterion maps to exactly one coverage-plan row with a valid action (`reuse`/`revise`/`new`/`blocked`), trace fields, and no duplicate or extraneous rows. Returns FAIL for any `CRITICAL` or `HIGH` finding.
+
+#### qrspi-review-accept-spec
+
+Read-only acceptance-plan reviewer dispatched by `qrspi-acceptance-tester` in `full` mode. Checks each coverage-plan row for trigger fidelity, outcome fidelity, assertion specificity, boundary inclusion, and action consistency against the criterion. Returns FAIL for any `CRITICAL` or `HIGH` finding.
+
+#### qrspi-review-accept-code-quality
+
+Read-only acceptance-plan reviewer dispatched by `qrspi-acceptance-tester` in `full` mode, only when the coverage plan contains at least one `Action: new` or `Action: revise` row. Checks the planned coverage for determinism, behavior focus, isolation, data realism, anti-patterns, and unnecessary suite sprawl. Returns FAIL for any `CRITICAL` or `HIGH` finding.
 
 #### qrspi-backward-loop-detector
 
@@ -870,7 +901,7 @@ Stage orchestrator. Enumerates `phases/phase-*/` and dispatches the verifier wit
 
 #### qrspi-verifier
 
-Runs one full configured build/lint/typecheck/E2E/test pass, checks aggregated per-phase acceptance results, and compares current failures against `baseline-results.md`. May reuse the latest phase's `regression-results.md` when it reports a clean PASS with no skipped checks and `git log` confirms no production-source changes since Stage 7 — in which case the verifier runs only the acceptance test full re-run and an E2E smoke pass. It does not fix issues; failures are reported with evidence for Stage 7 fix/review routing or backward-loop decisions. Reports PASS / PARTIAL / FAIL while distinguishing unchanged baseline failures from new regressions, and emits a `### Code Health Summary` (per-phase test-evidence quality, NO_TASK_AUTHORED_TESTS audit overrides, simplifier finding counts, coverage status, Plan/Replan terminal review states).
+Runs one full configured build/lint/typecheck/E2E/test pass, checks aggregated per-phase acceptance results, and compares current failures against `baseline-results.md`. May reuse the latest phase's `regression-results.md` when **all** of the following hold: that file reports `### Status — PASS` with `### Skipped Checks` of `None.`; `git log` (filtered to non-test paths) confirms no production-source changes since the last `qrspi: phase [N] *` checkpoint; and the baseline `Coverage` row, if present, also passed in the cached regression results. When reuse is allowed, the verifier carries the cached Build/Lint/Typecheck/Test rows forward and runs only the acceptance test full re-run plus a smoke sub-suite of the configured E2E command. It never fixes issues; failures are reported with evidence for Stage 7 fix/review routing or backward-loop decisions. Reports PASS / PARTIAL / FAIL while distinguishing unchanged baseline failures from new regressions, and emits a `### Code Health Summary` per-phase table covering deterministic/flaky/harness-noisy/ambiguous/redundant test counts, NO_TASK_AUTHORED_TESTS audit overrides, outstanding concerns, coverage status, and Plan/Replan terminal review states.
 
 ---
 
