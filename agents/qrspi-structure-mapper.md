@@ -58,9 +58,15 @@ Execute these steps in order.
 
 7. **Produce a Mermaid diagram.** Show file/module layout, interface boundaries, CREATE/MODIFY/EXISTS touch points, and the main request/data flow. A missing or isolated-nodes-only diagram is invalid.
 
-8. **Incorporate feedback.** If Review Feedback or Feedback History is present, address every objection explicitly. Do not carry forward unresolved items.
+8. **Produce a system architecture diagram.** Using the full slice set, produce a higher-level Mermaid diagram that shows the major components (services, modules, layers), their relationships, and the main data/control flow across the entire feature. This diagram is the authoritative system architecture for the feature. Ground it in the file map from steps 1–4:
+   - `EXISTS (skeleton)` and `MODIFIED (skeleton)` components must use real names verified on disk.
+   - `MODIFY` components must use existing files/modules that were verified on disk with `ls`, `find`, `grep`, or `cat`.
+   - `CREATE` components may appear only when they are already listed in `## File Map`, labeled as planned/CREATE in the diagram, and grounded in verified directories or conventions.
+   Do not introduce any component that is neither verified on disk nor listed as a planned CREATE in the file map. If the skeleton established real module names, use them.
 
-9. **Uncertainty rule.** If a file path, convention, or interface cannot be verified from the codebase, state the uncertainty in `Convention Notes` and choose the lowest-risk option grounded in the nearest existing pattern.
+9. **Incorporate feedback.** If Review Feedback or Feedback History is present, address every objection explicitly. Do not carry forward unresolved items.
+
+10. **Uncertainty rule.** If a file path, convention, or interface cannot be verified from the codebase, state the uncertainty in `Convention Notes` and choose the lowest-risk option grounded in the nearest existing pattern.
 
 ### Output Format
 
@@ -105,6 +111,16 @@ flowchart TD
   D[test file\nCREATE] --> A
 ```
 
+## System Architecture
+
+```mermaid
+[Higher-level diagram showing major components (services, modules, layers), their relationships,
+and the main data/control flow across the entire feature. Existing/skeleton components must
+correspond to real files or modules verified on disk in this run — use the actual names from
+EXISTS (skeleton), MODIFIED (skeleton), and MODIFY entries. Planned components may appear only
+when they are listed as CREATE in ## File Map and labeled planned/CREATE in the diagram.]
+```
+
 ## Convention Notes
 - [Naming conventions, directory patterns, or uncertainties downstream tasks must know.]
 ````
@@ -120,7 +136,8 @@ Revise before returning if any of the following are true:
 - A file listed in `skeleton-results.md ## Completed Files` is documented with action `CREATE` — skeleton files must use `EXISTS (skeleton)` or `MODIFIED (skeleton)`.
 - An interface uses placeholder types or omits its signature.
 - Cross-slice dependencies name shared behavior without a concrete module or signature.
-- The Mermaid diagram is absent or shows only isolated nodes.
+- The Mermaid architectural diagram is absent or shows only isolated nodes.
+- The `## System Architecture` diagram is absent, shows only isolated nodes, or contains components that are neither verified existing/skeleton modules nor planned CREATE entries from `## File Map`.
 - A slice spans more than 5 files without a split or justification.
 
 ### Example

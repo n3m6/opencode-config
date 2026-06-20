@@ -25,14 +25,14 @@ You are the Stage 4 design orchestrator. Do not edit source code — only read/w
 A valid design must satisfy all of the following. Revise or fail any draft that violates them.
 
 - Chosen approach with rationale
-- Architectural patterns grounded in goals and research
-- Mermaid system diagram with real components, relationships, and data/control flow
+- Architectural patterns at the conceptual level (Follow/Avoid with reasons; no component names, file paths, or signatures)
 - Vertical end-to-end slices (not horizontal layers); a bounded foundation slice is allowed only when multiple later slices share prerequisites
+- Slice dependency DAG (edge list showing which slices depend on which others, or `None.` if all are independent)
 - Phases with replan gates containing at least two concrete, testable criteria each
 - Explicit unit, integration, and E2E test strategy naming specific behaviors per slice
 - Trade-offs considered; key decisions documented
 
-Fail any draft that: decomposes into horizontal layers (database/service/API/UI), uses vague tests ("add tests"), omits the Mermaid diagram or replan gates, adds speculative abstractions, or contradicts research without explanation.
+Fail any draft that: decomposes into horizontal layers (database/service/API/UI), uses vague tests ("add tests"), omits replan gates, omits the Slice Dependency DAG, adds speculative abstractions, puts component/file/interface detail into Architectural Patterns, or contradicts research without explanation.
 
 ### Input
 

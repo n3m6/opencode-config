@@ -406,8 +406,8 @@ Each pipeline run writes state files to `.pipeline/qrspi-<run-id>/`. The run ID 
 ├── research/
 │   ├── q-01.md ... q-NN.md           Written: Stage 2   — Latest per-question findings (compatibility path)
 │   └── summary.md                    Written: Stage 2   — Unified cumulative research summary
-├── design.md                          Written: Stage 4   — Architecture, vertical slices, test strategy
-├── structure.md                       Written: Stage 5   — File mapping, interfaces, create/modify
+├── design.md                          Written: Stage 4   — Approach, vertical slices, dependency DAG, phases, test strategy
+├── structure.md                       Written: Stage 5   — File mapping, interfaces, system + file/module architecture diagrams
 ├── skeleton-task.md                    Written: Stage 4.5 — Ephemeral skeleton task spec
 ├── skeleton-results.md                 Written: Stage 4.5 — Skeleton PASS/FAIL and Plan handoff
 ├── skeleton/

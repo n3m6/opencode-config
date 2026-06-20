@@ -368,8 +368,8 @@ All inter-stage data flows through files in `.pipeline/qrspi-<run-id>/`:
 | `research/open-questions.md`                            | Stage 2                      | Latest unresolved-question snapshot for follow-up or stalled exit                    |
 | `research/summary.md`                                   | Stage 2                      | Unified cumulative research summary                                                  |
 | `reviews/research/round-NN/research-pass-review-round-MM.md` | Stage 2                 | Round-local batch-pass review history for `qrspi-research-pass`                       |
-| `design.md`                                             | Stage 4                      | Architecture, vertical slices, phases, replan gates, test strategy                   |
-| `structure.md`                                              | Stage 5                      | File mapping, interfaces, create/modify, Mermaid diagram                             |
+| `design.md`                                             | Stage 4                      | Approach, slice inventory + dependency DAG, phases, replan gates, test strategy      |
+| `structure.md`                                              | Stage 5                      | File mapping, interfaces, system architecture diagram, file/module Mermaid diagram   |
 | `skeleton-results.md`                                       | Stage 4.5                    | Skeleton PASS/FAIL, squash-merged files, plan handoff section (Completed Files)      |
 | `skeleton-task.md`                                          | Stage 4.5                    | Ephemeral task spec used by the skeleton implementation loop                         |
 | `skeleton/stage7-summary.md`                                | Stage 4.5                    | Skeleton execution summary kept outside `phases/phase-*` so resume does not treat it as a normal phase |
@@ -544,7 +544,7 @@ Every alignment and planning stage runs an internal automated review loop before
 | ----------------------------- | -------------------------------------------- | ---------- | ---------------------------------------------------------------------------------------- |
 | 1 — Goals                     | `qrspi-goals-reviewer`                       | 5          | Re-dispatch synthesizer with review feedback                                             |
 | 2 — Research                  | `qrspi-research-reviewer`                    | unbounded  | Generate incremental follow-up batches until clean or stalled                            |
-| 4 — Design                    | `qrspi-design-reviewer`                      | 5          | Re-dispatch design synthesizer with feedback                                             |
+| 4 — Design                    | `qrspi-design-reviewer`                      | 5          | Re-dispatch design synthesizer with feedback; checks slice DAG coherence and Architectural Patterns scope instead of Mermaid diagram |
 | 4.5 — Skeleton                | `qrspi-fast-impl-loop` (smoke check)         | 1          | FAIL → backward loop to Design or Error Handling                                         |
 | 5 — Structure                 | `qrspi-structure-reviewer`                   | 5          | Re-dispatch structure mapper with feedback                                               |
 | 6 — Plan (plan review)        | `qrspi-plan-reviewer`                        | 6          | Re-dispatch plan writer with feedback; stable-cap if same `Fix Guidance` repeats         |
@@ -568,7 +568,7 @@ Terminal review states:
 
 Stage 2 (Research) now owns both question generation and research. It alternates between incremental question-batch generation and research passes until the cumulative research state is clean or the unresolved-question snapshot stalls. A stalled loop returns `PASS` with `terminal_review_state = stable-cap`, preserving the latest unresolved items for downstream design and planning.
 
-Stage 4.5 (Skeleton) runs between Design and Structure on the full route. It selects the thinnest end-to-end slice from `design.md` (preferring the Foundation Slice), creates a single task spec via codebase recon (no structure.md dependency), dispatches `qrspi-fast-impl-loop` in a fresh git worktree, and smoke-checks the result. A PASS squash-merges the skeleton code onto the pipeline branch and writes `skeleton-results.md` with a `## Plan Handoff` section. Stage 5 (Structure) reads this to document already-created files as `EXISTS (skeleton)` instead of `CREATE`; Stage 6 (Plan) reads it to avoid re-assigning those files as fresh CREATE tasks. A FAIL with a backward loop request routes immediately back to Design — no Structure, plan, phases, or tasks exist yet, making this the cheapest possible validation point. Stage 4.5 is skipped on the quick-fix route.
+Stage 4.5 (Skeleton) runs between Design and Structure on the full route. It selects the thinnest end-to-end slice from `design.md` (preferring the Foundation Slice, otherwise the slice most depended on per the `## Slice Dependency DAG`), creates a single task spec via codebase recon (no structure.md dependency), dispatches `qrspi-fast-impl-loop` in a fresh git worktree, and smoke-checks the result. A PASS squash-merges the skeleton code onto the pipeline branch and writes `skeleton-results.md` with a `## Plan Handoff` section. Stage 5 (Structure) reads this to document already-created files as `EXISTS (skeleton)` instead of `CREATE` and to ground the authoritative system architecture diagram in verified skeleton/existing modules plus planned `CREATE` entries from the file map; Stage 6 (Plan) reads it to avoid re-assigning those files as fresh CREATE tasks. A FAIL with a backward loop request routes immediately back to Design — no Structure, plan, phases, or tasks exist yet, making this the cheapest possible validation point. Stage 4.5 is skipped on the quick-fix route.
 
 Stage 6 (Plan) now runs three review layers and a pre-implementation check: (1) a plan-level review loop (max 6 rounds, stable-cap detection) by `qrspi-plan-reviewer`; (2) a per-task spec review loop (max 3 rounds) by `qrspi-task-spec-reviewer` repairing each spec in place, gated on plan review being `clean`; (3) a feasibility check and bounded patch loop (max 2 rounds) by `qrspi-feasibility-checker` and `qrspi-plan-patcher`, gated on both reviews being clean. The feasibility check runs each task spec's `## Feasibility Checklist` items against the real codebase before any build. Failures trigger `qrspi-plan-patcher` which regenerates only the failing task subgraph in place (no deletions, stable IDs). After 2 rounds, unresolved feasibility failures are recorded as `feasibility-unclean` and surfaced to the user via deepwork's Stage 6 escalation gate — the same path as `unclean-cap`. After all three layers complete, `qrspi-baseline-checker` runs and the final review status block is appended to every `tasks/task-NN.md`.
 
@@ -599,8 +599,8 @@ Three stages require human approval before proceeding:
 | Stage         | Artifact       | What the User Reviews                                  |
 | ------------- | -------------- | ------------------------------------------------------ |
 | 1 — Goals     | `goals.md`     | Intent, constraints, non-goals, acceptance criteria    |
-| 4 — Design    | `design.md`    | Approach, vertical slices, phases, replan gates, tests |
-| 5 — Structure | `structure.md` | File mapping, interfaces, Mermaid diagram              |
+| 4 — Design    | `design.md`    | Approach, vertical slices + dependency DAG, phases, replan gates, tests |
+| 5 — Structure | `structure.md` | File mapping, interfaces, system architecture diagram, Mermaid file/module diagram |
 
 All human gates present the automated review status to the user ("passed clean in round N" or "reached the N-round cap with remaining concerns documented in ...").
 
@@ -796,15 +796,15 @@ Reviews research artifacts in two modes. `batch-pass` validates one researched b
 
 #### qrspi-design
 
-Stage orchestrator. Conducts interactive design discussion with the user (2–3 approaches, trade-offs, vertical slice decomposition, phase grouping, replan gates, test strategy). Enforces guardrails against horizontal layer planning, vague test strategy, missing phase gates, and speculative future-proofing. Dispatches the design synthesizer, runs the automated design review loop, and holds a human gate.
+Stage orchestrator. Conducts interactive design discussion with the user (2–3 approaches, trade-offs, vertical slice decomposition, phase grouping, replan gates, test strategy). Enforces guardrails against horizontal layer planning, vague test strategy, missing phase gates, missing slice dependency DAG, and speculative future-proofing. Dispatches the design synthesizer, runs the automated design review loop, and holds a human gate.
 
 #### qrspi-design-synthesizer
 
-Synthesizes a design document from goals, research summary, and the interactive design discussion. Structures the chosen approach, architectural patterns, Mermaid system diagram, vertical slice decomposition, phases with replan gates, test strategy, and key decisions with trade-offs. Handles feedback-driven re-generation. Read-only.
+Synthesizes a design document from goals, research summary, and the interactive design discussion. Structures the chosen approach, conceptual architectural patterns (no component/file detail), vertical slice decomposition with a slice dependency DAG, phases with replan gates, test strategy, and key decisions with trade-offs. Does not produce a Mermaid system diagram — that moves to Structure where it can reflect the merged skeleton code and approved file map. Handles feedback-driven re-generation. Read-only.
 
 #### qrspi-design-reviewer
 
-Reviews `design.md` independently for goals alignment, vertical slice quality, test strategy completeness, internal consistency, research congruence, YAGNI compliance, phase coherence, and diagram quality. Flags horizontal decomposition, speculative architecture, weak replan gates, or vague testing. Read-only.
+Reviews `design.md` independently for goals alignment, vertical slice quality, test strategy completeness, internal consistency, research congruence, YAGNI compliance, phase coherence, slice DAG coherence, and that Architectural Patterns stays at the conceptual level. Does not check for a Mermaid system diagram. Flags horizontal decomposition, speculative architecture, weak replan gates, or vague testing. Read-only.
 
 ---
 
@@ -812,15 +812,15 @@ Reviews `design.md` independently for goals alignment, vertical slice quality, t
 
 #### qrspi-structure
 
-Stage orchestrator. Dispatches the structure mapper, runs the automated structure review loop, and holds a human gate. Enforces guardrails against missing slice coverage, vague file maps, missing interfaces, and missing diagrams.
+Stage orchestrator. Dispatches the structure mapper, runs the automated structure review loop, and holds a human gate. Enforces guardrails against missing slice coverage, vague file maps, missing interfaces, missing diagrams, and system architecture components not grounded in either verified real modules or planned `CREATE` entries from the approved file map.
 
 #### qrspi-structure-mapper
 
-Maps each vertical slice from the design to specific files and components. Defines interfaces between components (function signatures, class signatures, type definitions). Tracks CREATE vs. MODIFY per file and verifies paths against the actual codebase. Includes a Mermaid architectural diagram showing file/module layout, interface boundaries, and data flow. Handles feedback-driven re-generation. Read-only.
+Maps each vertical slice from the design to specific files and components. Defines interfaces between components (function signatures, class signatures, type definitions). Tracks CREATE vs. MODIFY per file and verifies paths against the actual codebase. Documents skeleton-created files as `EXISTS (skeleton)` using their real on-disk interfaces as ground truth. Produces a Mermaid file/module architectural diagram plus an authoritative `## System Architecture` diagram grounded in verified existing/skeleton modules and planned `CREATE` entries from the file map — this is the system diagram that Design no longer carries. Handles feedback-driven re-generation. Read-only.
 
 #### qrspi-structure-reviewer
 
-Reviews `structure.md` independently for design alignment, file action correctness, interface completeness, interface compatibility, convention adherence, cross-slice dependency clarity, diagram quality, and granularity. Verifies MODIFY and CREATE paths against the codebase using bash. Read-only.
+Reviews `structure.md` independently for design alignment, file action correctness, skeleton fidelity, interface completeness, interface compatibility, convention adherence, cross-slice dependency clarity, file/module diagram quality, architecture fidelity, and granularity. Verifies MODIFY, CREATE, and EXISTS paths against the codebase; checks that the system architecture diagram uses verified real modules for existing/skeleton/MODIFY components and labels planned components only when they appear as `CREATE` entries in the file map. Read-only.
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-description: Reviews design.md for goals alignment, vertical slices, test strategy, internal consistency, research congruence, YAGNI, phase coherence, and diagram quality. Returns PASS/FAIL with grounded fix guidance. Read-only.
+description: Reviews design.md for goals alignment, vertical slices, test strategy, internal consistency, research congruence, YAGNI, phase coherence, slice DAG coherence, and architectural-pattern scope. Returns PASS/FAIL with grounded fix guidance. Read-only.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -30,11 +30,12 @@ Mark each area PASS or FAIL. Any FAIL means `### Status — FAIL`; all areas mus
 - **Goals alignment**: Design covers the stated intent and does not miss material acceptance criteria.
 - **Vertical slices**: Work decomposes into end-to-end, independently testable slices, not database/service/API/UI layers. A foundation slice is allowed only if it is bounded to shared prerequisites and is followed by meaningful end-to-end slices — it must not absorb work that belongs to later slices.
 - **Test strategy**: Names unit, integration, and E2E expectations per slice, or explicitly explains why a category is unnecessary.
-- **Internal consistency**: Approach, patterns, slices, phases, diagram, and test strategy do not visibly contradict each other.
+- **Internal consistency**: Approach, patterns, slices, phases, and test strategy do not visibly contradict each other.
 - **Research congruence**: Follows the supplied research findings, or states any intentional deviation and its rationale.
 - **YAGNI**: Avoids speculative extensibility, plugin systems, future-proof abstractions, or extra features not required by the goals.
 - **Phase coherence**: Each phase has meaningful boundaries, explains what it proves, and includes a replan gate with at least two concrete, testable verification criteria. Single-phase work still requires a Phase 1 replan gate.
-- **Diagram quality**: A Mermaid diagram is present and shows meaningful components, relationships, and data flow — not isolated boxes.
+- **Slice DAG coherence**: A `## Slice Dependency DAG` section is present; the dependency edges are acyclic; every slice listed in the DAG matches a slice defined in `## Vertical Slices`; if all slices are independent, `None.` is acceptable.
+- **Architectural Patterns scope**: The `## Architectural Patterns` section stays conceptual (pattern names and rationale only); no component names, file paths, or function signatures appear in that section.
 
 ### Fix Guidance Rules
 
@@ -56,7 +57,8 @@ Mark each area PASS or FAIL. Any FAIL means `### Status — FAIL`; all areas mus
 | Research congruence | PASS/FAIL | ... |
 | YAGNI | PASS/FAIL | ... |
 | Phase coherence | PASS/FAIL | ... |
-| Diagram quality | PASS/FAIL | ... |
+| Slice DAG coherence | PASS/FAIL | ... |
+| Architectural Patterns scope | PASS/FAIL | ... |
 
 ### Fix Guidance
 None.

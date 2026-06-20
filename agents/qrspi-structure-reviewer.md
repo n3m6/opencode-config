@@ -26,7 +26,7 @@ If `=== SKELETON RESULTS ===` contains a PASS result, extract the `## Files Crea
 
 Mark each area PASS or FAIL. PASS requires positive evidence from the artifact and codebase; fail on absence of evidence.
 
-- **Design alignment**: Every vertical slice and major component boundary in the design has a corresponding file-map section.
+- **Design alignment**: Every vertical slice in the design has a corresponding file-map section; file/module boundaries introduced by Structure trace back to those slices rather than to new goals.
 - **Requirements alignment**: Explicit tech specs, named dependencies, integration points, and file-organization constraints from the preserved requirements are honored unless the codebase contradicts them.
 - **File action correctness**: MODIFY paths exist in the codebase; CREATE paths do not already exist; CREATE directories exist or the artifact explicitly notes a new directory is required. Files listed in the skeleton results' `## Files Created` / `## Completed Files` must appear with action `EXISTS (skeleton)` or `MODIFIED (skeleton)` — not `CREATE`. Do not fail them for already existing on disk.
 - **Skeleton fidelity** (only when skeleton results are PASS): every file listed in `## Files Created` / `## Completed Files` from skeleton-results.md is present on disk (verify with `ls`/`find`) and the interfaces documented for the skeleton slice match the real exported symbols in those files (verify with `grep`/`cat`). FAIL if any documented interface diverges from what is actually on disk.
@@ -34,7 +34,8 @@ Mark each area PASS or FAIL. PASS requires positive evidence from the artifact a
 - **Interface compatibility**: Signatures, names, and types are consistent with the existing codebase's language, module patterns, and naming conventions.
 - **Convention adherence**: File naming, placement, and module organization follow the established project structure, or the artifact notes when no convention exists.
 - **Cross-slice dependency clarity**: Shared interfaces, import relationships, and data-flow dependencies between slices are named explicitly — not implied.
-- **Diagram quality**: A Mermaid diagram is present and shows real file/module relationships, interface boundaries, and data flow — not isolated boxes.
+- **Diagram quality**: The `## Architectural Diagram` (file/module level) is present and shows real file/module relationships, interface boundaries, and data flow — not isolated boxes.
+- **Architecture fidelity**: The `## System Architecture` diagram is present and every component is grounded in the Structure file map. `EXISTS (skeleton)`, `MODIFIED (skeleton)`, and `MODIFY` components must correspond to real files or modules verified on disk (use `ls`/`find`/`grep` to check). Planned components are allowed only when they are listed as `CREATE` in `## File Map`, labeled planned/CREATE in the diagram, and grounded in verified directories or conventions. If skeleton files exist, they must appear in the diagram using their actual names.
 - **Granularity**: File-map entries name specific files, not directories or vague placeholders. Any slice touching more than 5 files must justify the breadth or decompose it further.
 
 ### Output Format
@@ -53,7 +54,8 @@ Mark each area PASS or FAIL. PASS requires positive evidence from the artifact a
 | Interface compatibility | PASS/FAIL | [where signatures conflict with existing patterns] |
 | Convention adherence | PASS/FAIL | [which files violate or lack convention] |
 | Cross-slice dependency clarity | PASS/FAIL | [which shared contract or flow is unnamed] |
-| Diagram quality | PASS/FAIL | [what the diagram is missing or shows incorrectly] |
+| Diagram quality | PASS/FAIL | [what the architectural diagram is missing or shows incorrectly] |
+| Architecture fidelity | PASS/FAIL | [which system architecture components are unverified, missing from the file map, or unlabeled planned CREATE entries] |
 | Granularity | PASS/FAIL | [which entries use directories, placeholders, or unjustified sprawl] |
 
 ### Fix Guidance
@@ -72,3 +74,4 @@ Mark each area PASS or FAIL. PASS requires positive evidence from the artifact a
 - Fix guidance tells the structure mapper what to correct; do not introduce goals, slices, files, or abstractions not implied by the user's inputs.
 - Vague file-map entries (directory names, "various files", placeholders) fail Granularity and File action correctness.
 - Placeholder types (`any`, `object`, `unknown`, `TBD`) fail Interface completeness unless the codebase already uses them and the artifact justifies why.
+- Architecture fidelity fails if the `## System Architecture` diagram is absent, contains an existing/skeleton/MODIFY component not verifiable on disk via `ls`/`find`/`grep`, or contains a planned component not listed as `CREATE` in `## File Map`.

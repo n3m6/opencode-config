@@ -50,14 +50,14 @@ cat .pipeline/<run-id>/design.md
 cat .pipeline/<run-id>/config.md
 ```
 
-Read `AGENTS.md` from the repository root if it exists. (`structure.md` does not exist yet — Structure runs after the skeleton.)
+Read `AGENTS.md` from the repository root if it exists. The Structure artifact does not exist yet — Stage 5 runs after the skeleton.
 
 ### Step B — Select the Skeleton Slice
 
-Read `design.md`, specifically `## Vertical Slices`. Apply this priority order:
+Read `design.md`, specifically `## Vertical Slices` and `## Slice Dependency DAG`. Apply this priority order:
 
 1. If a `### Foundation Slice` section exists, select it. The design synthesizer includes this only when multiple later slices share prerequisites; it is the natural skeleton target.
-2. Otherwise, select the slice with the highest structural risk: the slice the research summary flags as having the most unknowns, or the slice that crosses the most interface boundaries implied by the design.
+2. Otherwise, select the slice with the highest structural risk: prefer the slice that the most other slices depend on according to the `## Slice Dependency DAG`, or the slice the research summary flags as having the most unknowns. Either signal is sufficient — use whichever is clearer.
 3. As a tiebreaker, select the slice that delivers the smallest but still end-to-end piece of user-observable behavior.
 
 Record the selected slice name.
