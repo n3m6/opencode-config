@@ -42,7 +42,10 @@ Received from deepwork:
 5. **Mode** _(optional, defaults to `phase`)_ — one of:
    - `phase` — full per-phase implementation: read task waves, run them, gate, integrate, regression-check.
    - `verify-fix` — Stage 9 fixup mode invoked by deepwork after `qrspi-verify` returned FAIL. Skip waves and integration. Run a single regression-remediation round seeded with verifier failures.
+   - `patch` — incremental patch mode invoked by deepwork after `qrspi-plan-patcher` updates a subset of task specs. Run only the patch subset in fresh worktrees, squash-merge, then re-run E2E regression and integration checks scoped to the patched files. Completed task commits outside the patch set are preserved untouched.
 6. **Verify Failures** _(verify-fix mode only)_ — failing rows from `stage9-summary.md` formatted like `regression-results.md` rows (Check / Failing Test or Error / Command / Failing File(s) / Suspected Task IDs).
+7. **Patch Tasks** _(patch mode only)_ — comma-separated list of task IDs in the patch subset (e.g. `02, 05`). All other tasks are treated as completed and must not be re-run.
+8. **Patch Round** _(patch mode only)_ — current Option-P patch round for this phase (1 or 2). Used only for audit text and telemetry.
 
 Construct all file paths as `.pipeline/<run-id>/`.
 
@@ -50,6 +53,7 @@ Construct all file paths as `.pipeline/<run-id>/`.
 
 - `phase` (default): execute Steps A → A.5 → B → C → D → E. If E reports regression FAIL → Step F. Otherwise → Return.
 - `verify-fix`: execute Step A only, then jump straight to **Step F.0 — Verify-Fix Remediation** (defined below) and return its result. Steps A.5, B, C, D, and E are skipped because the phase already completed; Stage 7 has no waves to run in verify-fix mode.
+- `patch`: execute Step A → **Step P — Patch Mode** (defined below) → Return. Steps A.5, B, C, D, E, and F are replaced by Step P's scoped execution.
 
 ### Step A — Read Inputs
 
@@ -406,6 +410,51 @@ Run exactly once when **Mode** is `verify-fix`. This is a single-shot regression
 
 Verify-fix is single-shot. No multiple rounds; no further escalation inside Stage 7 itself. Deepwork takes over after this return.
 
+### Step P — Patch Mode (patch mode only)
+
+Run when **Mode** is `patch`. Implements only the tasks in **Patch Tasks**. All other tasks are treated as already committed; their worktrees must not be recreated or re-run.
+
+#### Step P.1 — Scope
+
+1. Read the patch task IDs from the `=== PATCH TASKS ===` input.
+2. Read the patch round from `=== PATCH ROUND ===` if present; otherwise use `unknown`.
+3. From `<phase-dir>/execution-manifest.md`, identify which patch tasks have previous worktrees still present. Remove any stale worktrees and branches for these tasks using the same lifecycle names as normal phase execution:
+   - `git worktree remove --force <stale-worktree-root>` (if present)
+   - `git branch -D qrspi-task/<run-id>/phase-[NN]/task-<T>` (if present)
+4. Read the updated task specs for each patch task from `.pipeline/<run-id>/<phase-dir>/tasks/task-NN.md`. For Phase 1 this resolves through the canonical symlink; for later phases it reads the phase-local task copy.
+
+#### Step P.2 — Wave Computation (Patch Subset)
+
+Build the dependency graph using `plan.md` but restrict nodes to the patch task IDs. Compute waves following the same rules as Step B, but only for the patch subset. Tasks outside the patch subset are treated as Wave 0 (already satisfied dependencies).
+
+#### Step P.3 — Execute Patch Waves
+
+For each patch wave, in order:
+
+1. Create fresh worktrees for the wave's tasks using the same lifecycle as Step C (branch: `qrspi-task/<run-id>/phase-[NN]/task-<T>`, root: `<repo-parent>/.qrspi-worktrees/<run-id>/phase-[NN]/task-<T>`).
+2. Dispatch `qrspi-fast-impl-loop` for each task in the wave in one turn using **IMPL (fresh)**. Propagate any `### Backward Loop Request` immediately.
+3. For successful tasks: squash-merge in stable task-ID order following the same rules as Step C. Checkpoint as `"qrspi: phase [N] patch wave [W] task [task-id] squashed"` for each merge if dirty.
+4. Gate the wave with `qrspi-e2e-regression-checker` scoped to the patch files following the same rules as Step D. Up to 3 E2E remediation rounds, same rules as Step D.
+5. After all patch waves complete, write an updated `<phase-dir>/execution-manifest.md` replacing only the rows for patched tasks.
+
+#### Step P.4 — Regression and Integration Check (Patch-Scoped)
+
+Dispatch `qrspi-integration-checker` and `qrspi-baseline-regression-checker` in one turn, following the same rules as Step E but noting `mode: patch` in the integration check header. Overwrite `<phase-dir>/integration-results.md`, `<phase-dir>/regression-results.md`, and `<phase-dir>/stage7-integration-summary.md`.
+
+Append a `## Patch Pass` section to `<phase-dir>/stage7-summary.md` listing:
+- Patch round number (from **Patch Round** input, or `unknown` if omitted)
+- Task IDs patched
+- Wave structure
+- E2E, integration, and regression results
+
+Checkpoint as `"qrspi: phase [N] patch complete"` if dirty.
+
+#### Step P.5 — Decision
+
+- **Both PASS** → return standard PASS template below with `mode: "patch"` in Telemetry and `patch_task_ids` list.
+- **Backward loop requested** → return backward loop template below with `mode: "patch"`.
+- **FAIL** → return FAIL template below with `mode: "patch"`.
+
 ### Return
 
 All tasks passed, integration passed, no regressions:
@@ -415,7 +464,7 @@ All tasks passed, integration passed, no regressions:
 ### Phase — [current phase number]
 ### Files Written — <phase-dir>/execution-manifest.md, <phase-dir>/e2e-regression-results.md, <phase-dir>/stage7-summary.md, <phase-dir>/integration-results.md, <phase-dir>/regression-results.md, <phase-dir>/stage7-integration-summary.md
 ### Summary — Phase [N]: all tasks implemented. Wave E2E gates: PASS. Integration: PASS. Regressions: none.
-### Telemetry — {"mode": "<phase|verify-fix>", "wave_count": <N>, "task_count": <N>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "evidence_quality": {"deterministic": <n>, "flaky": <n>, "harness_noisy": <n>, "ambiguous": <n>, "redundant": <n>, "no_test_tasks": <n>, "no_test_audit_overrides": <n>}}
+### Telemetry — {"mode": "<phase|verify-fix|patch>", "wave_count": <N>, "task_count": <N>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "patch_task_ids": [<ids, if patch mode>], "evidence_quality": {"deterministic": <n>, "flaky": <n>, "harness_noisy": <n>, "ambiguous": <n>, "redundant": <n>, "no_test_tasks": <n>, "no_test_audit_overrides": <n>}}
 ```
 
 Backward loop requested (any source):
@@ -426,7 +475,7 @@ Backward loop requested (any source):
 ### Files Written — <phase-dir>/execution-manifest.md, <phase-dir>/e2e-regression-results.md, <phase-dir>/stage7-summary.md, [integration-results.md and regression-results.md if written]
 ### Backward Loop Request — [paste backward loop request verbatim]
 ### Summary — Phase [N]: backward loop requested: [brief description].
-### Telemetry — {"mode": "<phase|verify-fix>", "wave_count": <N>, "task_count": <N>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "backward_loop_requested": true, "evidence_quality": {"deterministic": <n>, "flaky": <n>, "harness_noisy": <n>, "ambiguous": <n>, "redundant": <n>, "no_test_tasks": <n>, "no_test_audit_overrides": <n>}}
+### Telemetry — {"mode": "<phase|verify-fix|patch>", "wave_count": <N>, "task_count": <N>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "backward_loop_requested": true, "patch_task_ids": [<ids, if patch mode>], "evidence_quality": {"deterministic": <n>, "flaky": <n>, "harness_noisy": <n>, "ambiguous": <n>, "redundant": <n>, "no_test_tasks": <n>, "no_test_audit_overrides": <n>}}
 ```
 
 Unrecoverable failure:
@@ -436,7 +485,7 @@ Unrecoverable failure:
 ### Phase — [current phase number]
 ### Files Written — [files written before failure]
 ### Summary — Phase [N]: [description of what went wrong]
-### Telemetry — {"mode": "<phase|verify-fix>", "wave_count": <N completed>, "task_count": <N attempted>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "evidence_quality": {"deterministic": <n>, "flaky": <n>, "harness_noisy": <n>, "ambiguous": <n>, "redundant": <n>, "no_test_tasks": <n>, "no_test_audit_overrides": <n>}}
+### Telemetry — {"mode": "<phase|verify-fix|patch>", "wave_count": <N completed>, "task_count": <N attempted>, "e2e_remediation_rounds": <N>, "regression_remediation_rounds": <N>, "patch_task_ids": [<ids, if patch mode>], "evidence_quality": {"deterministic": <n>, "flaky": <n>, "harness_noisy": <n>, "ambiguous": <n>, "redundant": <n>, "no_test_tasks": <n>, "no_test_audit_overrides": <n>}}
 ```
 
 `evidence_quality` totals are computed from the `Evidence Summary` column of `execution-manifest.md`. Count rows where `Evidence Summary` contains `NO_TASK_AUTHORED_TESTS: yes (audit-overridden)` toward `no_test_audit_overrides`. Count rows with `NO_TASK_AUTHORED_TESTS: yes` (without the override marker) toward `no_test_tasks`. Default each counter to `0`.

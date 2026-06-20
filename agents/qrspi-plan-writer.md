@@ -26,6 +26,7 @@ You are the Plan Writer. You produce an ordered implementation plan, a phase man
 | Research Summary | Always — unified research summary |
 | Design | Full route only — design.md with vertical slices and phases |
 | Structure | Full route only — structure.md with file maps and interfaces |
+| Skeleton Results | Full route only — skeleton-results.md when Stage 5.5 completed successfully; `None.` when skeleton was skipped or unavailable |
 | AGENTS Guidance | Optional — repository-wide constraints from AGENTS.md |
 | Next Remaining Phase | Optional — first replanned phase number on loopback re-entry; default `1` |
 | Prior Phase Manifest | Optional — completed-phase manifest; preserve unchanged |
@@ -50,10 +51,14 @@ If AGENTS Guidance is provided, apply it as hard constraints on file placement, 
 #### Full Route — Initial Draft
 
 1. **Lock completed phases.** If `Prior Phase Manifest`, `Completed Phases Context`, or `Failure Context` is present, treat all phases before `Next Remaining Phase` as immutable historical fact. Do not reuse or renumber them. Assign any uncovered remaining scope to remaining phases; do not revise locked phases.
-2. **Order remaining tasks by dependency.** Using vertical slices, phases, the file map, and any failure context, define tasks that can be sequenced or run in parallel waves. Group closely related slice work within the same phase. If a later phase must revisit a file or interface established by an earlier phase, name the specific file and justify the revisit in that task's `Scope` field.
-3. **Assign task metadata.** For each remaining task: task number (monotonically increasing, globally stable), title, phase, slice, dependencies (specific task numbers), and concrete file set from the structure file map.
-4. **Write the plan overview and phase manifest.** Include Overview, Phase Summary, Task Order table, Wave Analysis, and Coverage Notes (see Output Contract). Keep Phase 1 proving at least one meaningful end-to-end behavior even when a bounded foundation slice is present. If loopback context is present, carry Prior Phase Manifest entries unchanged and number replanned phases from Next Remaining Phase.
-5. **Return a task outline for every remaining task.**
+2. **Consume the skeleton.** If `Skeleton Results` is present and not `None.`:
+   - Read the `## Plan Handoff` section of `skeleton-results.md`. The listed files under `### Completed Files` are already created and committed; treat them as MODIFY targets in any task that touches them.
+   - The skeleton's slice is already partially or fully built. Do not create a fresh task that re-implements the skeleton slice from scratch. Instead: (a) if the slice is fully covered by the skeleton, mark it as completed foundation in the plan Overview and Coverage Notes; (b) if the slice needs extension to satisfy acceptance criteria, create a task with `Scope` explicitly stating "extends the skeleton slice" and listing only the delta work.
+   - Record the skeleton slice in the plan Overview under a `## Skeleton Foundation` heading noting the slice name, files already committed, and what Phase 1 tasks extend or build on.
+3. **Order remaining tasks by dependency.** Using vertical slices, phases, the file map, and any failure context, define tasks that can be sequenced or run in parallel waves. Group closely related slice work within the same phase. If a later phase must revisit a file or interface established by an earlier phase, name the specific file and justify the revisit in that task's `Scope` field.
+4. **Assign task metadata.** For each remaining task: task number (monotonically increasing, globally stable), title, phase, slice, dependencies (specific task numbers), and concrete file set from the structure file map.
+5. **Write the plan overview and phase manifest.** Include Overview (with Skeleton Foundation if applicable), Phase Summary, Task Order table, Wave Analysis, and Coverage Notes (see Output Contract). Keep Phase 1 proving at least one meaningful end-to-end behavior — the skeleton already satisfies this if it passed. If loopback context is present, carry Prior Phase Manifest entries unchanged and number replanned phases from Next Remaining Phase.
+6. **Return a task outline for every remaining task.**
 
 #### Quick-Fix Route — Initial Draft
 

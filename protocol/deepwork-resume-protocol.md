@@ -23,9 +23,10 @@ If the user provides a run ID, asks to resume, or points at an existing `.pipeli
   - Research complete if `research/summary.md` exists
   - Design complete if `design.md` exists, or the route is quick-fix
   - Structure complete if `structure.md` exists, or the route is quick-fix
+  - Skeleton complete if `skeleton-results.md` exists **and** its first line is `### Status — PASS`, or the route is quick-fix. If `skeleton-results.md` exists but parses as `### Status — FAIL`, treat Skeleton as incomplete with an explicit failure — surface via Error Handling before advancing to Plan.
   - Plan complete if `baseline-results.md` exists
 - The merged Research stage owns all intermediate question-generation artifacts. If any of `goal-inventory.md`, `questions.md`, `question-leakage-review.md`, `question-quality-review.md`, `research/open-questions.md`, `research/question-ledger.md`, or `research/iterations/` exist without `research/summary.md`, treat Research as in-progress and restart `next_stage: research` from the beginning of the merged stage.
-- If any pre-phase stage is incomplete, resume at the first incomplete stage and force `current_phase: 1`.
+- If any pre-phase stage is incomplete (including Skeleton with a FAIL status), resume at the first incomplete stage and force `current_phase: 1`.
 - Otherwise read `phase-manifest.md` to determine `total_phases`.
 - Scan only active phase directories with `ls .pipeline/qrspi-<run-id>/phases/phase-*/`. Ignore anything under `phases/archive/`.
 - For each Stage 7 / 8 / 8.5 / 9 summary artifact found, parse the first `### Status` heading of the file to classify the artifact:

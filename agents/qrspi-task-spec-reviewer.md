@@ -50,6 +50,10 @@ Apply all checks. Mark each PASS or FAIL.
 - Each test expectation states a concrete trigger and an observable outcome. No expectation names internal functions, helpers, or intermediate states; none is phrased as an implementation step.
 - No TBD, TODO, "details omitted", or similar placeholder language remains in any section.
 
+**Feasibility and Done checklists**
+- `## Feasibility Checklist` is present. Every item uses exactly one of: `path-exists:`, `symbol-exists:`, `import-resolves:`, or `command-exits-0:` with a concrete, non-placeholder value. Items cover only preconditions that exist before this task runs (not artifacts the task itself creates). No prose-only items.
+- `## Done Checklist` is present. Every item uses exactly one of: `test-passes:`, `command-exits-0:`, `file-exists:`, or `symbol-exists:` with a concrete, non-placeholder value. Each item traces to a specific acceptance criterion or a clearly named completion signal for this task. No prose-only items.
+
 **Dependencies**
 - Every listed dependency points to a lower task number. Each entry explains what this task needs from the referenced task.
 
@@ -90,6 +94,8 @@ Apply all checks. Mark each PASS or FAIL.
 | Self-containment | PASS/FAIL | [brief reason] |
 | Test expectation quality | PASS/FAIL | [brief reason] |
 | Placeholder-free quality | PASS/FAIL | [brief reason] |
+| Feasibility Checklist quality | PASS/FAIL | [brief reason] |
+| Done Checklist quality | PASS/FAIL | [brief reason] |
 | AGENTS compliance | PASS/FAIL/N/A | [brief reason] |
 | Cross-task consistency | PASS/FAIL | [brief reason] |
 

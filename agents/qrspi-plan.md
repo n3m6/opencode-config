@@ -15,6 +15,8 @@ permission:
     "qrspi-task-spec-writer": allow
     "qrspi-task-spec-reviewer": allow
     "qrspi-plan-reviewer": allow
+    "qrspi-feasibility-checker": allow
+    "qrspi-plan-patcher": allow
     "qrspi-baseline-checker": allow
   webfetch: deny
   todowrite: deny
@@ -33,6 +35,7 @@ You are the QRSPI Plan stage orchestrator. You write pipeline state files inside
 - If the plan review loop ends with FAIL at round 6 without triggering stable-cap, mark `terminal_review_state = unclean-cap`. Continue to task-spec generation (Step D.1); deepwork escalates the unresolved status to the user.
 - The task-spec review loop (Step D.2) is gated on `terminal_review_state == clean`. When the plan-review loop terminates in `stable-cap` or `unclean-cap`, skip D.2 entirely: reviewing task specs derived from a plan the reviewer just rejected adds 3N reviewer dispatches without resolving the upstream defect. Steps E and F still run; the existing unclean-cap escalation gate in deepwork ([agents/deepwork.md](deepwork.md)) surfaces the plan-review state to the user before implementation.
 - If the task spec review loop ends at round 3 with unresolved failures or cross-task conflicts, return Stage 6 FAIL immediately. Do not send ambiguous or conflicting task specs into implementation.
+- The feasibility check and patch loop (Step D.5) is gated on `terminal_review_state == clean` and `task_spec_terminal_state == task_spec_clean`. When either upstream state is not `clean`, skip D.5 and set `feasibility_terminal_state = "skipped"`. When D.5 ends with `feasibility-unclean` after 2 patch rounds, deepwork surfaces this via the Stage 6 escalation gate before Stage 7 begins. When the patcher escalates with a Backward Loop Request, Stage 6 returns FAIL immediately.
 
 ### Input
 
@@ -53,12 +56,13 @@ After Step A, bind these variables and substitute them verbatim in every child d
 
 | Variable          | Value                                                    |
 | ----------------- | -------------------------------------------------------- |
-| `GOALS`           | contents of `goals.md`                                   |
-| `REQUIREMENTS`    | contents of `requirements.md`                            |
-| `RESEARCH`        | contents of `research/summary.md`                        |
-| `AGENTS_GUIDANCE` | contents of `AGENTS.md` at repo root, or `None.`         |
-| `DESIGN_OR_NA`    | contents of `design.md` (full route only), else `N/A`    |
-| `STRUCTURE_OR_NA` | contents of `structure.md` (full route only), else `N/A` |
+| `GOALS`              | contents of `goals.md`                                                                           |
+| `REQUIREMENTS`       | contents of `requirements.md`                                                                    |
+| `RESEARCH`           | contents of `research/summary.md`                                                                |
+| `AGENTS_GUIDANCE`    | contents of `AGENTS.md` at repo root, or `None.`                                                 |
+| `DESIGN_OR_NA`       | contents of `design.md` (full route only), else `N/A`                                            |
+| `STRUCTURE_OR_NA`    | contents of `structure.md` (full route only), else `N/A`                                         |
+| `SKELETON_OR_NA`     | contents of `skeleton-results.md` if it exists and `### Status — PASS`, else `None.` (full route only) |
 
 `LOOPBACK` block — include as-is in every dispatch that accepts loopback context:
 
@@ -90,9 +94,10 @@ For **full route** also read:
 ```
 cat .pipeline/<run-id>/design.md
 cat .pipeline/<run-id>/structure.md
+cat .pipeline/<run-id>/skeleton-results.md   (if the file exists; skip silently if absent)
 ```
 
-Read `AGENTS.md` from the repository root if it exists. Bind all Shared Context variables from the values just read.
+Read `AGENTS.md` from the repository root if it exists. Bind all Shared Context variables from the values just read. For `SKELETON_OR_NA`: if `skeleton-results.md` was read and its first line is `### Status — PASS`, bind it; otherwise bind `None.`.
 
 ### Step B — Create Working Directories
 
@@ -105,6 +110,7 @@ mkdir -p .pipeline/<run-id>/reviews
 mkdir -p .pipeline/<run-id>/reviews/task-spec
 mkdir -p .pipeline/<run-id>/reviews/task-spec/inactive
 mkdir -p .pipeline/<run-id>/phases
+mkdir -p .pipeline/<run-id>/feedback
 ```
 
 ### Step C — Outline Production and Plan Review
@@ -128,6 +134,9 @@ Invoke `qrspi-plan-writer` as a subagent. For **quick-fix**, omit the `=== DESIG
 
 === STRUCTURE ===
 [STRUCTURE_OR_NA]
+
+=== SKELETON RESULTS ===
+[SKELETON_OR_NA]
 
 === AGENTS GUIDANCE ===
 [AGENTS_GUIDANCE]
@@ -212,6 +221,9 @@ Write reviewer output to `.pipeline/<run-id>/reviews/plan-review-round-NN.md`.
 
      === STRUCTURE ===
      [STRUCTURE_OR_NA]
+
+     === SKELETON RESULTS ===
+     [SKELETON_OR_NA]
 
      === RUN ID ===
      [run ID]
@@ -329,17 +341,104 @@ After all tasks are reviewed for the current round:
 - Any FAIL or unresolved cross-task conflict, and `task_spec_round < 3`: increment `task_spec_round` and run another round. Re-read all active task files before each dispatch so reviewers see sibling repairs from earlier reviewers in the same round.
 - Any FAIL or unresolved cross-task conflict at `task_spec_round = 3`: write the final reviewer outputs, return Stage 6 FAIL, and do not proceed to baseline checking or implementation.
 
+#### Step D.5 — Feasibility Check and Patch Loop
+
+**Guard:** Skip this entire step if the Step C.2 plan-review terminal state is `stable-cap` or `unclean-cap`, or if the Step D.2 terminal state is not `task_spec_clean`. Set `feasibility_terminal_state = "skipped"` and proceed directly to Step E.
+
+Set `feasibility_patch_round = 0`. Invoke `qrspi-feasibility-checker` as a subagent:
+
+```
+=== RUN ID ===
+[run ID]
+
+=== TASK SPECS ===
+[contents of all active tasks/task-NN.md files verbatim, one per block]
+
+=== MODE ===
+stage6
+
+=== INSTRUCTIONS ===
+Run the Feasibility Checklist for every task spec provided.
+Write feasibility-results.md content and return it.
+```
+
+Write the returned `### Feasibility Results` content to `.pipeline/<run-id>/feasibility-results.md`.
+
+**Decision logic (apply in order):**
+
+- PASS: stop. `feasibility_terminal_state = "clean"`. Proceed to Step E.
+- FAIL and `feasibility_patch_round < 2`:
+  1. Increment `feasibility_patch_round` by 1.
+  2. Read the failing task IDs from `feasibility-results.md`.
+  3. Read the current task specs for the failing tasks and their transitive dependents from disk.
+  4. Dispatch `qrspi-plan-patcher` as a subagent:
+
+     ```
+     === RUN ID ===
+     [run ID]
+
+     === ROUTE ===
+     [full or quick-fix]
+
+     === CURRENT PHASE ===
+     1
+
+     === PATCH REQUEST ===
+     Feasibility check failed at Stage 6 before implementation.
+     Issue: [list of failing tasks and first failing check from feasibility-results.md]
+     Affected Artifact: plan
+     Recommendation: Revise the affected task specs so their Feasibility Checklist items are satisfiable given the current codebase.
+
+     === FAILING TASK IDs ===
+     [comma-separated failing task IDs]
+
+     === CURRENT PLAN ===
+     [contents of plan.md verbatim]
+
+     === CURRENT PHASE MANIFEST ===
+     [contents of phase-manifest.md verbatim]
+
+     === AFFECTED TASK SPECS ===
+     [contents of affected task specs verbatim]
+
+     === GOALS ===
+     [GOALS]
+
+     === DESIGN ===
+     [DESIGN_OR_NA]
+
+     === STRUCTURE ===
+     [STRUCTURE_OR_NA]
+
+     === FEASIBILITY RESULTS ===
+     [contents of feasibility-results.md verbatim]
+
+     === PATCH ROUND ===
+     [feasibility_patch_round]
+     ```
+
+  5. If the patcher returns `### Backward Loop Request`:
+     - Write the request to `.pipeline/<run-id>/feedback/feasibility-patch-round-[NN]-escalation.md`.
+     - Record `feasibility_terminal_state = "escalated"`. Do not proceed to Step E.
+     - Return Stage 6 FAIL with the patcher's backward loop request in `### Summary`.
+  6. Otherwise: write the updated task specs from the patcher's returned `### task-NN.md` blocks to `.pipeline/<run-id>/tasks/task-NN.md` for each affected task. If the patcher returned a `### plan.md (delta only)` section with changes, apply them to `.pipeline/<run-id>/plan.md`. Write the patch note to `.pipeline/<run-id>/feedback/feasibility-patch-round-[NN].md`.
+  7. Re-dispatch `qrspi-feasibility-checker` with the updated specs (same template as above, same mode `stage6`). Overwrite `feasibility-results.md`.
+  8. PASS → `feasibility_terminal_state = "clean"`. Stop. Proceed to Step E.
+  9. FAIL and `feasibility_patch_round < 2` → re-enter the FAIL branch above, incrementing to the next patch round before dispatching the patcher again.
+  10. FAIL and `feasibility_patch_round = 2` → `feasibility_terminal_state = "feasibility-unclean"`. Stop. Do not return Stage 6 FAIL here; deepwork's Stage 6 escalation gate will surface this state to the user before Stage 7 begins (same escalation path as `stable-cap`/`unclean-cap`).
+
 ### Step E — Append Final Review Status
 
 Append to every active `tasks/task-NN.md`. The exact wording depends on the plan-review terminal state recorded in Step C.2:
 
-- `clean` (Step D.2 ran):
+- `clean` plan review and `task_spec_clean` and `clean` feasibility (normal PASS):
 
 ```
 ## Review Status
 - **Task-Spec Review:** task_spec_clean (round NN)
 - **Task-Spec Conflicts:** None.
 - **Plan Review:** clean (round NN)
+- **Feasibility Check:** clean (patch rounds: N)
 - **Outstanding Concerns:** None.
 ```
 
@@ -350,7 +449,19 @@ Append to every active `tasks/task-NN.md`. The exact wording depends on the plan
 - **Task-Spec Review:** skipped (plan review state: <stable-cap|unclean-cap>)
 - **Task-Spec Conflicts:** N/A (review skipped)
 - **Plan Review:** <stable-cap|unclean-cap> (round NN)
+- **Feasibility Check:** skipped
 - **Outstanding Concerns:** [final plan-review reviewer summary verbatim]
+```
+
+- `clean` plan review and `task_spec_clean` but `feasibility-unclean` (Step D.5 exhausted 2 patch rounds):
+
+```
+## Review Status
+- **Task-Spec Review:** task_spec_clean (round NN)
+- **Task-Spec Conflicts:** None.
+- **Plan Review:** clean (round NN)
+- **Feasibility Check:** feasibility-unclean (patch rounds: 2) — [first failing check from feasibility-results.md]
+- **Outstanding Concerns:** [summary of remaining feasibility failures]
 ```
 
 Do not edit any other section.
@@ -385,9 +496,9 @@ On success:
 
 ```
 ### Status — PASS
-### Files Written — plan.md, phase-manifest.md, tasks/outlines/task-01.outline, ..., tasks/outlines/task-NN.outline, tasks/task-01.md, ..., tasks/task-NN.md, reviews/plan-review-round-NN.md, reviews/task-spec/task-NN-review-round-MM.md, baseline-results.md
-### Summary — Plan written with [N] tasks. Plan review: [clean | stable-cap | unclean-cap] (round NN). Task-spec review: [task_spec_clean | skipped (plan review state: <stable-cap|unclean-cap>)]. Baseline: [CLEAN/DIRTY].
-### Telemetry — {"task_count": <N>, "review_rounds": <N>, "task_spec_review_rounds": <total rounds across all task specs, or 0 if skipped>, "terminal_review_state": "<clean|stable-cap|unclean-cap>"}
+### Files Written — plan.md, phase-manifest.md, tasks/outlines/task-01.outline, ..., tasks/outlines/task-NN.outline, tasks/task-01.md, ..., tasks/task-NN.md, reviews/plan-review-round-NN.md, reviews/task-spec/task-NN-review-round-MM.md, feasibility-results.md, baseline-results.md
+### Summary — Plan written with [N] tasks. Plan review: [clean | stable-cap | unclean-cap] (round NN). Task-spec review: [task_spec_clean | skipped (plan review state: <stable-cap|unclean-cap>)]. Feasibility: [clean | feasibility-unclean | skipped] (patch rounds: N). Baseline: [CLEAN/DIRTY].
+### Telemetry — {"task_count": <N>, "review_rounds": <N>, "task_spec_review_rounds": <total rounds across all task specs, or 0 if skipped>, "terminal_review_state": "<clean|stable-cap|unclean-cap>", "feasibility_terminal_state": "<clean|feasibility-unclean|skipped|escalated>", "feasibility_patch_rounds": <N>}
 ```
 
 On failure:
@@ -396,7 +507,7 @@ On failure:
 ### Status — FAIL
 ### Files Written — [list any files written before failure]
 ### Summary — [description of what went wrong and at which step]
-### Telemetry — {"task_count": <N attempted>, "review_rounds": <N completed>, "terminal_review_state": "<clean|stable-cap|unclean-cap>"}
+### Telemetry — {"task_count": <N attempted>, "review_rounds": <N completed>, "terminal_review_state": "<clean|stable-cap|unclean-cap>", "feasibility_terminal_state": "<clean|feasibility-unclean|skipped|escalated>", "feasibility_patch_rounds": <N>}
 ```
 
 ### Quality Gate

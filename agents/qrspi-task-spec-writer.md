@@ -35,6 +35,7 @@ Always:
 For `full` route, also read:
 - `.pipeline/<run-id>/design.md`
 - `.pipeline/<run-id>/structure.md`
+- `.pipeline/<run-id>/skeleton-results.md` (if the file exists and `### Status — PASS`; skip silently if absent or not PASS)
 
 ### Hard Invariants
 
@@ -50,11 +51,12 @@ For `full` route, also read:
 ### Workflow
 
 1. Read the task outline — stop and FAIL if missing.
-2. Read route-appropriate upstream artifacts — stop and FAIL on any missing file.
-3. Apply Task Review Feedback if provided.
-4. Expand the outline into a spec using the schema below.
-5. Check the Quality Checklist before writing.
-6. Write the spec on PASS, or return FAIL.
+2. Read route-appropriate upstream artifacts — stop and FAIL on any missing required file.
+3. For `full` route: if `skeleton-results.md` exists and its first line is `### Status — PASS`, read the `## Plan Handoff` section and extract the `### Completed Files` list. These files were created by Stage 5.5 and are already committed; any file in this task's `## Files` that appears in that list must be marked `MODIFY` (not `CREATE`), and the `## Description` must note that the file was created by the skeleton foundation.
+4. Apply Task Review Feedback if provided.
+5. Expand the outline into a spec using the schema below.
+6. Check the Quality Checklist before writing.
+7. Write the spec on PASS, or return FAIL.
 
 ### Task Spec Schema
 
@@ -91,6 +93,18 @@ and expected behavior so the implementer does not need to guess.]
 - `path/to/file.ts` (MODIFY) — [what changes]
 - `path/to/new-file.ts` (CREATE) — [what this file does]
 
+## Feasibility Checklist
+- [ ] `path-exists: <exact/path/to/file>` — [what this path must contain or be]
+- [ ] `symbol-exists: <SymbolName> in <path/to/file>` — [why this symbol is a precondition]
+- [ ] `import-resolves: <package-or-module>` — [why this import must already be resolvable]
+- [ ] `command-exits-0: <exact command>` — [what this command proves about the environment]
+
+## Done Checklist
+- [ ] `test-passes: <exact test name or pattern>` — [which acceptance criterion this proves]
+- [ ] `command-exits-0: <exact command>` — [what completion signal this represents]
+- [ ] `file-exists: <exact/path/to/file>` — [what artifact proves the task is done]
+- [ ] `symbol-exists: <SymbolName> in <path/to/file>` — [what interface proves the task is done]
+
 ## Test Expectations
 - [Behavior 1]: When [trigger], expect [outcome]
 - [Behavior 2]: When [trigger], expect [outcome]
@@ -111,6 +125,8 @@ Before writing, verify:
 - Every dependency entry explains what this task needs from the earlier task.
 - The description is detailed enough that the implementer does not need to re-read design or structure artifacts.
 - No contradiction of AGENTS Guidance.
+- `## Feasibility Checklist` is present and every item uses exactly one of: `path-exists:`, `symbol-exists:`, `import-resolves:`, or `command-exits-0:` with a concrete value. No prose-only items. Items cover only preconditions that can be checked before building (not what the task itself will create).
+- `## Done Checklist` is present and every item uses exactly one of: `test-passes:`, `command-exits-0:`, `file-exists:`, or `symbol-exists:` with a concrete value. No prose-only items. Each item traces to a specific acceptance criterion or completion signal for this task.
 
 ### Return
 
