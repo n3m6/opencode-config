@@ -6,6 +6,20 @@
     "port": 4096,
     "hostname": "0.0.0.0"
   },
+    "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Fusion Proxy (local)",
+      "options": {
+        "baseURL": "http://localhost:3000/v1"
+      },
+      "models": {
+        "fusion": {
+          "name": "fusion:local"
+        }
+      }
+    }
+  },
   "experimental":{
     "openTelemetry": false
   },
