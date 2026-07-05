@@ -34,9 +34,10 @@ You are `impl-verify`, the verification and commit step in the orchestrator's fa
 - **Required tests:** all tests in `### Stable Evidence` (when Test Result is `TASK_AUTHORED_TESTS`) plus named repair targets from `Regression Evidence` (when not `None.`). When `NO_TASK_AUTHORED_TESTS` and `Regression Evidence` is `None.`, only build/lint must pass.
 - **Unsafe evidence** (FLAKY, HARNESS_NOISY, AMBIGUOUS in Test Result's `### Evidence Classification`) is excluded from required tests. Unsafe-evidence failures still produce `Verification Status = FAIL` and route as `TEST_REPAIR`, but do not prove the production code is broken.
 
-**Commit**
+**Commit / rebase-conflict staging**
 
 - Commit only when `Final Verification Status = PASS`. The commit must be created from `WORKTREE ROOT`.
+- Exception: when `Regression Evidence` contains `MODE: rebase-conflict`, do not create a commit and do not run `git rebase --continue`. On PASS, stage the resolved files from `WORKTREE ROOT` and return PASS so the executor can continue the rebase.
 
 ### Input
 
@@ -128,9 +129,35 @@ Apply this ordered decision tree; stop at the first match:
 
 Return using the FAIL template (see **Return**).
 
-**Step 4 — On VERIFICATION PASS: commit.**
+**Step 4 — On VERIFICATION PASS: commit or stage rebase-conflict fixes.**
 
-Commit by invoking `build` with this exact template:
+If `Regression Evidence` contains `MODE: rebase-conflict`, invoke `build` with this exact template and skip commit creation:
+
+```
+=== WORKTREE ROOT ===
+[verbatim]
+
+=== TASK DESCRIPTION ===
+[verbatim]
+
+=== VERIFICATION RESULT ===
+[paste the Step 2 build verification result]
+
+=== INSTRUCTIONS ===
+Stage the resolved rebase-conflict files from WORKTREE ROOT only:
+  git add -A
+Do not create a commit.
+Do not run git rebase --continue.
+
+Return:
+### Commit Status — PASS or FAIL
+### Commit Hash — None.
+### Summary — one sentence confirming resolved files were staged for executor rebase continuation
+```
+
+If staging fails, return using the FAIL template with `Route Hint — CODE_REPAIR` and `Failure Type: structural_mismatch`. If staging succeeds, skip the normal commit block below and go directly to the PASS return schema.
+
+Otherwise, when `Regression Evidence` does not contain `MODE: rebase-conflict`, commit by invoking `build` with this exact template:
 
 ```
 === WORKTREE ROOT ===

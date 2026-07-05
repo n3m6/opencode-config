@@ -147,6 +147,7 @@
                           └─────────────┬────────────────┘
                                         │
                           Outputs: stage6-summary.md
+                                   verification-status.md
                                         │
                                         ▼
                           ┌──────────────────────────────┐
@@ -181,7 +182,7 @@ All inter-stage data flows through files in `.pipeline/<run-id>/`:
 | `stage1-summary.md`     | Stage 1       | Analyzer stage summary                       |
 | `plan-summary.md`       | Stage 2       | Condensed plan summary for downstream stages |
 | `execution-manifest.md` | Stage 2       | Execution Manifest table                     |
-| `file-list.md`          | Stage 2, 3, 4, 5 | Updated file list (overwritten each time) |
+| `file-list.md`          | Stage 2, 3, 4, 5 | Updated file list body only, one path per line (overwritten each time) |
 | `stage2-summary.md`     | Stage 2       | Executor stage summary                       |
 | `stage3-summary.md`     | Stage 3       | Test coverage stage summary                  |
 | `review-critical.md`    | Stage 4       | CRITICAL/HIGH findings from code review      |
@@ -189,6 +190,7 @@ All inter-stage data flows through files in `.pipeline/<run-id>/`:
 | `refactor-critical.md`  | Stage 5       | CRITICAL findings from refactoring           |
 | `stage5-summary.md`     | Stage 5       | Refactoring stage summary                    |
 | `stage6-summary.md`     | Stage 6       | Verification stage summary                   |
+| `verification-status.md` | Stage 6      | Overall verifier status: PASS, PARTIAL, or FAIL |
 
 ---
 
@@ -198,7 +200,7 @@ All inter-stage data flows through files in `.pipeline/<run-id>/`:
 - Its edit permission is limited to pipeline state files inside `.pipeline/<run-id>/`.
 - After each `task` dispatch, the orchestrator stops and waits for the subagent response before continuing.
 - Inter-stage state lives in pipeline files, not in todo metadata. The `todowrite` tool is only for the 7-stage progress checklist.
-- The orchestrator is intentionally mechanical: it copies the user plan and named subagent output sections verbatim into pipeline state files rather than summarizing, deduplicating, or reinterpreting them.
+- The orchestrator is intentionally mechanical: it copies the user plan and named subagent output sections or section bodies into pipeline state files rather than summarizing, deduplicating, or reinterpreting them.
 - When Stage 1 emits `holistic-findings.md`, the orchestrator passes it through verbatim to Stage 2. The orchestrator does not interpret those findings itself.
 - Executor treats holistic findings as routing signals: `Schedule` adjusts wave planning, `Gap` creates synthetic `[Holistic Gap]` tasks, `Guidance` shapes delegations, and `Escalate` pauses for user confirmation.
 
@@ -217,11 +219,11 @@ Before Stage 1 starts, the orchestrator:
 
 ## Validation And Error Handling
 
-- Each stage validates the structure of the returned manifest or report before moving forward.
+- Each stage validates the structure of the returned manifest or report, including required downstream sections, before moving forward.
 - If a stage returns malformed output, the orchestrator retries that stage once with an explicit malformed-output instruction.
 - If the retry still fails, the orchestrator asks the user whether to retry the same stage or abort the pipeline.
 - On abort, the run directory is preserved as a partial audit trail.
-- After Stage 7, PASS deletes `.pipeline/<run-id>/`; PARTIAL and FAIL preserve it for debugging.
+- After Stage 7, the orchestrator reads `verification-status.md`; PASS deletes `.pipeline/<run-id>/`, while PARTIAL and FAIL preserve it for debugging.
 
 ---
 
@@ -255,7 +257,7 @@ Analyzes **cross-task interactions** in the plan — dependency ordering, confli
 
 #### executor
 
-Executes the plan by creating one git worktree per task, delegating implementation to `@impl-loop`, and reconciling each dependency wave back onto the pipeline branch via squash merge. Incorporates the analyzer's GAP/RISK/AMBIGUOUS recommendations into delegation prompts and triages optional holistic findings: `Schedule` changes wave planning, `Gap` creates synthetic `[Holistic Gap]` tasks, `Guidance` adds shared delegation context, and `Escalate` pauses for user confirmation. Returns an **Execution Manifest** with per-task status, any synthetic gap rows, files modified/created, plus a plan summary, updated file list, and stage summary.
+Executes the plan by creating one git worktree per task, delegating implementation to `@impl-loop`, and reconciling each dependency wave back onto the pipeline branch via squash merge. Incorporates the analyzer's GAP/RISK/AMBIGUOUS recommendations into delegation prompts and triages optional holistic findings: `Schedule` changes wave planning, `Gap` creates non-colliding synthetic `[Holistic Gap]` tasks, `Guidance` adds shared delegation context, and `Escalate` pauses for user confirmation. It records each `impl-loop` file inventory for the final manifest and returns an **Execution Manifest** with per-task status, any synthetic gap rows, files modified/created, plus a plan summary, updated path-only file list, and stage summary.
 
 ---
 
@@ -327,7 +329,7 @@ Reviews code for **refactoring opportunities** — duplication, complexity, nami
 
 #### verifier
 
-Verifies that the implementation **complies with the plan** and that **build, lint, and tests all pass**. It consumes the Plan Summary, the persisted **Execution Manifest**, the final file list, CRITICAL/HIGH review findings from Stage 4, and CRITICAL refactor findings from Stage 5. Runs up to 3 verify→fix iterations by delegating fixes to `@build`. Returns a **Verification Report** with overall PASS / PARTIAL / FAIL status.
+Verifies that the implementation **complies with the plan** and that **build, lint, and tests all pass**. It consumes the Plan Summary, the persisted **Execution Manifest**, the final file list, CRITICAL/HIGH review findings from Stage 4, and CRITICAL refactor findings from Stage 5. Runs up to 3 verify→fix iterations by delegating fixes to `@build`. Returns a **Verification Report** with overall PASS / PARTIAL / FAIL status and an explicit `### Overall Status` section for cleanup.
 
 #### plan-compliance-checker
 

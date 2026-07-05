@@ -147,7 +147,7 @@ Build each `cycle_log` entry from the verify result because its inventory is aut
 
 ### Cycle 0
 
-Dispatch CODE → TEST → VERIFY. After each child return, if FAIL: stop and return immediately (see **Return**).
+Dispatch CODE → TEST → VERIFY. If CODE or TEST returns FAIL before VERIFY runs, stop and return immediately (see **Return**). If VERIFY returns FAIL, do not short-circuit; route it through the Outer Loop using `### Route Hint`.
 
 **Fresh mode:**
 
@@ -174,7 +174,7 @@ Dispatch CODE → TEST → VERIFY. After each child return, if FAIL: stop and re
   ```
 
 - TEST: entry_type=`test-sync`, repair_context=[regression evidence verbatim], fix_mode=`yes`, instructions: `Classify existing tests for this repair target. Adopt deterministic tests, repair outdated ones. Write new deterministic tests to stabilize coverage only when the target lacks stable coverage. Max 3 iterations.`
-- VERIFY: prior_verify_result=`None.`, regression_evidence=[regression evidence verbatim], instructions: `Run targeted verification including the named targets from REGRESSION EVIDENCE even if TEST RESULT reports NO_TASK_AUTHORED_TESTS. Commit only on PASS.`
+- VERIFY: prior_verify_result=`None.`, regression_evidence=[regression evidence verbatim], instructions: `Run targeted verification including the named targets from REGRESSION EVIDENCE even if TEST RESULT reports NO_TASK_AUTHORED_TESTS. If REGRESSION EVIDENCE contains MODE: rebase-conflict, stage resolved files on PASS but do not commit or run git rebase --continue; executor owns rebase continuation. Otherwise commit only on PASS.`
 
 After VERIFY: update state variables, append to `cycle_log`, run stall check. If PASS → return **PASS**. Otherwise set `cycle = 1` and enter the **Outer Loop**.
 
@@ -214,7 +214,7 @@ If CODE or TEST returns FAIL: stop and return immediately.
 - cycle: current; prior_verify_result: `last_verify_result`; regression_evidence: input regression evidence if outer mode is fix, else `None.`
 - code_result: new code result if CODE ran this cycle, else `last_code_result`
 - test_result: new test result if TEST ran this cycle, else `last_test_result`
-- instructions: `Run targeted verification. If REGRESSION EVIDENCE is not None., include those targets even when TEST RESULT reports NO_TASK_AUTHORED_TESTS. Commit only on PASS.`
+- instructions: `Run targeted verification. If REGRESSION EVIDENCE is not None., include those targets even when TEST RESULT reports NO_TASK_AUTHORED_TESTS. If REGRESSION EVIDENCE contains MODE: rebase-conflict, stage resolved files on PASS but do not commit or run git rebase --continue; executor owns rebase continuation. Otherwise commit only on PASS.`
 
 After VERIFY: update state variables, append `cycle_log`, run stall check. If PASS → return PASS. Otherwise increment `cycle` and loop.
 

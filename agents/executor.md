@@ -68,7 +68,7 @@ You will receive:
    Type: [implementation | test | config | integration]
    Analyzer: [OK | GAP | RISK | AMBIGUOUS]
    ```
-   For synthetic tasks created from `[Gap]` findings, use this format instead:
+   For synthetic tasks created from `[Gap]` findings, assign non-colliding task numbers with `N = max(explicit plan task numbers) + k`, where `k` starts at 1 and increments for each synthetic gap task. Use this format:
    ```
    [Holistic Gap] N (Wave W) — [short description]
    Depends on: [task numbers or "none"]
@@ -138,11 +138,11 @@ Process one wave at a time. Within a wave, issue all subagent invocations in the
    - **Do not write any text after the final subagent invocation. End your turn.**
 
 5. **Reconcile the Wave:** once every `impl-loop` call in the wave has returned, process tasks in **ascending task-number order**:
-   - **`### Status — PASS`** → from the primary checkout (not the worktree), run `git merge --squash <task-branch>`.
+   - **`### Status — PASS`** → first record this task's returned `### Files Modified`, `### Files Created`, `### Tests Written`, and one-sentence `### Summary` in per-task bookkeeping for the final Execution Manifest. Then, from the primary checkout (not the worktree), run `git merge --squash <task-branch>`.
      - Squash succeeds and produces changes → commit with `git commit -m "task <N>: <one-sentence summary from impl-loop>"`. Remove the worktree (`git worktree remove --force <path>`) and delete the branch (`git branch -D <branch>`).
      - Squash reports conflicts → enter **Squash Conflict Resolution** below before treating the task as failed.
    - **`### Status — FAIL`** → do not merge. Leave the worktree and branch in place for inspection. Classify the failure using **Error Handling** below; do not advance past this wave until it is resolved per that classification.
-6. **Update Status:** Once a task's worktree has merged successfully (or its FAIL has been resolved and it re-merges), mark it complete using `todowrite`. Include the one-sentence summary from `impl-loop`'s `### Summary` — this feeds into the context for future waves. For synthetic gap tasks, mention the source holistic finding briefly in the summary.
+6. **Update Status:** Once a task's worktree has merged successfully (or its FAIL has been resolved and it re-merges), mark it complete using `todowrite`. Include the one-sentence summary from `impl-loop`'s `### Summary` and the recorded `### Files Modified` / `### Files Created` — this feeds both future-wave dependency context and the final Execution Manifest. For synthetic gap tasks, mention the source holistic finding briefly in the summary.
 7. **Advance Wave:** Move to the next wave and repeat from step 1.
 
 ### Squash Conflict Resolution
@@ -170,9 +170,9 @@ At most one resolution attempt per task per wave.
    - `=== SUSPECTED FILES ===` set to the conflicted file list
    - all other fields (Task Description, Plan Introduction, Completed Dependencies, Analyzer Notes, Executor Guidance, Test File Boundary, Worktree Root) unchanged from the original dispatch for that task
 4. When `impl-loop` returns:
-   - `### Status — PASS` → from the task worktree, run `git add -A` and then `git rebase --continue`. If the rebase completes cleanly, proceed to step 5 (**Finalize the Rebased Branch**). If `git rebase --continue` stops on another conflict or fails for any other reason, go to the **Abandon Path**.
+   - `### Status — PASS` → refresh this task's per-task bookkeeping from the fix-mode `impl-loop` return (`### Files Modified`, `### Files Created`, `### Tests Written`, and `### Summary`), then from the task worktree run `git add -A` and `GIT_EDITOR=true git rebase --continue`. If the rebase completes cleanly, proceed to step 5 (**Finalize the Rebased Branch**). If `git rebase --continue` stops on another conflict or fails for any other reason, go to the **Abandon Path**.
    - Any other return (FAIL) → go to the **Abandon Path**.
-5. **Finalize the Rebased Branch** (reached either from a clean auto-rebase in step 2 or from a PASS return in step 4): confirm the rebase is finished — no `rebase-merge`/`rebase-apply` directory under `.git/worktrees/<task>/`, and the task branch tip is a descendant of the pipeline branch (`git merge-base --is-ancestor pipeline/<run-id> <task-branch>` returns 0). If confirmed, retry `git merge --squash <task-branch>` from the primary checkout — it should now apply cleanly; commit `task <N>: <summary>` (reuse the one-sentence summary from this task's original `impl-loop` return), remove the worktree, delete the branch, same as the normal success path. If the rebase is still in progress or the retry squash unexpectedly conflicts, go to the **Abandon Path**.
+5. **Finalize the Rebased Branch** (reached either from a clean auto-rebase in step 2 or from a PASS return in step 4): confirm the rebase is finished using worktree-scoped git paths — `test ! -d "$(git -C <worktree-root> rev-parse --git-path rebase-merge)"` and `test ! -d "$(git -C <worktree-root> rev-parse --git-path rebase-apply)"` must both pass — and confirm the task branch tip is a descendant of the pipeline branch (`git merge-base --is-ancestor pipeline/<run-id> <task-branch>` returns 0). If confirmed, retry `git merge --squash <task-branch>` from the primary checkout — it should now apply cleanly; commit `task <N>: <summary>` (reuse the one-sentence summary from this task's original `impl-loop` return), remove the worktree, delete the branch, same as the normal success path. If the rebase is still in progress or the retry squash unexpectedly conflicts, go to the **Abandon Path**.
 6. **Abandon Path:** leave the conflicting task worktree and branch in place for inspection. Do not run `git rebase --abort` if a paused rebase remains — preserve that state for debugging. Classify this task as a **Class 3 — Hard Failure** in **Error Handling**, including the conflicted file list and the `impl-loop` return summary (if it ran) in the note to the user.
 
 ### Error Handling
@@ -251,7 +251,7 @@ Once all todos are marked complete:
 
 ### Output Format
 
-Your final output MUST be a structured **Execution Manifest** table. Map each explicit plan task to a row. If you created synthetic tasks from `[Gap]` holistic findings, append one additional row per synthetic task using a `[Holistic Gap]` prefix in the Plan Task column. This manifest is passed to downstream agents (code-review-loop, verifier).
+Your final output MUST be a structured **Execution Manifest** table. Map each explicit plan task to a row using the per-task bookkeeping captured from `impl-loop` returns. If you created synthetic tasks from `[Gap]` holistic findings, append one additional row per synthetic task using a `[Holistic Gap]` prefix in the Plan Task column. This manifest is passed to downstream agents (code-review-loop, verifier).
 
 ```
 ## Execution Manifest

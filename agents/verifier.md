@@ -247,7 +247,16 @@ If no blocking findings exist in either manifest, output: `No CRITICAL/HIGH find
 [One paragraph: overall status, what was fixed, what remains, recommendations]
 ```
 
-After the Verification Report, commit all changes made during this stage. Invoke `@build` as a subagent:
+After the Verification Report, append an **Overall Status** section with exactly one line:
+
+```
+### Overall Status
+PASS
+```
+
+Use `PASS`, `PARTIAL`, or `FAIL` to match `**Status**` in the Verification Report.
+
+Then commit all changes made during this stage. Invoke `@build` as a subagent:
 
 ```
 === INSTRUCTIONS ===
