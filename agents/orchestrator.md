@@ -1,5 +1,5 @@
 ---
-description: Orchestrates plan execution through a six-stage pipeline — analyzer → executor → test-coverage-filler → code-review-loop → code-refactor-loop → verifier. Delegates all work via subagents.
+description: Orchestrates plan execution through a six-stage pipeline — analyzer → executor → test-coverage-filler → code-review-loop → code-refactor-loop → verifier. Executor runs tasks in per-task git worktrees within dependency waves and squash-merges them back. Delegates all work via subagents.
 mode: primary
 temperature: 0.1
 steps: 55
@@ -162,7 +162,7 @@ Invoke `executor` as a subagent:
 [if `.pipeline/<run-id>/holistic-findings.md` exists, paste its contents verbatim; otherwise omit this section entirely]
 
 === INSTRUCTIONS ===
-Execute this plan. Implement all tasks by delegating implementation and command work to the `coding-agent` subagent.
+Execute this plan. Implement all tasks by delegating implementation to the `impl-loop` subagent, one git worktree per task, reconciled back onto the pipeline branch by squash-merge after each wave.
 For tasks flagged with GAP/RISK/AMBIGUOUS in the Analysis Manifest, incorporate the
 analyzer's recommendations into your approach.
 Treat Holistic Findings as execution-routing inputs:
@@ -234,19 +234,20 @@ Invoke `code-review-loop` as a subagent:
 
 === INSTRUCTIONS ===
 Run the review→fix→build/test→re-review loop (max 3 iterations).
-Use the Plan Summary when dispatching to leaf review subagents to reduce context pressure.
+Use the Plan Summary when dispatching to specialized reviewer subagents to reduce context pressure.
+Findings use severity levels CRITICAL, HIGH, MEDIUM, LOW, and advisory (💡). Fix CRITICAL/HIGH/MEDIUM; LOW and advisory findings are reported but never fixed.
 Return a Code Review Manifest as a structured markdown table with columns:
 #, Severity, File, Lines, Issue, Status (✅ Fixed / ❌ Unresolved / ⏭ Skipped).
-Include iteration count and unresolved CRITICAL count at the top.
+Include iteration count and unresolved CRITICAL/HIGH count at the top.
 After the manifest table, also include these sections:
-### CRITICAL Findings — CRITICAL-severity rows only (or "No CRITICAL findings.")
+### CRITICAL Findings — CRITICAL- and HIGH-severity rows (the blocking findings; heading and downstream filename stay as-is for pipeline stability) (or "No CRITICAL findings.")
 ### Updated File List — one file per line, sorted (from git diff --name-only main...HEAD)
 ### Stage Summary — one-line review statistics
 ```
 
 When `code-review-loop` completes:
 
-- **Validate the Code Review Manifest**: Verify the output contains a markdown table with columns `#, Severity, File, Lines, Issue, Status` and iteration/CRITICAL counts at the top. If malformed, retry Stage 4 once with a "malformed output" instruction. If retry also fails, surface the error to the user via `question`.
+- **Validate the Code Review Manifest**: Verify the output contains a markdown table with columns `#, Severity, File, Lines, Issue, Status` and iteration/CRITICAL-HIGH counts at the top. If malformed, retry Stage 4 once with a "malformed output" instruction. If retry also fails, surface the error to the user via `question`.
 - Write the `### CRITICAL Findings` section from the code-review-loop's output to `.pipeline/<run-id>/review-critical.md` using the edit tool.
 - Overwrite `.pipeline/<run-id>/file-list.md` with the `### Updated File List` section from the code-review-loop's output using the edit tool (this is a complete snapshot).
 - Write the `### Stage Summary` section from the code-review-loop's output to `.pipeline/<run-id>/stage4-summary.md` using the edit tool.
@@ -318,8 +319,9 @@ Invoke `verifier` as a subagent:
 === INSTRUCTIONS ===
 Verify plan compliance and ensure build/lint/test pass.
 Run the full build, lint, and test suite. Check every plan requirement against the codebase.
-Additionally, verify that all CRITICAL findings marked as ✅ Fixed in the review and refactor
-findings above are actually resolved in the current code.
+Additionally, verify that all CRITICAL and HIGH findings marked as ✅ Fixed in the review findings
+above, and all CRITICAL findings marked as ✅ Fixed in the refactor findings above, are actually
+resolved in the current code.
 Run up to 3 verify→fix iterations. Return a Verification Report including:
 - Build/Lint/Test results table
 - Plan Compliance table
