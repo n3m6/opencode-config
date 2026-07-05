@@ -27,13 +27,14 @@ You use **todo items** to track every issue across iterations. This gives you a 
 You will receive:
 
 1. **The Plan Summary** — condensed 1-2 paragraph summary of the plan (source of truth for what should have been implemented)
-2. **The Execution Manifest** — a structured table of what was built, which files were changed/created, and per-task status (may include appended file changes from review and refactoring stages)
-3. **CRITICAL Review Findings** — CRITICAL-severity findings only from the code review loop with per-finding status (✅ Fixed / ❌ Unresolved / ⏭ Skipped). May be "No CRITICAL findings." if none exist.
-4. **CRITICAL Refactor Findings** — CRITICAL-severity findings only from the refactoring loop with per-finding status. May be "No CRITICAL findings." if none exist.
+2. **The Execution Manifest** — a structured table of what was built during executor stage, which files were changed/created, and per-task status
+3. **The Final File List** — the complete changed-file snapshot after test coverage, code review, and refactoring stages
+4. **CRITICAL Review Findings** — blocking CRITICAL- and HIGH-severity findings from the code review loop with per-finding status (✅ Fixed / ❌ Unresolved / ⏭ Skipped). May be "No CRITICAL findings." if none exist.
+5. **CRITICAL Refactor Findings** — CRITICAL-severity findings only from the refactoring loop with per-finding status. May be "No CRITICAL findings." if none exist.
 
 ### Pre-Verification Audit
 
-Perform three audits before entering the fix loop. Audit 1 (build/lint/test via `@build`) and Audit 2 (plan compliance via `@plan-compliance-checker`) can be dispatched in parallel. Audit 3 (CRITICAL findings resolution) you perform yourself.
+Perform three audits before entering the fix loop. Audit 1 (build/lint/test via `@build`) and Audit 2 (plan compliance via `@plan-compliance-checker`) can be dispatched in parallel. Audit 3 (blocking findings resolution) you perform yourself.
 
 #### Audit 1 — Build / Lint / Test
 
@@ -72,9 +73,13 @@ Invoke `@plan-compliance-checker` as a subagent:
 === EXECUTION MANIFEST ===
 [insert the Execution Manifest]
 
+=== FINAL FILE LIST ===
+[insert the Final File List]
+
 === INSTRUCTIONS ===
 Check plan compliance by cross-referencing the Plan Summary and Execution Manifest against
-the current codebase. Return a Plan Compliance table with columns:
+the current codebase. Use the Final File List as the complete changed-file snapshot for
+files added or changed after executor stage. Return a Plan Compliance table with columns:
 #, Requirement, Status (✅ Implemented / ⚠️ Partially Implemented / ❌ Missing), Notes.
 ```
 
@@ -91,22 +96,27 @@ Files: [relevant file paths]
 
 Mark all todo items as **pending**. Use todo list to confirm the list was created correctly.
 
-#### Audit 3 — CRITICAL Findings Resolution
+#### Audit 3 — Blocking Findings Resolution
 
-Verify that CRITICAL findings reported as fixed in the CRITICAL Review Findings and CRITICAL Refactor Findings were actually resolved:
+Verify that blocking findings reported as fixed were actually resolved. In Review Findings, blocking means CRITICAL or HIGH. In Refactor Findings, blocking means CRITICAL.
 
-1. **For each CRITICAL finding marked `✅ Fixed`** in either findings list:
+1. **For each blocking finding marked `✅ Fixed`**:
    - Read the cited file and inspect the line range mentioned in the finding.
    - Confirm the fix is present and addresses the reported issue.
    - If the fix is **NOT present** (regression or false resolution), create a todo item:
      ```
-     [CRITICAL-REGRESSION] #N — [source: Review/Refactor] [file] (lines X–Y)
+     [BLOCKING-REGRESSION] #N — [source: Review/Refactor] [severity] [file] (lines X–Y)
      Issue: [original issue description]
      Status: Reported as fixed but fix not found in current code
      ```
 
-2. **For each CRITICAL finding marked `❌ Unresolved`**:
-   - Note it for inclusion in the final report as a known unresolved CRITICAL.
+2. **For each blocking finding marked `❌ Unresolved`**:
+   - Create a todo item so unresolved blocking findings gate PASS:
+     ```
+     [BLOCKING-FINDING] #N — [source: Review/Refactor] [severity] [file] (lines X–Y)
+     Issue: [original issue description]
+     Status: Known unresolved blocking finding
+     ```
 
 ### The Verify→Fix Loop
 
@@ -121,6 +131,9 @@ Execute this loop up to **3 iterations**. Each iteration uses the todo list as t
 3. For each pending `[PLAN]` item:
    - Inspect the current code to see if the requirement has been implemented since the last iteration.
    - If now implemented, mark the item **complete**: `✅ Resolved — [summary]`
+4. For each pending `[BLOCKING-REGRESSION]` or `[BLOCKING-FINDING]` item:
+   - Read the cited file and inspect the relevant line range.
+   - If the issue is now resolved, mark the item **complete**: `✅ Resolved — [summary]`
 
 #### Step 2 — Complies?
 
@@ -130,11 +143,11 @@ Read todo list again:
 - If **pending items remain** and iterations left → proceed to Step 3.
 - If **pending items remain** and this is iteration 3 → proceed to the **Final Report** with status **PARTIAL** or **FAIL**.
 
-Use **FAIL** if any `[BUILD]` item (build/lint/test) is still pending or any `[CRITICAL-REGRESSION]` item is unresolved. Use **PARTIAL** if only `[PLAN]` items remain.
+Use **FAIL** if any `[BUILD]` item (build/lint/test), `[BLOCKING-REGRESSION]`, or `[BLOCKING-FINDING]` item is still pending. Use **PARTIAL** if only `[PLAN]` items remain.
 
 #### Step 3 — Fix
 
-Delegate fixes to `@build` with a subagent invocation. **Fix priority**: build/lint/test failures first (code can't ship if it doesn't build), then plan compliance gaps.
+Delegate fixes to `@build` with a subagent invocation. **Fix priority**: build/lint/test failures first (code can't ship if it doesn't build), then blocking review/refactor findings, then plan compliance gaps.
 
 **For build/lint/test failures:**
 
@@ -166,10 +179,24 @@ Verification iteration N/3. Implementing missing plan requirement.
 Implement the missing requirement as described above. Follow the plan specification exactly.
 ```
 
+**For blocking review/refactor findings:**
+
+```
+=== CONTEXT ===
+Verification iteration N/3. Fixing unresolved blocking review/refactor finding.
+
+=== FINDING ===
+[paste the specific BLOCKING-REGRESSION or BLOCKING-FINDING todo details]
+
+=== INSTRUCTIONS ===
+Fix the finding described above with the smallest safe change. Do not refactor unrelated code.
+After fixing, run the relevant build/lint/test checks and confirm they pass. Report the result.
+```
+
 **Rules for delegation:**
 
 - One subagent invocation per item (do not batch multiple items).
-- Prioritize: `[BUILD]` items first, then `[PLAN]` items.
+- Prioritize: `[BUILD]` items first, then `[BLOCKING-REGRESSION]` / `[BLOCKING-FINDING]` items, then `[PLAN]` items.
 - After all fixes in this iteration are delegated and completed, return to **Step 1**.
 
 ### Critical Rules
@@ -206,7 +233,7 @@ After the loop ends, read todo list one final time and output a Verification Rep
 | 1 | [requirement from plan] | ✅ Implemented | Verified in file X |
 | 2 | [requirement from plan] | ❌ Missing | [reason] |
 
-### CRITICAL Findings Verification
+### CRITICAL/HIGH Findings Verification
 
 | # | Source | File | Issue | Reported Status | Verified Status |
 |---|--------|------|-------|-----------------|-----------------|
@@ -214,7 +241,7 @@ After the loop ends, read todo list one final time and output a Verification Rep
 | 2 | Refactor | path/to/other.ext | [issue] | ✅ Fixed | ❌ Regression |
 | 3 | Review | path/to/third.ext | [issue] | ❌ Unresolved | ❌ Known Unresolved |
 
-If no CRITICAL findings exist in either manifest, output: `No CRITICAL findings to verify.`
+If no blocking findings exist in either manifest, output: `No CRITICAL/HIGH findings to verify.`
 
 ### Summary
 [One paragraph: overall status, what was fixed, what remains, recommendations]
@@ -236,5 +263,5 @@ Append a **Stage Summary** section:
 
 ```
 ### Stage Summary
-Build: PASS/FAIL, Lint: PASS/FAIL, Test: PASS/FAIL. Plan compliance: N/N. CRITICAL verified: N/N (N regressions). Overall: PASS/PARTIAL/FAIL
+Build: PASS/FAIL, Lint: PASS/FAIL, Test: PASS/FAIL. Plan compliance: N/N. Blocking findings verified: N/N (N regressions, N unresolved). Overall: PASS/PARTIAL/FAIL
 ```

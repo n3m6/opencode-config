@@ -27,6 +27,7 @@ Author or repair tests only by invoking `build`. Never edit files directly. Neve
 4. **ITERATION CAP.** At most 3 iterations on `test-sync`; at most 2 on `test-repair`.
 5. **NO INVENTED REQUIREMENTS.** Write tests only for behaviors stated in the task description. On an ambiguous spec, return FAIL with the ambiguity described — do not guess.
 6. **WORKTREE ROOT IS AUTHORITATIVE.** Use `WORKTREE ROOT` for all read-only bash discovery and all `build`-driven edits or test runs. Never inspect or modify the primary checkout.
+7. **FORWARD FULL CONTEXT.** Every `build` invocation must forward all caller input sections verbatim using their `=== SECTION NAME ===` headers before appending test-specific instructions.
 
 ### Evidence Classes
 
@@ -93,6 +94,12 @@ When `Repair Context` identifies test-only lint, import, syntax, or type errors 
 [verbatim]
 
 === COMPLETED DEPENDENCIES ===
+[verbatim]
+
+=== ANALYZER NOTES ===
+[verbatim]
+
+=== EXECUTOR GUIDANCE ===
 [verbatim]
 
 === TEST FILE BOUNDARY ===

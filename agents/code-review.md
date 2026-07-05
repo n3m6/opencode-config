@@ -27,7 +27,8 @@ You are the code review orchestrator. You dispatch reviews to specialized review
 You will receive:
 
 1. **The Plan Summary** — condensed 1-2 paragraph summary of the plan that was implemented
-2. **The File List** — list of file paths modified/created during execution, one per line (the scope boundary)
+2. **The Base Branch** — git branch or ref used as the diff baseline for this pipeline run
+3. **The File List** — list of file paths modified/created during execution, one per line (the scope boundary)
 
 ### Review Process
 
@@ -37,8 +38,8 @@ Follow these five steps in order.
 
 #### Step A — Read Files and Diff
 
-1. Run `git diff --stat main...HEAD` for an overview of what changed.
-2. Run `git diff main...HEAD` and keep the full output — you will use its hunk ranges in Step E to classify findings as New vs Pre-existing.
+1. Run `git diff --stat <base-branch>...HEAD`, substituting the Base Branch input, for an overview of what changed.
+2. Run `git diff <base-branch>...HEAD` and keep the full output — you will use its hunk ranges in Step E to classify findings as New vs Pre-existing.
 3. Read every file in the File List with `cat -n` to get line-numbered contents. Note any listed file that no longer exists (deleted) and exclude it from dispatch.
 
 ---
@@ -103,7 +104,7 @@ Number the merged findings sequentially starting from 1. Sort by severity: `CRIT
 
 #### Step E — Classify New vs Pre-existing
 
-For each merged finding, check whether its line range overlaps a hunk in the `git diff main...HEAD` output captured in Step A:
+For each merged finding, check whether its line range overlaps a hunk in the `git diff <base-branch>...HEAD` output captured in Step A:
 
 - **Overlaps an added/modified hunk** (or the file is newly created) → `### New Findings`.
 - **Falls in unchanged code within a listed file, or names a file outside the File List** → `### Pre-existing Findings`.

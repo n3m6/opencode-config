@@ -34,7 +34,8 @@ You are the Code Review Loop agent. You manage an iterative review→fix→build
 You will receive:
 
 1. **The Plan Summary** — condensed 1-2 paragraph summary of the plan (use when dispatching to `@code-review`)
-2. **The File List** — list of file paths modified/created during execution, one per line
+2. **The Base Branch** — git branch or ref used as the diff baseline for this pipeline run
+3. **The File List** — list of file paths modified/created during execution, one per line
 
 ### Step 0 — Baseline & Scope Boundary
 
@@ -60,12 +61,15 @@ Invoke `@code-review` as a subagent with the following prompt. Always use this e
 === PLAN SUMMARY ===
 [insert the Plan Summary]
 
+=== BASE BRANCH ===
+[insert the Base Branch]
+
 === FILE LIST (SCOPE BOUNDARY) ===
 [insert the File List — one file per line]
 
 === INSTRUCTIONS ===
 Review the code changes in the listed files.
-Use `git diff main...HEAD` to identify which lines are new or changed.
+Use `git diff <base-branch>...HEAD` to identify which lines are new or changed, substituting the BASE BRANCH value above.
 Use the Plan Summary when dispatching to your specialized reviewer subagents.
 
 Return your results in THREE separate sections. Always include all three
@@ -139,6 +143,9 @@ Issue one subagent invocation per file (not per finding). Prioritize files with 
 After all fixes are applied, delegate a build/test check to `@build`:
 
 ```
+=== BASE BRANCH ===
+[insert the Base Branch]
+
 === CONTEXT ===
 Code review iteration N/3. All fixes applied. Running build and test validation.
 
@@ -147,8 +154,9 @@ Run the project build and test suite. Report results as:
 - Build: PASS or FAIL (with error details)
 - Test: PASS or FAIL (N/M passing, failure details)
 
-Additionally, run `git diff --name-only main...HEAD` and include the output under a
-"### Git Changed Files" heading — one file path per line, sorted.
+Additionally, run both `git diff --name-only <base-branch>...HEAD` using the Base Branch input
+and `git diff --name-only` for uncommitted working-tree changes. Include the sorted union under a
+"### Git Changed Files" heading — one file path per line.
 ```
 
 - If **no regressions** → proceed to Step 5.
@@ -215,18 +223,7 @@ After the Code Review Manifest table, append these three additional sections:
 | 2 | HIGH | path/to/other.ext | 5–8 | [issue] | ❌ Unresolved |
 ```
 
-**Updated File List** — copy the file list from the `### Git Changed Files` section returned by `@build` in the most recent Step 4 build/test check. Output it verbatim, one file per line, sorted. If the loop exited early with no findings (no `@build` fix calls were made), delegate one final `@build` call to run `git diff --name-only main...HEAD` and use that output.
-
-```
-### Updated File List
-src/auth.ts
-src/middleware.ts
-src/utils.ts
-```
-
-**Stage Summary** — one-line review statistics.
-
-Before appending the Stage Summary, commit all changes made during this stage. Invoke `@build` as a subagent:
+Before appending the Updated File List, commit all changes made during this stage. Invoke `@build` as a subagent:
 
 ```
 === INSTRUCTIONS ===
@@ -237,6 +234,17 @@ If there is nothing to commit, report "Nothing to commit." and stop.
 ```
 
 If `@build` reports "Nothing to commit", skip silently.
+
+**Updated File List** — after the commit attempt above, delegate one final `@build` call with `=== BASE BRANCH === [insert the Base Branch]` and instructions to run `git diff --name-only <base-branch>...HEAD`. Copy the returned `### Git Changed Files` section verbatim, one file per line, sorted.
+
+```
+### Updated File List
+src/auth.ts
+src/middleware.ts
+src/utils.ts
+```
+
+**Stage Summary** — one-line review statistics.
 
 ```
 ### Stage Summary

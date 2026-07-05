@@ -17,7 +17,8 @@
                                 └────────┬─────────┘
                                          │
                           ═══════════════════════════════════════
-                          ║     .pipeline/<run-id>/plan.md      ║
+                          ║ .pipeline/<run-id>/plan.md          ║
+                          ║ .pipeline/<run-id>/base-branch.md   ║
                           ═══════════════════════════════════════
                                          │
                                          ▼
@@ -41,11 +42,13 @@
                           │  STAGE 2 — executor         │
                           │                              │
                           │  Reads: plan.md,             │
+                          │         base-branch.md,      │
                           │         analysis-manifest.md │
                           │         holistic-findings.md │
                           │         (optional)           │
                           │                              │
-                          │  Delegates to: @coding-agent │
+                          │  Delegates to: @impl-loop    │
+                          │  per-task worktrees          │
                           │  (wave-based parallel exec)  │
                           └─────────────┬────────────────┘
                                         │
@@ -74,7 +77,8 @@
                           │        review → repeat      │
                           └─────────────┬────────────────┘
                                         │
-                          Outputs: stage3-summary.md
+                          Outputs: file-list.md (overwrite)
+                                   stage3-summary.md
                                         │
                                         ▼
                           ┌──────────────────────────────┐
@@ -82,12 +86,13 @@
                           │  (max 3 iterations)          │
                           │                              │
                           │  ┌────────────────────────┐  │
-                          │  │    code-review         │──┼──▶ 5 lens subagents:
-                          │  │   (orchestrator)       │  │    • newcomer
-                          │  └────────────────────────┘  │    • adversary
-                          │  ┌────────────────────────┐  │    • operator
-                          │  │    @build (fixes)      │  │    • future-maintainer
-                          │  └────────────────────────┘  │    • scaler
+                          │  │    code-review         │──┼──▶ specialized reviewers:
+                          │  │   (orchestrator)       │  │    • code quality
+                          │  └────────────────────────┘  │    • plan traceability
+                          │  ┌────────────────────────┐  │    • test coverage
+                          │  │    @build (fixes)      │  │    • security
+                          │  └────────────────────────┘  │    • silent failure
+                          │                              │    • simplifier
                           │                              │
                           │  Loop: review → fix →      │
                           │        build/test → repeat  │
@@ -126,6 +131,7 @@
                           │                              │
                           │  Reads: plan-summary.md,     │
                           │         execution-manifest.md│
+                          │         file-list.md,        │
                           │         review-critical.md,  │
                           │         refactor-critical.md │
                           │                              │
@@ -169,15 +175,16 @@ All inter-stage data flows through files in `.pipeline/<run-id>/`:
 | File                    | Written By    | Purpose                                      |
 | ----------------------- | ------------- | -------------------------------------------- |
 | `plan.md`               | Pre-Flight    | Full user plan (verbatim)                    |
+| `base-branch.md`        | Pre-Flight    | Branch/ref used as the diff baseline         |
 | `analysis-manifest.md`  | Stage 1       | Analysis Manifest table                      |
 | `holistic-findings.md`  | Stage 1       | Holistic Findings section from analyzer      |
 | `stage1-summary.md`     | Stage 1       | Analyzer stage summary                       |
 | `plan-summary.md`       | Stage 2       | Condensed plan summary for downstream stages |
 | `execution-manifest.md` | Stage 2       | Execution Manifest table                     |
-| `file-list.md`          | Stage 2, 4, 5 | Updated file list (overwritten each time)    |
+| `file-list.md`          | Stage 2, 3, 4, 5 | Updated file list (overwritten each time) |
 | `stage2-summary.md`     | Stage 2       | Executor stage summary                       |
 | `stage3-summary.md`     | Stage 3       | Test coverage stage summary                  |
-| `review-critical.md`    | Stage 4       | CRITICAL findings from code review           |
+| `review-critical.md`    | Stage 4       | CRITICAL/HIGH findings from code review      |
 | `stage4-summary.md`     | Stage 4       | Code review stage summary                    |
 | `refactor-critical.md`  | Stage 5       | CRITICAL findings from refactoring           |
 | `stage5-summary.md`     | Stage 5       | Refactoring stage summary                    |
@@ -202,9 +209,11 @@ Before Stage 1 starts, the orchestrator:
 1. Requires a markdown plan with actionable tasks.
 2. Warns if the plan is large: over 15 tasks triggers a caution, and over 25 tasks requires explicit confirmation.
 3. Generates a run ID with `date +%Y%m%d-%H%M%S`.
-4. Creates `.pipeline/<run-id>/` and checks out `pipeline/<run-id>` from `main` to isolate the run.
-5. Writes the raw plan into `.pipeline/<run-id>/plan.md`.
-6. Creates seven todo items for stage progress only, then immediately enters Stage 1.
+4. Creates `.pipeline/<run-id>/`.
+5. Records the current branch in `.pipeline/<run-id>/base-branch.md`.
+6. Checks out `pipeline/<run-id>` from that base branch to isolate the run.
+7. Writes the raw plan into `.pipeline/<run-id>/plan.md`.
+8. Creates seven todo items for stage progress only, then immediately enters Stage 1.
 
 ## Validation And Error Handling
 
@@ -222,7 +231,7 @@ Before Stage 1 starts, the orchestrator:
 
 #### orchestrator
 
-The top-level pipeline controller. Accepts a user-provided markdown plan and drives it through a fixed six-stage pipeline. It **never writes code** — all work is delegated to subagents via the `task` tool. It manages inter-stage data by reading/writing pipeline state files in `.pipeline/<run-id>/` and tracks progress via a 7-item todo checklist. After the pipeline completes, it auto-cleans on PASS or preserves the audit trail on FAIL/PARTIAL.
+The top-level pipeline controller. Accepts a user-provided markdown plan and drives it through a fixed seven-step pipeline. It **never writes code** — all work is delegated to subagents via the `task` tool. It manages inter-stage data by reading/writing pipeline state files in `.pipeline/<run-id>/` and tracks progress via a 7-item todo checklist. After the pipeline completes, it auto-cleans on PASS or preserves the audit trail on FAIL/PARTIAL.
 
 ---
 
@@ -246,7 +255,7 @@ Analyzes **cross-task interactions** in the plan — dependency ordering, confli
 
 #### executor
 
-Executes the plan by delegating implementation and command work to `@coding-agent`. Analyzes task dependencies, groups them into parallelizable **waves**, and executes wave-by-wave. Incorporates the analyzer's GAP/RISK/AMBIGUOUS recommendations into delegation prompts and triages optional holistic findings: `Schedule` changes wave planning, `Gap` creates synthetic `[Holistic Gap]` tasks, `Guidance` adds shared delegation context, and `Escalate` pauses for user confirmation. Returns an **Execution Manifest** with per-task status, any synthetic gap rows, files modified/created, plus a plan summary, updated file list, and stage summary.
+Executes the plan by creating one git worktree per task, delegating implementation to `@impl-loop`, and reconciling each dependency wave back onto the pipeline branch via squash merge. Incorporates the analyzer's GAP/RISK/AMBIGUOUS recommendations into delegation prompts and triages optional holistic findings: `Schedule` changes wave planning, `Gap` creates synthetic `[Holistic Gap]` tasks, `Guidance` adds shared delegation context, and `Escalate` pauses for user confirmation. Returns an **Execution Manifest** with per-task status, any synthetic gap rows, files modified/created, plus a plan summary, updated file list, and stage summary.
 
 ---
 
@@ -270,31 +279,35 @@ Evaluates test files for **assertion quality and behavior accuracy** — detects
 
 #### code-review-loop
 
-Manages an iterative **review → fix → build/test → re-review** cycle (max 3 iterations). Delegates reviews to `code-review` and fixes to `@build`. Tracks findings across iterations and exits when no CRITICAL issues remain or the iteration limit is reached. Returns a **Code Review Manifest** with per-finding severity and status.
+Manages an iterative **review → fix → build/test → re-review** cycle (max 3 iterations). Delegates reviews to `code-review` and fixes to `@build`. Fixes CRITICAL/HIGH/MEDIUM findings, leaves LOW/advisory findings reported, and returns a **Code Review Manifest** with per-finding severity and status.
 
 #### code-review
 
-Review orchestrator that dispatches to five specialized **lens-based** subagents in parallel, then collates, deduplicates, and calibrates their findings into a single unified table.
+Review orchestrator that dispatches to specialized reviewers, then collates and deduplicates their findings into New vs Pre-existing tables.
 
-#### code-review-newcomer
+#### review-code-quality
 
-Reviews code through a **newcomer's lens** — readability, clarity, naming, and approachability. Read-only.
+Reviews changed files for structure, maintainability, naming, and scope discipline. Read-only.
 
-#### code-review-adversary
+#### review-plan-traceability
 
-Reviews code through an **adversary's lens** — security vulnerabilities, robustness, and abuse resistance. Read-only.
+Checks that changed behavior traces back to the plan and that planned behavior is represented in the changes. Read-only.
 
-#### code-review-operator
+#### review-test-coverage
 
-Reviews code through an **operator's lens** — diagnosability, observability, logging, and failure recovery. Read-only.
+Checks behavior coverage, test quality, and missing or non-meaningful tests. Read-only.
 
-#### code-review-future-maintainer
+#### review-security
 
-Reviews code through a **future maintainer's lens** — changeability, extensibility, and technical debt. Read-only.
+Checks security-sensitive changes for exploitable control failures, injection, secret handling, and related risks. Read-only.
 
-#### code-review-scaler
+#### review-silent-failure
 
-Reviews code through a **scaler's lens** — performance at load, resource efficiency, and concurrency safety. Read-only.
+Checks error handling, fallbacks, retries, and async paths for silent failures or misleading success states. Read-only.
+
+#### review-code-simplifier
+
+Checks changed files for dead code, unnecessary wrappers, and safe simplifications. Read-only.
 
 ---
 
@@ -314,11 +327,11 @@ Reviews code for **refactoring opportunities** — duplication, complexity, nami
 
 #### verifier
 
-Verifies that the implementation **complies with the plan** and that **build, lint, and tests all pass**. It consumes the Plan Summary, the persisted **Execution Manifest**, and CRITICAL findings from Stages 4 and 5. Runs up to 3 verify→fix iterations by delegating fixes to `@build`. Returns a **Verification Report** with overall PASS / PARTIAL / FAIL status.
+Verifies that the implementation **complies with the plan** and that **build, lint, and tests all pass**. It consumes the Plan Summary, the persisted **Execution Manifest**, the final file list, CRITICAL/HIGH review findings from Stage 4, and CRITICAL refactor findings from Stage 5. Runs up to 3 verify→fix iterations by delegating fixes to `@build`. Returns a **Verification Report** with overall PASS / PARTIAL / FAIL status.
 
 #### plan-compliance-checker
 
-Cross-references the Plan Summary and Execution Manifest against the current codebase to verify every plan requirement was implemented. Returns a structured **Plan Compliance table**. Read-only.
+Cross-references the Plan Summary, Execution Manifest, and final file list against the current codebase to verify every plan requirement was implemented. Returns a structured **Plan Compliance table**. Read-only.
 
 ---
 
@@ -326,4 +339,4 @@ Cross-references the Plan Summary and Execution Manifest against the current cod
 
 #### pipeline-reporter
 
-Formats the **Final Report** from all six stage summaries and CRITICAL findings using the current stage order: Stage 3 is Test Coverage and Stage 4 is Code Review. Produces a structured markdown report with per-stage summaries, a build/lint/test status table, aggregated CRITICAL findings, and any unresolved items. Never writes code or modifies files.
+Formats the **Final Report** from all six stage summaries and CRITICAL/HIGH findings using the current stage order: Stage 3 is Test Coverage and Stage 4 is Code Review. Produces a structured markdown report with per-stage summaries, a build/lint/test status table, aggregated blocking findings, and any unresolved items. Never writes code or modifies files.

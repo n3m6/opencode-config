@@ -68,14 +68,21 @@ The test step self-classifies and exits without an external sanity check. Valida
    - Documentation (`.md`, `.txt`, `.rst`).
    - Scaffolding/template files explicitly identified by the task description.
 3. The claim is **rejected** when any production file contains executable behavior — detected by the presence of any of these tokens (case-sensitive line scan): `function`, `def`, `class`, `=>`, `func`, runtime entrypoints (`main`, `if __name__`, server bootstrap), or top-level executable statements outside type-only blocks.
-4. If the claim is rejected, do **not** run Step 2's verification. Treat the verifier output as:
-   - `### Status — FAIL`
-   - `### Final Verification Status — FAIL`
-   - `### Route Hint — TEST_REPAIR`
-   - `### Route Context.Failure Type — test_missing_coverage`
-   - `### Route Context.Affected Files` — the rejected production files
-   - `### Route Context.Description — Production code requires deterministic test coverage; the prior NO_TASK_AUTHORED_TESTS claim has been overridden.`
-   - `### Evidence Summary — DETERMINISTIC: 0, FLAKY: 0, HARNESS_NOISY: 0, AMBIGUOUS: 0, REDUNDANT: 0, NO_TASK_AUTHORED_TESTS: yes (audit-overridden)`
+4. If the claim is rejected, do **not** run Step 2's verification. Return this exact route-context shape:
+   ```
+   ### Status — FAIL
+   ### Final Verification Status — FAIL
+   ### Route Hint — TEST_REPAIR
+   ### Route Context
+   Failure Type: test_missing_coverage
+   Affected Files: [the rejected production files]
+   Description: Production code requires deterministic test coverage; the prior NO_TASK_AUTHORED_TESTS claim has been overridden.
+   ### Files Modified — [complete current task inventory of modified files]
+   ### Files Created — [complete current task inventory of created files]
+   ### Tests Written — None.
+   ### Evidence Summary — DETERMINISTIC: 0, FLAKY: 0, HARNESS_NOISY: 0, AMBIGUOUS: 0, REDUNDANT: 0, NO_TASK_AUTHORED_TESTS: yes (audit-overridden)
+   ### Summary — Production code requires deterministic test coverage; the prior NO_TASK_AUTHORED_TESTS claim has been overridden.
+   ```
 5. If the claim is accepted, proceed to Step 2 with the test result intact.
 
 When Step 1.5 rejects the claim, `impl-loop` routes the next cycle into TEST in test-repair mode with the override Route Context as guidance.
@@ -112,7 +119,9 @@ Apply this ordered decision tree; stop at the first match:
 2. Failure is a build/lint error and every path in `### Failure Files` matches the effective test globs → `TEST_REPAIR`
 3. Failure is a build/lint error → `CODE_REPAIR`
 4. `Regression Evidence` is not `None.` and a failing test is a named target absent from `### Evidence Classification` → `CODE_REPAIR`
-5. All failing tests in `### Evidence Classification` are DETERMINISTIC → `CODE_REPAIR`
+5. All failing tests in `### Evidence Classification` are DETERMINISTIC:
+   - If every `### Failure Files` path is test-only, or the failure details show a test harness/import/signature mismatch in test files, route `TEST_REPAIR`.
+   - Otherwise route `CODE_REPAIR`.
 6. All failing tests are FLAKY, HARNESS_NOISY, or AMBIGUOUS → `TEST_REPAIR`
 7. Failing tests are a mix of DETERMINISTIC and unsafe evidence → `CODE_AND_TEST_REPAIR`
 8. `NO_TASK_AUTHORED_TESTS` and build/lint fails → `CODE_REPAIR`
@@ -121,7 +130,31 @@ Return using the FAIL template (see **Return**).
 
 **Step 4 — On VERIFICATION PASS: commit.**
 
-Commit using `build` with a descriptive commit message, created from `WORKTREE ROOT`.
+Commit by invoking `build` with this exact template:
+
+```
+=== WORKTREE ROOT ===
+[verbatim]
+
+=== TASK DESCRIPTION ===
+[verbatim]
+
+=== VERIFICATION RESULT ===
+[paste the Step 2 build verification result]
+
+=== INSTRUCTIONS ===
+Create the task commit from WORKTREE ROOT only:
+  git add -A
+  git commit -m "task: [one-sentence summary of TASK DESCRIPTION]"
+If there is nothing to commit, report "Nothing to commit." and do not create an empty commit.
+
+Return:
+### Commit Status — PASS or FAIL
+### Commit Hash — hash or None.
+### Summary — one sentence
+```
+
+If commit creation fails for any reason other than "Nothing to commit.", return using the FAIL template with `Route Hint — CODE_REPAIR` and `Failure Type: structural_mismatch`. If `build` reports "Nothing to commit." and the authoritative file inventory is empty, continue to the PASS return; otherwise treat it as a commit failure.
 
 ### Route Hint Reference
 

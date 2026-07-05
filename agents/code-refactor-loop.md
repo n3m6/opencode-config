@@ -34,7 +34,8 @@ You are the Code Refactor Loop agent. You manage an iterative refactor-review→
 You will receive:
 
 1. **The Plan Summary** — condensed 1-2 paragraph summary of the plan (use when dispatching to the leaf refactor-review subagent)
-2. **The File List** — list of file paths modified/created during execution, one per line
+2. **The Base Branch** — git branch or ref used as the diff baseline for this pipeline run
+3. **The File List** — list of file paths modified/created during execution, one per line
 
 ### The Refactor→Fix Loop
 
@@ -106,6 +107,9 @@ On iteration 2+, **skip NITs** — mark them as `⏭ Skipped` in todos.
 After all fixes are applied, delegate a build/test check to `@build`:
 
 ```
+=== BASE BRANCH ===
+[insert the Base Branch]
+
 === CONTEXT ===
 Code refactoring iteration N/3. All refactorings applied. Running build and test validation to confirm behavior is preserved.
 
@@ -114,7 +118,7 @@ Run the project build and test suite. Report results as:
 - Build: PASS or FAIL (with error details)
 - Test: PASS or FAIL (N/M passing, failure details)
 
-Additionally, run `git diff --name-only main...HEAD` and include the output under a
+Additionally, run `git diff --name-only <base-branch>...HEAD` using the Base Branch input and include the output under a
 "### Git Changed Files" heading — one file path per line, sorted.
 ```
 
@@ -159,18 +163,7 @@ After the Code Refactor Manifest table, append these three additional sections:
 | 1 | path/to/file.ext | 10–25 | [issue] | ✅ Fixed |
 ```
 
-**Updated File List** — copy the file list from the `### Git Changed Files` section returned by `@build` in the most recent Step 4 build/test check. Output it verbatim, one file per line, sorted. If the loop exited early with no findings (no `@build` fix calls were made), delegate one final `@build` call to run `git diff --name-only main...HEAD` and use that output.
-
-```
-### Updated File List
-src/auth.ts
-src/middleware.ts
-src/utils.ts
-```
-
-**Stage Summary** — one-line refactoring statistics.
-
-Before appending the Stage Summary, commit all changes made during this stage. Invoke `@build` as a subagent:
+Before appending the Updated File List, commit all changes made during this stage. Invoke `@build` as a subagent:
 
 ```
 === INSTRUCTIONS ===
@@ -181,6 +174,17 @@ If there is nothing to commit, report "Nothing to commit." and stop.
 ```
 
 If `@build` reports "Nothing to commit", skip silently.
+
+**Updated File List** — after the commit attempt above, delegate one final `@build` call with `=== BASE BRANCH === [insert the Base Branch]` and instructions to run `git diff --name-only <base-branch>...HEAD`. Copy the returned `### Git Changed Files` section verbatim, one file per line, sorted.
+
+```
+### Updated File List
+src/auth.ts
+src/middleware.ts
+src/utils.ts
+```
+
+**Stage Summary** — one-line refactoring statistics.
 
 ```
 ### Stage Summary
