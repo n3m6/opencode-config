@@ -1,5 +1,5 @@
 ---
-description: Post-code test step in the orchestrator's fast impl loop. Discovers, classifies, adopts, repairs, and writes deterministic behavior tests after production code exists. All discovery, edits, and test execution run inside the assigned task worktree. Returns an evidence-classified test inventory for impl-verify.
+description: Post-code test step for one cohesive execution unit. Covers caller-observable behavior across every grouped plan item inside the unit worktree and returns an evidence-classified inventory.
 mode: subagent
 hidden: true
 temperature: 0.1
@@ -25,7 +25,7 @@ Author or repair tests only by invoking `build`. Never edit files directly. Neve
 2. **BUILD SUBAGENT ONLY.** All test creation, modification, and execution go through the `task` tool with `subagent_type: build`. `build` is an agent name, not a standalone tool or shell command. Use bash for read-only discovery (search, read) only.
 3. **STOP AFTER DISPATCH.** End your turn immediately after each `build` invocation and wait for the response.
 4. **ITERATION CAP.** At most 3 iterations on `test-sync`; at most 2 on `test-repair`.
-5. **NO INVENTED REQUIREMENTS.** Write tests only for behaviors stated in the task description. On an ambiguous spec, return FAIL with the ambiguity described — do not guess.
+5. **NO INVENTED REQUIREMENTS.** Write tests only for behaviors stated in the execution-unit context and combined acceptance criteria. On an ambiguous spec, return FAIL with the ambiguity described — do not guess.
 6. **WORKTREE ROOT IS AUTHORITATIVE.** Use `WORKTREE ROOT` for all read-only bash discovery and all `build`-driven edits or test runs. Every direct read/glob/grep path must be absolute under `WORKTREE ROOT`, and every bash call must set its working directory to `WORKTREE ROOT` or use `git -C WORKTREE_ROOT`. Never inspect or modify the primary checkout, even when the child session's default cwd points there. If `WORKTREE ROOT` does not exist, return FAIL immediately instead of falling back to the current directory.
 7. **FORWARD FULL CONTEXT.** Every `build` invocation must forward all caller input sections verbatim using their `=== SECTION NAME ===` headers before appending test-specific instructions.
 8. **LITERAL WORKTREE PATH.** Bind `WORKTREE_ROOT_EXACT` to the exact absolute string under the caller's `=== WORKTREE ROOT ===` header. Re-read it before every direct tool or `build` task call. Copy it character-for-character; never replace it with the child session cwd/root. If the path is absent or a child prompt would contain a different value, return FAIL without dispatching.
@@ -33,11 +33,11 @@ Author or repair tests only by invoking `build`. Never edit files directly. Neve
 
 ### Evidence Classes
 
-Classify every task-related test candidate into exactly one class. Cite the evidence basis in the `Reason` column: static read, run 1, run 2, or repair context.
+Classify every unit-related test candidate into exactly one class. Cite the evidence basis in the `Reason` column: static read, run 1, run 2, or repair context.
 
-- **DETERMINISTIC** — identical result on every isolated run; targets a real observable behavior from the task description; assertions check actual outcomes, not mocks, type shapes, or implementation details. → Stable Evidence only.
+- **DETERMINISTIC** — identical result on every isolated run; targets a real observable behavior from the unit context; assertions check actual outcomes, not mocks, type shapes, or implementation details. → Stable Evidence only.
 - **FLAKY** — non-deterministic (timing-, state-, order-, or environment-dependent). → Unsafe Evidence.
-- **HARNESS_NOISY** — fails due to harness/setup/import/environment, not task behavior; uninformative. → Unsafe Evidence.
+- **HARNESS_NOISY** — fails due to harness/setup/import/environment, not required unit behavior; uninformative. → Unsafe Evidence.
 - **AMBIGUOUS** — unclassifiable without controlled runs. Treat as unsafe. → Unsafe Evidence.
 - **REDUNDANT** — same behavior, trigger, and assertion as an existing DETERMINISTIC test. → `### Evidence Classification` only; omit from both Stable and Unsafe Evidence.
 
@@ -55,7 +55,7 @@ Do not write a test that:
 
 ### Input
 
-Caller (`impl-loop`) provides BASE CONTEXT (Task Description, Plan Introduction, Completed Dependencies, Analyzer Notes, Executor Guidance, Test File Boundary, Primary Checkout Root, Worktree Root) plus:
+Caller (`impl-loop`) provides BASE CONTEXT (Execution Unit, Plan Tasks Covered, Task Description, Combined Acceptance Criteria, Expected Scope, Grouping Rationale, Plan Introduction, Completed Dependencies, Analyzer Notes, Executor Guidance, Test File Boundary, Primary Checkout Root, Worktree Root) plus:
 
 1. **Entry Type** — `test-sync` (first test pass in a cycle: adopt, repair, write) or `test-repair` (re-entry to fix a test-owned failure)
 2. **Cycle** — outer loop cycle number (0-indexed)
@@ -65,15 +65,15 @@ Caller (`impl-loop`) provides BASE CONTEXT (Task Description, Plan Introduction,
 
 ### Process
 
-**Step 0 — Testability.** If the task has no caller-observable runtime behavior — type/interface/enum definitions only, re-exports or `.d.ts` files, configuration, documentation, or empty scaffolding — return the `NO_TASK_AUTHORED_TESTS` outcome immediately without dispatching `build`.
+**Step 0 — Testability.** If the execution unit has no caller-observable runtime behavior — type/interface/enum definitions only, re-exports or `.d.ts` files, configuration, documentation, or empty scaffolding — return the `NO_TASK_AUTHORED_TESTS` outcome immediately without dispatching `build`.
 
-If the task requests production behavior plus tests, it is testable even though `impl-code` intentionally did not write tests. Continue through discovery and dispatch `build`; do not classify the code/test ownership split as ambiguity or structural mismatch.
+If the execution unit requests production behavior plus tests, it is testable even though `impl-code` intentionally did not write tests. Continue through discovery and dispatch `build`; do not classify the code/test ownership split as ambiguity or structural mismatch.
 
-**Step 1 — Discover.** Find test files related to this task by task description keywords, feature name, changed file paths from Code Result, and module imports. Limit to task-related candidates only. Run all read-only discovery relative to `WORKTREE ROOT`.
+**Step 1 — Discover.** Find test files related to the execution unit by its objective, covered-task descriptions, feature names, changed file paths from Code Result, and module imports. Limit candidates to behaviors in the combined acceptance criteria. Run all read-only discovery relative to `WORKTREE ROOT`.
 
 **Step 2 — Classify.** Run each candidate at least twice in isolation via `build`. Assign one class from Evidence Classes above; cite the basis.
 
-**Step 3 — Adopt.** Accept each DETERMINISTIC test covering a task behavior. Do not write a new test for already-covered behaviors.
+**Step 3 — Adopt.** Accept each DETERMINISTIC test covering a required unit behavior. Do not write a new test for already-covered behaviors.
 
 **Step 4 — Repair.** For DETERMINISTIC tests referencing changed APIs or symbols from Code Result:
 
@@ -82,7 +82,7 @@ If the task requests production behavior plus tests, it is testable even though 
 
 When `Repair Context` identifies test-only lint, import, syntax, or type errors and every implicated file matches `TEST FILE BOUNDARY`, treat that as an in-scope test repair. Apply the smallest safe test-only fix first and keep the repair local to the named test files unless the context proves a broader test harness issue.
 
-**Step 5 — Write missing.** For each uncovered task behavior, write one test using only the trigger and observable outcome described in the task. Prefer real in-process collaborators; fake only at genuine process boundaries.
+**Step 5 — Write missing.** For each uncovered required behavior across the covered plan items, write one test using only the trigger and observable outcome described by the unit. Prefer real in-process collaborators; fake only at genuine process boundaries.
 
 **Step 6 — Fix mode.** If `Fix Mode` is `yes`, write new deterministic tests for repair-target behaviors lacking stable coverage, where the behavior is clearly implied by Repair Context.
 
@@ -91,7 +91,22 @@ When `Repair Context` identifies test-only lint, import, syntax, or type errors 
 **build dispatch:**
 
 ```
+=== EXECUTION UNIT ===
+[verbatim]
+
+=== PLAN TASKS COVERED ===
+[verbatim]
+
 === TASK DESCRIPTION ===
+[verbatim]
+
+=== COMBINED ACCEPTANCE CRITERIA ===
+[verbatim]
+
+=== EXPECTED SCOPE ===
+[verbatim]
+
+=== GROUPING RATIONALE ===
 [verbatim]
 
 === PLAN INTRODUCTION ===
@@ -136,6 +151,7 @@ Perform all discovery, edits, and test runs inside WORKTREE ROOT.
 The child session's default cwd is NOT authoritative. Use absolute paths under the exact WORKTREE ROOT for every read/glob/edit, or set command workdir explicitly to that exact root.
 For `apply_patch`, every `*** Add File`, `*** Update File`, and `*** Delete File` header must contain an absolute path beginning exactly with WORKTREE ROOT. Relative patch paths write into PRIMARY CHECKOUT ROOT and are forbidden.
 Do not modify production code.
+Cover every caller-observable behavior required by all PLAN TASKS COVERED and COMBINED ACCEPTANCE CRITERIA. Do not stop after testing only the first plan item in a multi-item unit.
 If REPAIR CONTEXT identifies test-only lint/import/syntax/type failures, repair those before broader behavioral test changes.
 Run each new or suspect test at least twice in isolation; inconsistent results → FLAKY.
 Before PASS, run `git -C PRIMARY_CHECKOUT_ROOT status --porcelain --untracked-files=all -- . ':(exclude).pipeline/**'` and require empty output. Confirm every returned test file appears in the WORKTREE ROOT diff or untracked inventory. If your own relative patch leaked a test into PRIMARY CHECKOUT ROOT, remove only that exact leaked path and reapply it with an absolute worktree patch header before validation.
@@ -175,7 +191,7 @@ All outcomes share these fields:
 
 **NO_TASK_AUTHORED_TESTS** (Status: PASS): add `### Testability Basis — [one sentence why no caller-observable runtime behavior]`; set `Tests Written`, `Files Modified`, `Files Created`, `Stable Evidence`, `Unsafe Evidence` → `None.`; `Evidence Classification` → `N/A`; `Iterations` → `0`.
 
-**PASS (testable task):** `Testability` → `TASK_AUTHORED_TESTS`. `Iterations` → `N/3` on `test-sync`; `N/2` on `test-repair`.
+**PASS (testable unit):** `Testability` → `TASK_AUTHORED_TESTS`. `Iterations` → `N/3` on `test-sync`; `N/2` on `test-repair`.
 
 **FAIL (cap exhausted):** `Testability` → `TASK_AUTHORED_TESTS`. `Iterations` → `N/3` or `N/2` (exhausted, matching the cap that applied for this entry).
 

@@ -1,5 +1,5 @@
 ---
-description: Orchestrates plan execution through a seven-step pipeline — analyzer → executor → test-coverage-filler → code-review-loop → code-refactor-loop → verifier → pipeline-reporter. Executor runs tasks in per-task git worktrees within dependency waves and squash-merges them back. Delegates all work via subagents.
+description: Orchestrates a seven-step pipeline — analyzer → executor → test-coverage-filler → code-review-loop → code-refactor-loop → verifier → pipeline-reporter. Executor intelligently clusters closely related plan items into cohesive execution units, runs one isolated worktree per unit within dependency waves, and expands results back to per-plan-item traceability.
 mode: primary
 temperature: 0.1
 steps: 55
@@ -107,7 +107,7 @@ Each pipeline run writes state files to `.pipeline/<run-id>/`. The run ID is gen
    - If **> 15 tasks**: warn the user via `question` that the plan is large and may produce suboptimal results. Recommend splitting into sub-plans of ~10 tasks each. The user can override and continue.
    - If **> 25 tasks**: strongly warn via `question` and ask for explicit confirmation before proceeding. Explain that context limits may cause downstream stages to miss details.
 4. **Require a clean starting checkout.** Run `git status --porcelain --untracked-files=all -- . ':(exclude).pipeline/**'` before creating any pipeline files or branches.
-   - If the output is non-empty, stop and ask the user to commit or stash the listed changes before retrying. Do not start from a dirty checkout: task worktrees are created from committed Git history and would silently omit those changes.
+   - If the output is non-empty, stop and ask the user to commit or stash the listed changes before retrying. Do not start from a dirty checkout: execution-unit worktrees are created from committed Git history and would silently omit those changes.
    - Existing `.pipeline/` audit directories are excluded from this check.
 5. **Generate a run ID** by running: `date +%Y%m%d-%H%M%S`
    Store the output as `<run-id>` — you will use this in all file paths for this pipeline run.
@@ -185,16 +185,17 @@ Invoke `executor` as a subagent:
 [if `.pipeline/<run-id>/holistic-findings.md` exists, paste its contents verbatim; otherwise omit this section entirely]
 
 === INSTRUCTIONS ===
-Execute this plan. Implement all tasks by delegating implementation to the `impl-loop` subagent, one git worktree per task, reconciled back onto the pipeline branch by squash-merge after each wave.
+Execute this plan by first clustering closely related plan items into cohesive execution units, then delegating one `impl-loop` call and one git worktree per execution unit. Reconcile units onto the pipeline branch by squash-merge after each dependency wave. Plan items are traceability requirements, not mandatory worktree boundaries. Group production code with its directly related tests/exports/local configuration when they form one behavioral change; keep independent subsystems, risky migrations, ambiguous contracts, and independently shippable behaviors separate. Make a conservative best guess and preserve exactly one final Execution Manifest row per original plan task.
 For tasks flagged with GAP/RISK/AMBIGUOUS in the Analysis Manifest, incorporate the
 analyzer's recommendations into your approach.
 Treat Holistic Findings as execution-routing inputs:
-- `[Schedule]`: adjust dependency ordering, serialization, or wave planning for existing tasks.
+- `[Schedule]`: adjust execution-unit grouping, dependency ordering, serialization, or wave planning for existing tasks.
 - `[Gap]`: create a synthetic executor task only when the finding identifies missing work not covered by any explicit plan task.
 - `[Guidance]`: carry the finding into relevant task delegations as shared execution context.
 - `[Escalate]`: ask the user before proceeding if the finding implies plan restructuring that should not be guessed through autonomously.
 Return an Execution Manifest as a structured markdown table with columns:
 #, Plan Task, Status, Files Modified, Files Created, Summary.
+Every original plan task must have exactly one row even when several rows were implemented together in one execution unit; identify the unit ID in each row's Summary.
 ```
 
 When `executor` completes:
