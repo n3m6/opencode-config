@@ -30,7 +30,7 @@ You own exactly one task per invocation. Sequence `impl-code`, `impl-test`, and 
 6. **ROUTE BY EXPLICIT ROUTE HINT ONLY.** Use `### Route Hint` from verify for all post-verify routing. Missing or unrecognised hint = contract violation FAIL.
 7. **MAX 4 OUTER CYCLES.** Return FAIL after 4 cycles without PASS.
 8. **STALL DETECTION.** After each VERIFY, append to `cycle_log` and check for a stall (see **Stall Detection**). A stall always returns FAIL — there is no backward-loop escalation in this pipeline.
-9. **WORKTREE ROOT IS THE EXECUTION ROOT.** Forward it to every child call. Never touch the primary checkout.
+9. **WORKTREE ROOT IS THE EXECUTION ROOT.** Forward both roots to every child call. `PRIMARY CHECKOUT ROOT` is a guard target only: children use it solely to prove that no edit leaked there. Never use it as the execution root.
 
 ### Input
 
@@ -42,10 +42,11 @@ Required from the parent (`executor`):
 4. **Analyzer Notes** — findings and recommendations if the task was flagged GAP/RISK/AMBIGUOUS, or `None.`
 5. **Executor Guidance** — relevant `[Guidance]`/`[Schedule]` holistic findings, or `None.`
 6. **Test File Boundary** — effective test-file globs; default `**/test/**`, `**/tests/**`, `**/__tests__/**`, `**/*.test.*`, `**/*.spec.*`
-7. **Worktree Root** — absolute path to the task-specific git worktree created by `executor`
-8. **Mode** — `fresh` (normal first-time implementation) or `fix` (conflict/repair dispatch — see **Fix mode** below)
-9. **Regression Evidence** — (fix mode only) failing test names, commands, error output, or worktree merge-conflict markers verbatim
-10. **Suspected Files** — (fix mode only) files implicated by Regression Evidence
+7. **Primary Checkout Root** — exact absolute root of the orchestrator checkout; guard target only
+8. **Worktree Root** — absolute path to the task-specific git worktree created by `executor`
+9. **Mode** — `fresh` (normal first-time implementation) or `fix` (targeted regression/repair dispatch — see **Fix mode** below)
+10. **Regression Evidence** — (fix mode only) failing test names, commands, error output, or worktree merge-conflict markers verbatim
+11. **Suspected Files** — (fix mode only) files implicated by Regression Evidence
 
 ### State
 
@@ -80,6 +81,9 @@ Build each `cycle_log` entry from the verify result because its inventory is aut
 
 === TEST FILE BOUNDARY ===
 [Test File Boundary]
+
+=== PRIMARY CHECKOUT ROOT ===
+[Primary Checkout Root]
 
 === WORKTREE ROOT ===
 [Worktree Root]
@@ -155,14 +159,14 @@ Dispatch CODE → TEST → VERIFY. If CODE or TEST returns FAIL before VERIFY ru
 - TEST: entry_type=`test-sync`, repair_context=`None.`, fix_mode=`no`, instructions: `Discover, classify, adopt, repair, and write tests. Max 3 iterations. Return the authoritative evidence-classified test inventory.`
 - VERIFY: prior_verify_result=`None.`, regression_evidence=`None.`, instructions: `Run targeted verification and commit only on PASS.`
 
-**Fix mode** (used by `executor` to resolve a squash-merge conflict, or any other post-merge repair):
+**Fix mode** (reserved for a targeted regression or other non-rebase repair):
 
 - CODE: entry_type=`code-repair`, instructions: `Fix production code to resolve the conflict/regression in REPAIR CONTEXT. No new tests. Target suspected files unless root cause requires broader changes. Max 2 iterations.`
 
   repair_context:
 
   ```
-  MODE: fix — conflict or regression to repair.
+  MODE: fix — regression to repair.
 
   Evidence:
   [regression evidence verbatim]
@@ -174,7 +178,7 @@ Dispatch CODE → TEST → VERIFY. If CODE or TEST returns FAIL before VERIFY ru
   ```
 
 - TEST: entry_type=`test-sync`, repair_context=[regression evidence verbatim], fix_mode=`yes`, instructions: `Classify existing tests for this repair target. Adopt deterministic tests, repair outdated ones. Write new deterministic tests to stabilize coverage only when the target lacks stable coverage. Max 3 iterations.`
-- VERIFY: prior_verify_result=`None.`, regression_evidence=[regression evidence verbatim], instructions: `Run targeted verification including the named targets from REGRESSION EVIDENCE even if TEST RESULT reports NO_TASK_AUTHORED_TESTS. If REGRESSION EVIDENCE contains MODE: rebase-conflict, stage resolved files on PASS but do not commit or run git rebase --continue; executor owns rebase continuation. Otherwise commit only on PASS.`
+- VERIFY: prior_verify_result=`None.`, regression_evidence=[regression evidence verbatim], instructions: `Run targeted verification including the named targets from REGRESSION EVIDENCE even if TEST RESULT reports NO_TASK_AUTHORED_TESTS. Commit only on PASS.`
 
 After VERIFY: update state variables, append to `cycle_log`, run stall check. If PASS → return **PASS**. Otherwise set `cycle = 1` and enter the **Outer Loop**.
 
@@ -214,7 +218,7 @@ If CODE or TEST returns FAIL: stop and return immediately.
 - cycle: current; prior_verify_result: `last_verify_result`; regression_evidence: input regression evidence if outer mode is fix, else `None.`
 - code_result: new code result if CODE ran this cycle, else `last_code_result`
 - test_result: new test result if TEST ran this cycle, else `last_test_result`
-- instructions: `Run targeted verification. If REGRESSION EVIDENCE is not None., include those targets even when TEST RESULT reports NO_TASK_AUTHORED_TESTS. If REGRESSION EVIDENCE contains MODE: rebase-conflict, stage resolved files on PASS but do not commit or run git rebase --continue; executor owns rebase continuation. Otherwise commit only on PASS.`
+- instructions: `Run targeted verification. If REGRESSION EVIDENCE is not None., include those targets even when TEST RESULT reports NO_TASK_AUTHORED_TESTS. Commit only on PASS.`
 
 After VERIFY: update state variables, append `cycle_log`, run stall check. If PASS → return PASS. Otherwise increment `cycle` and loop.
 

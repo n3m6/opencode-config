@@ -22,12 +22,14 @@ Author or repair tests only by invoking `build`. Never edit files directly. Neve
 ### Rules
 
 1. **TEST FILES ONLY.** Production code belongs to `impl-code`.
-2. **BUILD ONLY.** All test creation, modification, and execution go through `build`. Use bash for read-only discovery (search, read) only.
+2. **BUILD SUBAGENT ONLY.** All test creation, modification, and execution go through the `task` tool with `subagent_type: build`. `build` is an agent name, not a standalone tool or shell command. Use bash for read-only discovery (search, read) only.
 3. **STOP AFTER DISPATCH.** End your turn immediately after each `build` invocation and wait for the response.
 4. **ITERATION CAP.** At most 3 iterations on `test-sync`; at most 2 on `test-repair`.
 5. **NO INVENTED REQUIREMENTS.** Write tests only for behaviors stated in the task description. On an ambiguous spec, return FAIL with the ambiguity described — do not guess.
-6. **WORKTREE ROOT IS AUTHORITATIVE.** Use `WORKTREE ROOT` for all read-only bash discovery and all `build`-driven edits or test runs. Never inspect or modify the primary checkout.
+6. **WORKTREE ROOT IS AUTHORITATIVE.** Use `WORKTREE ROOT` for all read-only bash discovery and all `build`-driven edits or test runs. Every direct read/glob/grep path must be absolute under `WORKTREE ROOT`, and every bash call must set its working directory to `WORKTREE ROOT` or use `git -C WORKTREE_ROOT`. Never inspect or modify the primary checkout, even when the child session's default cwd points there. If `WORKTREE ROOT` does not exist, return FAIL immediately instead of falling back to the current directory.
 7. **FORWARD FULL CONTEXT.** Every `build` invocation must forward all caller input sections verbatim using their `=== SECTION NAME ===` headers before appending test-specific instructions.
+8. **LITERAL WORKTREE PATH.** Bind `WORKTREE_ROOT_EXACT` to the exact absolute string under the caller's `=== WORKTREE ROOT ===` header. Re-read it before every direct tool or `build` task call. Copy it character-for-character; never replace it with the child session cwd/root. If the path is absent or a child prompt would contain a different value, return FAIL without dispatching.
+9. **PATCH TARGETS MUST BE ABSOLUTE.** Forward `PRIMARY CHECKOUT ROOT` verbatim as a guard target. Relative `apply_patch` headers resolve against the primary checkout even when reads and shell commands use the worktree. Every `build` prompt must require absolute Add/Update/Delete File headers beginning exactly with `WORKTREE_ROOT_EXACT`, an empty primary project status outside `.pipeline/**`, and returned test files present in the worktree inventory before PASS.
 
 ### Evidence Classes
 
@@ -53,7 +55,7 @@ Do not write a test that:
 
 ### Input
 
-Caller (`impl-loop`) provides BASE CONTEXT (Task Description, Plan Introduction, Completed Dependencies, Analyzer Notes, Executor Guidance, Test File Boundary, Worktree Root) plus:
+Caller (`impl-loop`) provides BASE CONTEXT (Task Description, Plan Introduction, Completed Dependencies, Analyzer Notes, Executor Guidance, Test File Boundary, Primary Checkout Root, Worktree Root) plus:
 
 1. **Entry Type** — `test-sync` (first test pass in a cycle: adopt, repair, write) or `test-repair` (re-entry to fix a test-owned failure)
 2. **Cycle** — outer loop cycle number (0-indexed)
@@ -64,6 +66,8 @@ Caller (`impl-loop`) provides BASE CONTEXT (Task Description, Plan Introduction,
 ### Process
 
 **Step 0 — Testability.** If the task has no caller-observable runtime behavior — type/interface/enum definitions only, re-exports or `.d.ts` files, configuration, documentation, or empty scaffolding — return the `NO_TASK_AUTHORED_TESTS` outcome immediately without dispatching `build`.
+
+If the task requests production behavior plus tests, it is testable even though `impl-code` intentionally did not write tests. Continue through discovery and dispatch `build`; do not classify the code/test ownership split as ambiguity or structural mismatch.
 
 **Step 1 — Discover.** Find test files related to this task by task description keywords, feature name, changed file paths from Code Result, and module imports. Limit to task-related candidates only. Run all read-only discovery relative to `WORKTREE ROOT`.
 
@@ -120,15 +124,21 @@ When `Repair Context` identifies test-only lint, import, syntax, or type errors 
 === FIX MODE ===
 [verbatim]
 
+=== PRIMARY CHECKOUT ROOT ===
+[verbatim]
+
 === WORKTREE ROOT ===
 [verbatim]
 
 === INSTRUCTIONS ===
 [Exactly which tests to discover, classify, adopt, repair, or write.]
 Perform all discovery, edits, and test runs inside WORKTREE ROOT.
+The child session's default cwd is NOT authoritative. Use absolute paths under the exact WORKTREE ROOT for every read/glob/edit, or set command workdir explicitly to that exact root.
+For `apply_patch`, every `*** Add File`, `*** Update File`, and `*** Delete File` header must contain an absolute path beginning exactly with WORKTREE ROOT. Relative patch paths write into PRIMARY CHECKOUT ROOT and are forbidden.
 Do not modify production code.
 If REPAIR CONTEXT identifies test-only lint/import/syntax/type failures, repair those before broader behavioral test changes.
 Run each new or suspect test at least twice in isolation; inconsistent results → FLAKY.
+Before PASS, run `git -C PRIMARY_CHECKOUT_ROOT status --porcelain --untracked-files=all -- . ':(exclude).pipeline/**'` and require empty output. Confirm every returned test file appears in the WORKTREE ROOT diff or untracked inventory. If your own relative patch leaked a test into PRIMARY CHECKOUT ROOT, remove only that exact leaked path and reapply it with an absolute worktree patch header before validation.
 Return the test file inventory, evidence classification table, and a one-line summary.
 
 Return:
