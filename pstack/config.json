@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "max_workers": 3,
+  "arena_candidates": 3,
+  "reviewers": 3,
+  "roles": {
+    "judgment": {
+      "model": "deepseek/deepseek-flash",
+      "reasoning_effort": "max"
+    },
+    "hardest": {
+      "model": "deepseek/deepseek-flash",
+      "reasoning_effort": "max"
+    },
+    "arena-judge": [
+      {
+        "model": "deepseek/deepseek-flash",
+        "reasoning_effort": "max"
+      }
+    ],
+    "bug-fix": {
+      "model": "deepseek/deepseek-flash",
+      "reasoning_effort": "high"
+    },
+    "perf-issue": {
+      "model": "deepseek/deepseek-flash",
+      "reasoning_effort": "high"
+    },
+    "hillclimb": {
+      "model": "deepseek/deepseek-flash",
+      "reasoning_effort": "high"
+    },
+    "why-synthesizer": {
+      "model": "deepseek/deepseek-flash",
+      "reasoning_effort": "high"
+    },
+    "reflect-judgment": {
+      "model": "deepseek/deepseek-flash",
+      "reasoning_effort": "high"
+    },
+    "architect-runner": [
+      {
+        "model": "deepseek/deepseek-flash",
+        "reasoning_effort": "high"
+      },
+      {
+        "model": "deepseek/deepseek-flash",
+        "reasoning_effort": "max"
+      },
+      {
+        "model": "deepseek/deepseek-flash",
+        "reasoning_effort": "max"
+      }
+    ],
+    "interrogate-reviewer": [
+      {
+        "model": "deepseek/deepseek-flash",
+        "reasoning_effort": "high"
+      },
+      {
+        "model": "deepseek/deepseek-flash",
+        "reasoning_effort": "max"
+      },
+      {
+        "model": "deepseek/deepseek-flash",
+        "reasoning_effort": "max"
+      }
+    ],
+    "arena-runner": [
+      {
+        "model": "deepseek/deepseek-flash",
+        "reasoning_effort": "high"
+      },
+      {
+        "model": "deepseek/deepseek-flash",
+        "reasoning_effort": "max"
+      },
+      {
+        "model": "deepseek/deepseek-flash",
+        "reasoning_effort": "max"
+      }
+    ],
+    "how-explorer": {
+      "model": "deepseek/deepseek-flash",
+      "reasoning_effort": "low"
+    },
+    "swarm-worker": {
+      "model": "deepseek/deepseek-flash",
+      "reasoning_effort": "low"
+    }
+  }
+}
