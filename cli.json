@@ -1,0 +1,14 @@
+{
+  "theme": {
+    "name": "catppuccin-frappe"
+  },
+  "diffs": {
+    "wrap": "word"
+  },
+  "session": {
+    "sidebar": "auto",
+    "scrollbar": false,
+    "thinking": "show"
+  },
+  "animations": true
+}

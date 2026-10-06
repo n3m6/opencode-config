@@ -3,21 +3,18 @@
   "autoupdate": false,
   "default_agent": "ask",
   "subagent_depth": 4,
+  "model": "deepseek/deepseek-flash",
   "server": {
     "port": 4096,
     "hostname": "0.0.0.0"
   },
-    "provider": {
-    "ollama": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Fusion Proxy (local)",
-      "options": {
-        "baseURL": "http://localhost:3000/v1"
-      },
-      "models": {
-        "fusion": {
-          "name": "fusion:local"
-        }
+  "providers": {
+    // Xiaomi MiMo Token Plan (Singapore). Replace the placeholder with the
+    // token-plan API key (individual: tp-..., team: ttp-...) from
+    // https://platform.xiaomimimo.com/#/console/plan-manage
+    "xiaomi-token-plan-sgp": {
+      "settings": {
+        "apiKey": "***REMOVED***"
       }
     }
   },
