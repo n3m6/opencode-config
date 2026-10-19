@@ -8,7 +8,13 @@
   "session": {
     "sidebar": "auto",
     "scrollbar": false,
-    "thinking": "show"
+    "thinking": "hide",
+    "grouping": "auto",
+    "tps": true
+  },
+  "attention": {
+    "notifications": true,
+    "sound": true
   },
   "animations": true
 }
