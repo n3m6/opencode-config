@@ -9,13 +9,12 @@
     "hostname": "0.0.0.0"
   },
   "providers": {
-    // Xiaomi MiMo Token Plan (Singapore). Replace the placeholder with the
-    // token-plan API key (individual: tp-..., team: ttp-...) from
+    // Xiaomi MiMo Token Plan (Singapore). The credential is read from the
+    // XIAOMI_TOKEN_PLAN_API_KEY environment variable. Create a token at
     // https://platform.xiaomimimo.com/#/console/plan-manage
     "xiaomi-token-plan-sgp": {
-      "settings": {
-        "apiKey": "***REMOVED***"
-      }
+      "env": ["XIAOMI_TOKEN_PLAN_API_KEY"],
+      "settings": {}
     }
   },
   "experimental":{
