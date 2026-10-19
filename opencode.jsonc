@@ -2,7 +2,6 @@
   "$schema": "https://opencode.ai/config.json",
   "autoupdate": false,
   "default_agent": "ask",
-  "subagent_depth": 4,
   "model": "deepseek/deepseek-flash",
   "server": {
     "port": 4096,
@@ -17,8 +16,9 @@
       "settings": {}
     }
   },
-  "experimental":{
-    "openTelemetry": false
+  "experimental": {
+    "openTelemetry": false,
+    "subagent_depth": 5
   },
   "share": "disabled",
   "disabled_providers": ["opencode"],
